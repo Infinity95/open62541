@@ -182,19 +182,25 @@ include_directories(${PROJECT_BINARY_DIR}/src_generated
                     ${PROJECT_SOURCE_DIR}/include
                     ${PROJECT_SOURCE_DIR}/deps)
 
-set(exported_headers ${PROJECT_BINARY_DIR}/src_generated/ua_config.h
+set(exported_headers # Dependencies
                      ${PROJECT_SOURCE_DIR}/deps/ms_stdint.h
-                     ${PROJECT_SOURCE_DIR}/include/ua_constants.h
-                     ${PROJECT_SOURCE_DIR}/include/ua_types.h
+                     # Generated
+                     ${PROJECT_BINARY_DIR}/src_generated/ua_config.h
                      ${PROJECT_BINARY_DIR}/src_generated/ua_nodeids.h
                      ${PROJECT_BINARY_DIR}/src_generated/ua_types_generated.h
                      ${PROJECT_BINARY_DIR}/src_generated/ua_types_generated_handling.h
+                     # Include
+                     ${PROJECT_SOURCE_DIR}/include/ua_constants.h
+                     ${PROJECT_SOURCE_DIR}/include/ua_types.h
                      ${PROJECT_SOURCE_DIR}/include/ua_connection.h
                      ${PROJECT_SOURCE_DIR}/include/ua_job.h
                      ${PROJECT_SOURCE_DIR}/include/ua_log.h
                      ${PROJECT_SOURCE_DIR}/include/ua_server.h
                      ${PROJECT_SOURCE_DIR}/include/ua_client.h
                      ${PROJECT_SOURCE_DIR}/include/ua_client_highlevel.h
+                     ${PROJECT_SOURCE_DIR}/include/ua_securitypolicy.h
+                     ${PROJECT_SOURCE_DIR}/include/ua_securitycontext.h
+                     # Plugins
                      ${PROJECT_SOURCE_DIR}/plugins/ua_network_tcp.h
                      ${PROJECT_SOURCE_DIR}/plugins/ua_accesscontrol_default.h
                      ${PROJECT_SOURCE_DIR}/plugins/ua_log_stdout.h
