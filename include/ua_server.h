@@ -28,6 +28,7 @@ extern "C" {
 #include "ua_log.h"
 #include "ua_job.h"
 #include "ua_connection.h"
+#include "ua_securitypolicy.h"
 
 /**
  * .. _server:
@@ -175,6 +176,10 @@ typedef struct {
     /* Networking */
     size_t networkLayersSize;
     UA_ServerNetworkLayer *networkLayers;
+
+    /* Security */
+    size_t numSecurityPolicies;
+    const UA_SecurityPolicy* securityPolicies;
 
     /* Access Control */
     UA_AccessControl accessControl;

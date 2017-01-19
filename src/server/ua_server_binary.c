@@ -274,6 +274,33 @@ processOPN(UA_Server *server, UA_Connection *connection,
     retval |= UA_NodeId_decodeBinary(msg, &offset, &requestType);
     retval |= UA_OpenSecureChannelRequest_decodeBinary(msg, &offset, &r);
 
+    // iterate availible security policies and choose the correct one
+    const UA_SecurityPolicy* securityPolicy = NULL;
+    for (size_t i = 0; i < server->config.numSecurityPolicies; ++i)
+    {
+        if (UA_ByteString_equal(&asymHeader.securityPolicyUri, &server->config.securityPolicies[i].policyUri))
+        {
+            UA_LOG_DEBUG(server->config.logger,
+                         UA_LOGCATEGORY_SECURECHANNEL,
+                         "Using security policy %s",
+                         server->config.securityConfig.securityPolicies[i].policyUri);
+
+            securityPolicy = &server->config.securityPolicies[i];
+        }
+    }
+
+    // TODO: Do we really want to fallback to security policy none? Or is this a case where we abort the connection and fail?
+    // If the server falls back to security policy non it doesn't necessarily mean that the client is using it as well.
+    // fallback to security policy none
+    if (securityPolicy == NULL)
+    {
+        UA_LOG_WARNING(server->config.logger, UA_LOGCATEGORY_SECURECHANNEL, "Falling back to security policy none");
+        //securityPolicy = &UA_SecurityPolicy_None;
+    }
+
+    // TODO: Verify and parse certificate (again using security policy data structure?)					======================================================
+    // TODO: Decrypt message using the appropriate algorithm (see above)								======================================================
+
     /* Error occured */
     if(retval != UA_STATUSCODE_GOOD || requestType.identifier.numeric != 446) {
         UA_AsymmetricAlgorithmSecurityHeader_deleteMembers(&asymHeader);
@@ -282,6 +309,8 @@ processOPN(UA_Server *server, UA_Connection *connection,
         connection->close(connection);
         return;
     }
+
+    // TODO: Verify signature (see above)																======================================================
 
     /* Call the service */
     UA_OpenSecureChannelResponse p;
@@ -297,6 +326,8 @@ processOPN(UA_Server *server, UA_Connection *connection,
         connection->close(connection);
         return;
     }
+
+    // TODO: Copy client asym settings (maybe, need to investigate)										======================================================
 
     /* Set the starting sequence number */
     channel->receiveSequenceNumber = seqHeader.sequenceNumber;
@@ -335,9 +366,15 @@ processOPN(UA_Server *server, UA_Connection *connection,
     respHeader.messageHeader.messageSize = (UA_UInt32)tmpPos;
     respHeader.secureChannelId = p.securityToken.channelId;
     tmpPos = 0;
+    // TODO: Add encryption and signing stuff															======================================================
+    // This depends on the security policies. Should be implemented so that modularity is guaranteed	======================================================
     UA_SecureConversationMessageHeader_encodeBinary(&respHeader, &resp_msg, &tmpPos);
     resp_msg.length = respHeader.messageHeader.messageSize;
     connection->send(connection, &resp_msg);
+
+    // TODO: Move this to "security policy none" and only make a general call.							======================================================
+    // The encryption and signing should be one call to a function that changes depending on the
+    // security policy used.
 
     /* Clean up */
     UA_OpenSecureChannelResponse_deleteMembers(&p);
