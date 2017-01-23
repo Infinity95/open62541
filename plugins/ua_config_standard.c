@@ -76,6 +76,9 @@ const UA_EXPORT UA_ServerConfig UA_ServerConfig_standard = {
     0, /* .networkLayersSize */
     NULL, /* .networkLayers */
 
+    0,
+    NULL,
+
     /* Access Control */
     {ENABLEANONYMOUSLOGIN, ENABLEUSERNAMEPASSWORDLOGIN,
      activateSession_default, closeSession_default,

@@ -28,7 +28,10 @@ typedef struct
     void* data;
 } UA_Policy_SecurityContext;
 
-typedef struct
+struct _UA_Channel_SecurityContext;
+typedef struct _UA_Channel_SecurityContext UA_Channel_SecurityContext;
+
+struct _UA_Channel_SecurityContext
 {
     /**
      * This method initializes the context data object. Needs to be called before using
@@ -66,7 +69,7 @@ typedef struct
     UA_StatusCode (*const setClientKey)(UA_Channel_SecurityContext* const securityContext,
                                         const UA_ByteString* const clientKey);
     void* data;
-} UA_Channel_SecurityContext;
+};
 
 #ifdef __cplusplus
 }

@@ -23,6 +23,9 @@
 extern "C" {
 #endif
 
+struct _UA_SecurityPolicy;
+typedef struct _UA_SecurityPolicy UA_SecurityPolicy;
+
 typedef struct
 {
     /**
@@ -129,7 +132,7 @@ typedef struct
     void* arg;
 } UA_SecurityPolicyArgs;
 
-typedef struct _UA_SecurityPolicy
+struct _UA_SecurityPolicy
 {
     /* The policy uri that identifies the implemented algorithms */
     UA_ByteString policyUri;
@@ -167,7 +170,7 @@ typedef struct _UA_SecurityPolicy
      * This method takes a variable number of arguments. Check the implementing security policy for supported arguments.
      */
     UA_SecurityPolicy (*const init)(UA_SecurityPolicy* const securityPolicy, size_t argc, UA_SecurityPolicyArgs args[]);
-} UA_SecurityPolicy;
+};
 
 #ifdef __cplusplus
 }
