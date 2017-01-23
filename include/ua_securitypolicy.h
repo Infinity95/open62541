@@ -169,7 +169,7 @@ struct _UA_SecurityPolicy
      * Initializes the security policy.
      * This method takes a variable number of arguments. Check the implementing security policy for supported arguments.
      */
-    UA_SecurityPolicy (*const init)(UA_SecurityPolicy* const securityPolicy, size_t argc, UA_SecurityPolicyArgs args[]);
+    UA_StatusCode (*const init)(UA_SecurityPolicy* const securityPolicy, size_t argc, UA_SecurityPolicyArgs args[]);
 };
 
 #ifdef __cplusplus

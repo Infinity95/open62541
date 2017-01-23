@@ -23,13 +23,13 @@ extern "C" {
 #include "ua_types.h"
 #include "ua_log.h"
 
+struct _UA_Channel_SecurityContext;
+typedef struct _UA_Channel_SecurityContext UA_Channel_SecurityContext;
+
 typedef struct
 {
     void* data;
 } UA_Policy_SecurityContext;
-
-struct _UA_Channel_SecurityContext;
-typedef struct _UA_Channel_SecurityContext UA_Channel_SecurityContext;
 
 struct _UA_Channel_SecurityContext
 {
