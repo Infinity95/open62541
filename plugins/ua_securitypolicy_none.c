@@ -6,20 +6,68 @@
 #define UA_STRING_STATIC(s) {sizeof(s)-1, (UA_Byte*)s}
 #define UA_STRING_STATIC_NULL {0, NULL}
 
-////////////////////////////////
-// Symmetric module functions //
-////////////////////////////////
+/////////////////////////////////
+// Asymmetric module functions //
+/////////////////////////////////
+
+UA_StatusCode asym_verify_sp_none(const UA_ByteString* const message,
+                                  const void* const context)
+{
+    return 0;
+}
+
+UA_StatusCode asym_sign_sp_none(const UA_ByteString* const message,
+                                const void* const context,
+                                UA_ByteString* const signature)
+{
+    return 0;
+}
 
 UA_StatusCode asym_encrypt_sp_none(const UA_ByteString* const plainText,
-                                   const UA_Channel_SecurityContext* const securityContext,
+                                   const UA_Policy_SecurityContext* const securityContext,
                                    UA_ByteString* const cipher)
 {
     return 0;
 }
 
 UA_StatusCode asym_decrypt_sp_none(const UA_ByteString* const cipher,
-                                   const UA_Channel_SecurityContext* const securityContext,
+                                   const UA_Policy_SecurityContext* const securityContext,
                                    UA_ByteString* const decrypted)
+{
+    return 0;
+}
+
+/////////////////////////////////////
+// End asymmetric module functions //
+/////////////////////////////////////
+
+////////////////////////////////
+// Symmetric module functions //
+////////////////////////////////
+
+UA_StatusCode sym_verify_sp_none(const UA_ByteString* const message,
+                                 const void* const context)
+{
+    return 0;
+}
+
+UA_StatusCode sym_sign_sp_none(const UA_ByteString* const message,
+                               const void* const context,
+                               UA_ByteString* const signature)
+{
+    return 0;
+}
+
+UA_StatusCode sym_encrypt_sp_none(const UA_ByteString* const plainText,
+                                  const UA_Channel_SecurityContext* const securityContext,
+                                  UA_ByteString* const cipher)
+{
+    return 0;
+}
+
+UA_StatusCode sym_decrypt_sp_none(const UA_ByteString* const cipher,
+                                  const UA_Channel_SecurityContext* const securityContext,
+                                  UA_ByteString* const decrypted)
 {
     return 0;
 }
@@ -67,23 +115,41 @@ UA_EXPORT const UA_SecurityPolicy UA_SecurityPolicy_None = {
     verifyCertificate_sp_none,
 
     {
-    
-    },//const UA_SecurityPolicyAsymmetricModule asymmetricModule
-    {
         asym_encrypt_sp_none,
-
+        
         asym_decrypt_sp_none,
+
+        /* Asymmetric signing module */
+        {
+            asym_verify_sp_none,
+
+            asym_sign_sp_none,
+
+            0 //size_t signatureSize; in bytes
+        }
+    },//const UA_SecurityPolicyAsymmetricModule asymmetricModule
+
+    /* Symmetric module */
+    {
+        sym_encrypt_sp_none,
+
+        sym_decrypt_sp_none,
 
         generateKey_sp_none,
 
+        /* Symmetric signing module */
         {
-        
-        },//const UA_SecurityPolicySigningModule signingModule;
+            sym_verify_sp_none,
+
+            sym_sign_sp_none,
+
+            0//size_t signatureSize; in bytes
+        },
 
         0, //const size_t signingKeyLength;
         0, //const size_t encryptingKeyLength;
         0 //const size_t encryptingBlockSize;
-    },//const UA_SecurityPolicySymmetricModule symmetricModule
+    },
     
     // const UA_Policy_SecurityContext* context
     NULL,
