@@ -35,6 +35,15 @@ struct _UA_Policy_SecurityContext
 
     UA_StatusCode (*const deleteMembers)(UA_Policy_SecurityContext* const securityContext);
 
+    UA_StatusCode (*const setServerPrivateKey)(UA_Policy_SecurityContext* const securityContext,
+                                               const UA_ByteString* const privateKey);
+
+    UA_StatusCode (*const setCertificateTrustList)(UA_Policy_SecurityContext* const securityContext,
+                                                   const UA_ByteString* const trustList);
+    
+    UA_StatusCode (*const setCertificateRevocationList)(UA_Policy_SecurityContext* const securityContext,
+                                                        const UA_ByteString* const revocationList);
+
     void* data;
 };
 

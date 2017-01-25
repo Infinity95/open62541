@@ -10,7 +10,7 @@ extern "C" {
 
 #include "ua_securitypolicy.h"
 
-extern UA_EXPORT const UA_SecurityPolicy UA_SecurityPolicy_None;
+extern UA_EXPORT UA_SecurityPolicy UA_SecurityPolicy_None;
 
 #ifdef __cplusplus
 }

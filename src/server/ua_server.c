@@ -516,6 +516,14 @@ UA_Server * UA_Server_new(const UA_ServerConfig config) {
     if(!server)
         return NULL;
 
+    if (config.numSecurityPolicies <= 0)
+    {
+        UA_LOG_FATAL(config.logger,
+                     UA_LOGCATEGORY_SERVER,
+                     "There has to be at least one supported security policy. Otherwise no communication is possible.");
+        return NULL;
+    }
+
     server->config = config;
     server->nodestore = UA_NodeStore_new();
     LIST_INIT(&server->repeatedJobs);

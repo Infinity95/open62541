@@ -8,6 +8,7 @@
 #include "ua_server.h"
 #include "ua_config_standard.h"
 #include "ua_network_tcp.h"
+#include "ua_securitypolicy_none.h"
 #else
 #include "open62541.h"
 #endif
@@ -26,6 +27,19 @@ int main(void) {
     nl = UA_ServerNetworkLayerTCP(UA_ConnectionConfig_standard, 16664);
     config.networkLayers = &nl;
     config.networkLayersSize = 1;
+
+    // Set the wanted security policies
+    UA_SecurityPolicy securityPolicies[] = {UA_SecurityPolicy_None};
+
+    config.securityPolicies = securityPolicies;
+    config.numSecurityPolicies = sizeof(securityPolicies) / sizeof(securityPolicies[0]);
+
+    // initialize each securitypolicy
+    for (size_t i = 0; i < config.numSecurityPolicies; ++i)
+    {
+        config.securityPolicies[i].init(&config.securityPolicies[i], config.logger);
+    }
+
     UA_Server *server = UA_Server_new(config);
 
     UA_Server_run(server, &running);

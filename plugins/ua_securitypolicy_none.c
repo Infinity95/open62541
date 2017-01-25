@@ -102,8 +102,6 @@ UA_StatusCode deleteMembers_sp_none(UA_SecurityPolicy* const securityPolicy)
         goto error;
     }
 
-    
-
     return UA_STATUSCODE_GOOD;
 
 error:
@@ -111,14 +109,14 @@ error:
 }
 
 
-UA_StatusCode init_sp_none(UA_SecurityPolicy* const securityPolicy, UA_Logger logger, UA_Policy_SecurityContext* const securityContext)
+UA_StatusCode init_sp_none(UA_SecurityPolicy* const securityPolicy, UA_Logger logger)
 {
-    if (securityPolicy == NULL || securityContext == NULL)
+    if (securityPolicy == NULL)
     {
         goto error;
     }
 
-    securityPolicy->context = securityContext;
+    securityPolicy->logger = logger;
 
     return UA_STATUSCODE_GOOD;
 
@@ -221,14 +219,14 @@ UA_StatusCode channelContext_setClientKey_sp_none(UA_Channel_SecurityContext* co
 // End ChannelContext functions //
 //////////////////////////////////
 
-UA_EXPORT const UA_SecurityPolicy UA_SecurityPolicy_None = {
+UA_EXPORT UA_SecurityPolicy UA_SecurityPolicy_None = {
     /* The policy uri that identifies the implemented algorithms */
     .policyUri = UA_STRING_STATIC("https://opcfoundation.org/UA/SecurityPolicy/#None"),
 
     .verifyCertificate = verifyCertificate_sp_none,
 
     /* Asymmetric module */
-    {
+    .asymmetricModule = {
         .encrypt = asym_encrypt_sp_none,
         
         .decrypt = asym_decrypt_sp_none,
@@ -244,7 +242,7 @@ UA_EXPORT const UA_SecurityPolicy UA_SecurityPolicy_None = {
     },
 
     /* Symmetric module */
-    {
+    .symmetricModule = {
         .encrypt = sym_encrypt_sp_none,
 
         .decrypt = sym_decrypt_sp_none,
@@ -265,8 +263,9 @@ UA_EXPORT const UA_SecurityPolicy UA_SecurityPolicy_None = {
         .encryptingBlockSize = 0
     },
     
-    // const UA_Policy_SecurityContext* context
-    .context = NULL,
+    .context = {
+        NULL
+    },
 
     .deleteMembers = deleteMembers_sp_none,
     .init = init_sp_none,

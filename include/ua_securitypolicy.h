@@ -127,7 +127,7 @@ typedef struct
 struct _UA_SecurityPolicy
 {
     /* The policy uri that identifies the implemented algorithms */
-    UA_ByteString policyUri;
+    const UA_ByteString policyUri;
 
     /**
      * Verifies the certificate using the trust list and revocation list in the security configuration
@@ -145,7 +145,7 @@ struct _UA_SecurityPolicy
      * The context of this security policy. Contains the server private key, certificate and other certificate information.
      * Needs to be initialized when adding the security policy to the server config.
      */
-    const UA_Policy_SecurityContext* context;
+    UA_Policy_SecurityContext context;
 
     /**
      * Deletes the members (namely the context) of the security policy.
@@ -164,11 +164,21 @@ struct _UA_SecurityPolicy
      * @param logger
      * @param securityContext
      */
-    UA_StatusCode (*const init)(UA_SecurityPolicy* const securityPolicy, UA_Logger logger, UA_Policy_SecurityContext* const securityContext);
+    UA_StatusCode (*const init)(UA_SecurityPolicy* const securityPolicy, UA_Logger logger);
 
+    /* The channelContext prototype. This is copied by makeChannelContext */
     const UA_Channel_SecurityContext channelContextPrototype;
 
+    /**
+     * Makes a copy of the channelContext prototype of this security policy.
+     * The copy needs to be initialized before use and destroyed after use.
+     *
+     * @param securityPolicy Should only be the security policy the method is invoked on.
+     *                       example: mySecurityPolicy.makeChannelContext(&mySecurityPolicy);
+     */
     UA_Channel_SecurityContext (*const makeChannelContext)(UA_SecurityPolicy* const securityPolicy);
+
+    UA_Logger logger;
 };
 
 #ifdef __cplusplus

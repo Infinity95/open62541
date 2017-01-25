@@ -179,7 +179,7 @@ typedef struct {
 
     /* Security */
     size_t numSecurityPolicies;
-    const UA_SecurityPolicy* securityPolicies;
+    UA_SecurityPolicy* securityPolicies;
 
     /* Access Control */
     UA_AccessControl accessControl;
