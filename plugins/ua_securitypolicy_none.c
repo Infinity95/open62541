@@ -162,6 +162,8 @@ UA_StatusCode channelContext_init_sp_none(UA_Channel_SecurityContext* const secu
     UA_SP_NONE_ChannelContextData* const data = (UA_SP_NONE_ChannelContextData*)securityContext->data;
 
     data->callCounter = 0;
+
+    return UA_STATUSCODE_GOOD;
 }
 
 UA_StatusCode channelContext_deleteMembers_sp_none(UA_Channel_SecurityContext* const securityContext)
@@ -179,6 +181,8 @@ UA_StatusCode channelContext_deleteMembers_sp_none(UA_Channel_SecurityContext* c
     data->callCounter = 0;
 
     UA_free(securityContext->data);
+
+    return UA_STATUSCODE_GOOD;
 }
 
 UA_StatusCode channelContext_setServerKey_sp_none(UA_Channel_SecurityContext* const securityContext,
@@ -193,6 +197,8 @@ UA_StatusCode channelContext_setServerKey_sp_none(UA_Channel_SecurityContext* co
     UA_SP_NONE_ChannelContextData* const data = (UA_SP_NONE_ChannelContextData*)securityContext->data;
 
     data->callCounter++;
+
+    return UA_STATUSCODE_GOOD;
 }
 
 UA_StatusCode channelContext_setClientKey_sp_none(UA_Channel_SecurityContext* const securityContext,
@@ -207,6 +213,8 @@ UA_StatusCode channelContext_setClientKey_sp_none(UA_Channel_SecurityContext* co
     UA_SP_NONE_ChannelContextData* const data = (UA_SP_NONE_ChannelContextData*)securityContext->data;
 
     data->callCounter++;
+    
+    return UA_STATUSCODE_GOOD;
 }
 
 //////////////////////////////////
