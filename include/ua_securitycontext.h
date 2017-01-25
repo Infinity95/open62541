@@ -45,6 +45,8 @@ struct _UA_Policy_SecurityContext
                                                         const UA_ByteString* const revocationList);
 
     void* data;
+
+    UA_Logger logger;
 };
 
 struct _UA_Channel_SecurityContext

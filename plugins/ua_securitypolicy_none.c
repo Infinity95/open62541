@@ -132,6 +132,100 @@ UA_Channel_SecurityContext makeChannelContext_sp_none(UA_SecurityPolicy* const s
 // End security policy functions //
 ///////////////////////////////////
 
+/////////////////////////////
+// PolicyContext functions //
+/////////////////////////////
+
+// this is not really needed in security policy none because no context is required
+// it is there to serve as a small example for policies that need context per policy
+typedef struct
+{
+    int callCounter;
+} UA_SP_NONE_PolicyContextData;
+
+UA_StatusCode policyContext_init_sp_none(UA_Policy_SecurityContext* const securityContext,
+                                         UA_Logger logger)
+{
+    if (securityContext == NULL)
+    {
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+
+    securityContext->data = UA_malloc(sizeof(UA_SP_NONE_PolicyContextData));
+
+    if (securityContext->data == NULL)
+    {
+        return UA_STATUSCODE_BADOUTOFMEMORY;
+    }
+
+    // Initialize the PolicyContext data to sensible values
+    UA_SP_NONE_PolicyContextData* data = (UA_SP_NONE_PolicyContextData*)securityContext->data;
+
+    data->callCounter = 0;
+
+    securityContext->logger = logger;
+
+    UA_LOG_DEBUG(securityContext->logger, UA_LOGCATEGORY_SECURITYPOLICY, "Initialized PolicyContext for sp_none");
+
+    return UA_STATUSCODE_GOOD;
+}
+
+UA_StatusCode policyContext_deleteMembers_sp_none(UA_Policy_SecurityContext* const securityContext)
+{
+    if (securityContext == NULL)
+    {
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+
+    // delete all allocated members in the data block
+    UA_SP_NONE_PolicyContextData* data = (UA_SP_NONE_PolicyContextData*)securityContext->data;
+
+    data->callCounter = 0;
+
+    UA_free(securityContext->data);
+
+    UA_LOG_DEBUG(securityContext->logger, UA_LOGCATEGORY_SECURITYPOLICY, "Deleted members of PolicyContext for sp_none");
+
+    return UA_STATUSCODE_GOOD;
+}
+
+UA_StatusCode policyContext_setServerPrivateKey_sp_none(UA_Policy_SecurityContext* const securityContext,
+                                                        const UA_ByteString* const privateKey)
+{
+    if (securityContext == NULL || privateKey == NULL)
+    {
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+
+    return UA_STATUSCODE_GOOD;
+}
+
+UA_StatusCode policyContext_setCertificateTrustList_sp_none(UA_Policy_SecurityContext* const securityContext,
+                                                            const UA_ByteString* const trustList)
+{
+    if (securityContext == NULL || trustList == NULL)
+    {
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+
+    return UA_STATUSCODE_GOOD;
+}
+
+UA_StatusCode policyContext_setCertificateRevocationList_sp_none(UA_Policy_SecurityContext* const securityContext,
+                                                                 const UA_ByteString* const revocationList)
+{
+    if (securityContext == NULL || revocationList == NULL)
+    {
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+
+    return UA_STATUSCODE_GOOD;
+}
+
+/////////////////////////////////
+// End PolicyContext functions //
+/////////////////////////////////
+
 //////////////////////////////
 // ChannelContext functions //
 //////////////////////////////
@@ -228,15 +322,12 @@ UA_EXPORT UA_SecurityPolicy UA_SecurityPolicy_None = {
     /* Asymmetric module */
     .asymmetricModule = {
         .encrypt = asym_encrypt_sp_none,
-        
         .decrypt = asym_decrypt_sp_none,
 
         /* Asymmetric signing module */
         {
             .verify = asym_verify_sp_none,
-
             .sign = asym_sign_sp_none,
-
             .signatureSize = 0 //size_t signatureSize; in bytes
         }
     },
@@ -244,17 +335,13 @@ UA_EXPORT UA_SecurityPolicy UA_SecurityPolicy_None = {
     /* Symmetric module */
     .symmetricModule = {
         .encrypt = sym_encrypt_sp_none,
-
         .decrypt = sym_decrypt_sp_none,
-
         .generateKey = generateKey_sp_none,
 
         /* Symmetric signing module */
         .signingModule = {
             .verify = sym_verify_sp_none,
-
             .sign = sym_sign_sp_none,
-
             .signatureSize = 0 //size_t signatureSize; in bytes
         },
 
@@ -262,9 +349,15 @@ UA_EXPORT UA_SecurityPolicy UA_SecurityPolicy_None = {
         .encryptingKeyLength = 0,
         .encryptingBlockSize = 0
     },
-    
+
     .context = {
-        NULL
+        .init = policyContext_init_sp_none,
+        .deleteMembers = policyContext_deleteMembers_sp_none,
+        .setServerPrivateKey = policyContext_setServerPrivateKey_sp_none,
+        .setCertificateTrustList = policyContext_setCertificateTrustList_sp_none,
+        .setCertificateRevocationList = policyContext_setCertificateRevocationList_sp_none,
+
+        .data = NULL
     },
 
     .deleteMembers = deleteMembers_sp_none,
@@ -273,11 +366,8 @@ UA_EXPORT UA_SecurityPolicy UA_SecurityPolicy_None = {
     /* Channel context prototype */
     .channelContextPrototype = {
         .init = channelContext_init_sp_none,
-
         .deleteMembers = channelContext_deleteMembers_sp_none,
-        
         .setServerKey = channelContext_setServerKey_sp_none,
-
         .setClientKey = channelContext_setClientKey_sp_none,
 
         .data = NULL // data
