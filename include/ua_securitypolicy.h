@@ -124,14 +124,6 @@ typedef struct
     const size_t encryptingBlockSize;
 } UA_SecurityPolicySymmetricModule;
 
-typedef struct
-{
-    /* The id is used to identify the type of the argument. See the implementing security policy for supported values. */
-    char id[20];
-    /* The actual argument */
-    void* arg;
-} UA_SecurityPolicyArgs;
-
 struct _UA_SecurityPolicy
 {
     /* The policy uri that identifies the implemented algorithms */
@@ -167,9 +159,16 @@ struct _UA_SecurityPolicy
 
     /**
      * Initializes the security policy.
-     * This method takes a variable number of arguments. Check the implementing security policy for supported arguments.
+     *
+     * @param securityPolicy
+     * @param logger
+     * @param securityContext
      */
-    UA_StatusCode (*const init)(UA_SecurityPolicy* const securityPolicy, size_t argc, UA_SecurityPolicyArgs args[]);
+    UA_StatusCode (*const init)(UA_SecurityPolicy* const securityPolicy, UA_Logger logger, UA_Policy_SecurityContext* const securityContext);
+
+    const UA_Channel_SecurityContext channelContextPrototype;
+
+    UA_Channel_SecurityContext (*const makeChannelContext)(UA_SecurityPolicy* const securityPolicy);
 };
 
 #ifdef __cplusplus

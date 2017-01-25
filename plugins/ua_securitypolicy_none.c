@@ -2,6 +2,7 @@
 * See http://creativecommons.org/publicdomain/zero/1.0/ for more information. */
 
 #include "ua_securitypolicy_none.h"
+#include <stdio.h>
 
 #define UA_STRING_STATIC(s) {sizeof(s)-1, (UA_Byte*)s}
 #define UA_STRING_STATIC_NULL {0, NULL}
@@ -96,64 +97,184 @@ UA_StatusCode verifyCertificate_sp_none(const UA_ByteString* const certificate,
 
 UA_StatusCode deleteMembers_sp_none(UA_SecurityPolicy* const securityPolicy)
 {
-    return 0;
+    if (securityPolicy == NULL)
+    {
+        goto error;
+    }
+
+    
+
+    return UA_STATUSCODE_GOOD;
+
+error:
+    return UA_STATUSCODE_BADINTERNALERROR;
 }
 
 
-UA_StatusCode init_sp_none(UA_SecurityPolicy* const securityPolicy, size_t argc, UA_SecurityPolicyArgs args[])
+UA_StatusCode init_sp_none(UA_SecurityPolicy* const securityPolicy, UA_Logger logger, UA_Policy_SecurityContext* const securityContext)
 {
-    return 0;
+    if (securityPolicy == NULL || securityContext == NULL)
+    {
+        goto error;
+    }
+
+    securityPolicy->context = securityContext;
+
+    return UA_STATUSCODE_GOOD;
+
+error:
+    return UA_STATUSCODE_BADINTERNALERROR;
+}
+
+UA_Channel_SecurityContext makeChannelContext_sp_none(UA_SecurityPolicy* const securityPolicy)
+{
+    return securityPolicy->channelContextPrototype;
 }
 ///////////////////////////////////
 // End security policy functions //
 ///////////////////////////////////
 
+//////////////////////////////
+// ChannelContext functions //
+//////////////////////////////
+
+// this is not really needed in security policy none because no context is required
+// it is there to serve as a small example for policies that need context per channel
+typedef struct
+{
+    int callCounter;
+} UA_SP_NONE_ChannelContextData;
+
+UA_StatusCode channelContext_init_sp_none(UA_Channel_SecurityContext* const securityContext, UA_Logger logger)
+{
+    if (securityContext == NULL)
+    {
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+
+    securityContext->data = UA_malloc(sizeof(UA_SP_NONE_ChannelContextData));
+    if (securityContext->data == NULL)
+    {
+        return UA_STATUSCODE_BADOUTOFMEMORY;
+    }
+
+    // Initialize the channelcontext data here to sensible values
+    UA_SP_NONE_ChannelContextData* const data = (UA_SP_NONE_ChannelContextData*)securityContext->data;
+
+    data->callCounter = 0;
+}
+
+UA_StatusCode channelContext_deleteMembers_sp_none(UA_Channel_SecurityContext* const securityContext)
+{
+    if (securityContext == NULL)
+    {
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+
+    // Delete the member variables that eventually were allocated in the init method
+    UA_SP_NONE_ChannelContextData* const data = (UA_SP_NONE_ChannelContextData*)securityContext->data;
+
+    UA_LOG_DEBUG(securityContext->logger, UA_LOGCATEGORY_SECURITYPOLICY, "Call counter was %i before deletion.", data->callCounter);
+
+    data->callCounter = 0;
+
+    UA_free(securityContext->data);
+}
+
+UA_StatusCode channelContext_setServerKey_sp_none(UA_Channel_SecurityContext* const securityContext,
+                                                  const UA_ByteString* const serverKey)
+{
+    if (securityContext == NULL || serverKey == NULL)
+    {
+        fprintf(stderr, "Error while calling channelContext_setServerKey_sp_none. Null pointer passed.");
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+
+    UA_SP_NONE_ChannelContextData* const data = (UA_SP_NONE_ChannelContextData*)securityContext->data;
+
+    data->callCounter++;
+}
+
+UA_StatusCode channelContext_setClientKey_sp_none(UA_Channel_SecurityContext* const securityContext,
+                                                  const UA_ByteString* const clientKey)
+{
+    if (securityContext == NULL || clientKey == NULL)
+    {
+        fprintf(stderr, "Error while calling channelContext_setClientKey_sp_none. Null pointer passed.");
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+
+    UA_SP_NONE_ChannelContextData* const data = (UA_SP_NONE_ChannelContextData*)securityContext->data;
+
+    data->callCounter++;
+}
+
+//////////////////////////////////
+// End ChannelContext functions //
+//////////////////////////////////
+
 UA_EXPORT const UA_SecurityPolicy UA_SecurityPolicy_None = {
     /* The policy uri that identifies the implemented algorithms */
-    UA_STRING_STATIC("https://opcfoundation.org/UA/SecurityPolicy/#None"),
+    .policyUri = UA_STRING_STATIC("https://opcfoundation.org/UA/SecurityPolicy/#None"),
 
-    verifyCertificate_sp_none,
+    .verifyCertificate = verifyCertificate_sp_none,
 
+    /* Asymmetric module */
     {
-        asym_encrypt_sp_none,
+        .encrypt = asym_encrypt_sp_none,
         
-        asym_decrypt_sp_none,
+        .decrypt = asym_decrypt_sp_none,
 
         /* Asymmetric signing module */
         {
-            asym_verify_sp_none,
+            .verify = asym_verify_sp_none,
 
-            asym_sign_sp_none,
+            .sign = asym_sign_sp_none,
 
-            0 //size_t signatureSize; in bytes
+            .signatureSize = 0 //size_t signatureSize; in bytes
         }
-    },//const UA_SecurityPolicyAsymmetricModule asymmetricModule
+    },
 
     /* Symmetric module */
     {
-        sym_encrypt_sp_none,
+        .encrypt = sym_encrypt_sp_none,
 
-        sym_decrypt_sp_none,
+        .decrypt = sym_decrypt_sp_none,
 
-        generateKey_sp_none,
+        .generateKey = generateKey_sp_none,
 
         /* Symmetric signing module */
-        {
-            sym_verify_sp_none,
+        .signingModule = {
+            .verify = sym_verify_sp_none,
 
-            sym_sign_sp_none,
+            .sign = sym_sign_sp_none,
 
-            0//size_t signatureSize; in bytes
+            .signatureSize = 0 //size_t signatureSize; in bytes
         },
 
-        0, //const size_t signingKeyLength;
-        0, //const size_t encryptingKeyLength;
-        0 //const size_t encryptingBlockSize;
+        .signingKeyLength = 0,
+        .encryptingKeyLength = 0,
+        .encryptingBlockSize = 0
     },
     
     // const UA_Policy_SecurityContext* context
-    NULL,
+    .context = NULL,
 
-    deleteMembers_sp_none,
-    init_sp_none
+    .deleteMembers = deleteMembers_sp_none,
+    .init = init_sp_none,
+
+    /* Channel context prototype */
+    .channelContextPrototype = {
+        .init = channelContext_init_sp_none,
+
+        .deleteMembers = channelContext_deleteMembers_sp_none,
+        
+        .setServerKey = channelContext_setServerKey_sp_none,
+
+        .setClientKey = channelContext_setClientKey_sp_none,
+
+        .data = NULL // data
+    },
+
+    .makeChannelContext = makeChannelContext_sp_none
 };

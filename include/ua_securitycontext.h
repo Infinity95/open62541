@@ -26,10 +26,17 @@ extern "C" {
 struct _UA_Channel_SecurityContext;
 typedef struct _UA_Channel_SecurityContext UA_Channel_SecurityContext;
 
-typedef struct
+struct _UA_Policy_SecurityContext;
+typedef struct _UA_Policy_SecurityContext UA_Policy_SecurityContext;
+
+struct _UA_Policy_SecurityContext
 {
+    UA_StatusCode (*const init)(UA_Policy_SecurityContext* const securityContext, UA_Logger logger);
+
+    UA_StatusCode (*const deleteMembers)(UA_Policy_SecurityContext* const securityContext);
+
     void* data;
-} UA_Policy_SecurityContext;
+};
 
 struct _UA_Channel_SecurityContext
 {
@@ -68,6 +75,9 @@ struct _UA_Channel_SecurityContext
     */
     UA_StatusCode (*const setClientKey)(UA_Channel_SecurityContext* const securityContext,
                                         const UA_ByteString* const clientKey);
+
+    UA_Logger logger;
+
     void* data;
 };
 
