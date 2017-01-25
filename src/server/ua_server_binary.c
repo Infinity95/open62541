@@ -276,6 +276,9 @@ processOPN(UA_Server *server, UA_Connection *connection,
 
     // iterate availible security policies and choose the correct one
     const UA_SecurityPolicy* securityPolicy = NULL;
+    UA_LOG_DEBUG(server->config.logger,
+                 UA_LOGCATEGORY_SECURECHANNEL,
+                 "Trying to open connection with policy %s", asymHeader.securityPolicyUri.data); // TODO: Fix logging for byte strings
     for (size_t i = 0; i < server->config.numSecurityPolicies; ++i)
     {
         if (UA_ByteString_equal(&asymHeader.securityPolicyUri, &server->config.securityPolicies[i].policyUri))
@@ -283,7 +286,7 @@ processOPN(UA_Server *server, UA_Connection *connection,
             UA_LOG_DEBUG(server->config.logger,
                          UA_LOGCATEGORY_SECURECHANNEL,
                          "Using security policy %s",
-                         server->config.securityConfig.securityPolicies[i].policyUri);
+                         server->config.securityPolicies[i].policyUri.data);
 
             securityPolicy = &server->config.securityPolicies[i];
         }

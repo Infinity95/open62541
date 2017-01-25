@@ -99,13 +99,10 @@ UA_StatusCode deleteMembers_sp_none(UA_SecurityPolicy* const securityPolicy)
 {
     if (securityPolicy == NULL)
     {
-        goto error;
+        return UA_STATUSCODE_BADINTERNALERROR;
     }
 
-    return UA_STATUSCODE_GOOD;
-
-error:
-    return UA_STATUSCODE_BADINTERNALERROR;
+    return securityPolicy->context.deleteMembers(&securityPolicy->context);
 }
 
 
@@ -113,15 +110,12 @@ UA_StatusCode init_sp_none(UA_SecurityPolicy* const securityPolicy, UA_Logger lo
 {
     if (securityPolicy == NULL)
     {
-        goto error;
+        return UA_STATUSCODE_BADINTERNALERROR;
     }
 
     securityPolicy->logger = logger;
 
-    return UA_STATUSCODE_GOOD;
-
-error:
-    return UA_STATUSCODE_BADINTERNALERROR;
+    return securityPolicy->context.init(&securityPolicy->context, logger);
 }
 
 UA_Channel_SecurityContext makeChannelContext_sp_none(UA_SecurityPolicy* const securityPolicy)
@@ -315,7 +309,7 @@ UA_StatusCode channelContext_setClientKey_sp_none(UA_Channel_SecurityContext* co
 
 UA_EXPORT UA_SecurityPolicy UA_SecurityPolicy_None = {
     /* The policy uri that identifies the implemented algorithms */
-    .policyUri = UA_STRING_STATIC("https://opcfoundation.org/UA/SecurityPolicy/#None"),
+    .policyUri = UA_STRING_STATIC("http://opcfoundation.org/UA/SecurityPolicy#None"),
 
     .verifyCertificate = verifyCertificate_sp_none,
 

@@ -8,7 +8,7 @@
 #include "ua_types_generated_handling.h"
 
 const char *LogLevelNames[6] = {"trace", "debug", "info", "warning", "error", "fatal"};
-const char *LogCategoryNames[6] = {"network", "channel", "session", "server", "client", "userland"};
+const char *LogCategoryNames[7] = {"network", "channel", "session", "server", "client", "userland", "securityPolicy"};
 
 #if (defined(__GNUC__) && defined(__GNUC_MINOR__) && __GNUC__ >= 4 && __GNUC_MINOR__ >= 6) || defined(__clang__)
 # pragma GCC diagnostic push
