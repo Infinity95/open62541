@@ -38,6 +38,11 @@ int main(void) {
     for (size_t i = 0; i < config.numSecurityPolicies; ++i)
     {
         config.securityPolicies[i].init(&config.securityPolicies[i], config.logger);
+        UA_ByteString privateKey = {1, "A"};
+        UA_ByteString certList = {1, "B"};
+        config.securityPolicies[i].context.setServerPrivateKey(&config.securityPolicies[i].context, &privateKey);
+        config.securityPolicies[i].context.setCertificateTrustList(&config.securityPolicies[i].context, &certList);
+        config.securityPolicies[i].context.setCertificateRevocationList(&config.securityPolicies[i].context, &certList);
     }
 
     UA_Server *server = UA_Server_new(config);

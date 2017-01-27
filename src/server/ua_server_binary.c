@@ -265,20 +265,20 @@ processOPN(UA_Server *server, UA_Connection *connection,
 
     /* Decode the request */
     UA_AsymmetricAlgorithmSecurityHeader asymHeader;
-    UA_SequenceHeader seqHeader;
-    UA_NodeId requestType;
-    UA_OpenSecureChannelRequest r;
     size_t offset = 0;
     retval |= UA_AsymmetricAlgorithmSecurityHeader_decodeBinary(msg, &offset, &asymHeader);
-    retval |= UA_SequenceHeader_decodeBinary(msg, &offset, &seqHeader);
-    retval |= UA_NodeId_decodeBinary(msg, &offset, &requestType);
-    retval |= UA_OpenSecureChannelRequest_decodeBinary(msg, &offset, &r);
+
+    if (retval != UA_STATUSCODE_GOOD) {
+        UA_AsymmetricAlgorithmSecurityHeader_deleteMembers(&asymHeader);
+        connection->close(connection);
+        return;
+    }
 
     // iterate availible security policies and choose the correct one
     const UA_SecurityPolicy* securityPolicy = NULL;
     UA_LOG_DEBUG(server->config.logger,
                  UA_LOGCATEGORY_SECURECHANNEL,
-                 "Trying to open connection with policy %s", asymHeader.securityPolicyUri.data); // TODO: Fix logging for byte strings
+                 "Trying to open connection with policy %.*s", asymHeader.securityPolicyUri.length, asymHeader.securityPolicyUri.data);
     for (size_t i = 0; i < server->config.numSecurityPolicies; ++i)
     {
         if (UA_ByteString_equal(&asymHeader.securityPolicyUri, &server->config.securityPolicies[i].policyUri))
@@ -297,29 +297,73 @@ processOPN(UA_Server *server, UA_Connection *connection,
     // fallback to security policy none
     if (securityPolicy == NULL)
     {
-        UA_LOG_WARNING(server->config.logger, UA_LOGCATEGORY_SECURECHANNEL, "Falling back to security policy none");
-        //securityPolicy = &UA_SecurityPolicy_None;
-    }
-
-    // TODO: Verify and parse certificate (again using security policy data structure?)					======================================================
-    // TODO: Decrypt message using the appropriate algorithm (see above)								======================================================
-
-    /* Error occured */
-    if(retval != UA_STATUSCODE_GOOD || requestType.identifier.numeric != 446) {
+        UA_LOG_ERROR(server->config.logger, UA_LOGCATEGORY_SECURECHANNEL, "Could not find matching SecurityPolicy. Aborting connection");
         UA_AsymmetricAlgorithmSecurityHeader_deleteMembers(&asymHeader);
-        UA_NodeId_deleteMembers(&requestType);
-        UA_OpenSecureChannelRequest_deleteMembers(&r);
         connection->close(connection);
         return;
     }
 
-    // TODO: Verify signature (see above)																======================================================
+    // TODO: Verify and parse certificate (again using security policy data structure?)					======================================================
+    // TODO: Decrypt message using the appropriate algorithm (see above)								======================================================
+    retval |= securityPolicy->verifyCertificate(&asymHeader.senderCertificate, &securityPolicy->context);
+    if (retval != UA_STATUSCODE_GOOD)
+    {
+        // TODO: Implement error handling
+        UA_AsymmetricAlgorithmSecurityHeader_deleteMembers(&asymHeader);
+        connection->close(connection);
+        return;
+    }
 
+    // This will be the message to decrypt. i.e. the message without message header and without security header
+    const UA_ByteString cipher = {.data = msg->data + offset , .length = msg->length - offset };
+    
+    // Output buffer where the decrypted message is written to.
+    UA_ByteString decryptedMessage;
+    decryptedMessage.length = cipher.length;
+    UA_ByteString_allocBuffer(&decryptedMessage, decryptedMessage.length);
+
+    retval |= securityPolicy->asymmetricModule.decrypt(&cipher, &securityPolicy->context, &decryptedMessage);
+    // TODO: Write back decryptedMessage to msg? Or should we throw away msg?
+
+    if (retval != UA_STATUSCODE_GOOD)
+    {
+        UA_AsymmetricAlgorithmSecurityHeader_deleteMembers(&asymHeader);
+        connection->close(connection);
+        return;
+    }
+
+    UA_SequenceHeader seqHeader;
+    UA_NodeId requestType;
+    UA_OpenSecureChannelRequest open_sc_request;
+    retval |= UA_SequenceHeader_decodeBinary(msg, &offset, &seqHeader);
+    retval |= UA_NodeId_decodeBinary(msg, &offset, &requestType);
+    retval |= UA_OpenSecureChannelRequest_decodeBinary(msg, &offset, &open_sc_request);
+
+    /* Error occured */
+    if(retval != UA_STATUSCODE_GOOD || requestType.identifier.numeric != 446) { // FIXME: Give magic number a name <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        UA_AsymmetricAlgorithmSecurityHeader_deleteMembers(&asymHeader);
+        UA_NodeId_deleteMembers(&requestType);
+        UA_OpenSecureChannelRequest_deleteMembers(&open_sc_request);
+        connection->close(connection);
+        return;
+    }
+
+    // Verify signature                 																======================================================
+    retval |= securityPolicy->asymmetricModule.signingModule.verify(&decryptedMessage, &securityPolicy->context); // TODO: Use msg with correct offset!!!
+    if (retval != UA_STATUSCODE_GOOD)
+    {
+        UA_AsymmetricAlgorithmSecurityHeader_deleteMembers(&asymHeader);
+        UA_NodeId_deleteMembers(&requestType);
+        UA_OpenSecureChannelRequest_deleteMembers(&open_sc_request);
+        connection->close(connection);
+        return;
+    }
+    
     /* Call the service */
     UA_OpenSecureChannelResponse p;
     UA_OpenSecureChannelResponse_init(&p);
-    Service_OpenSecureChannel(server, connection, &r, &p);
-    UA_OpenSecureChannelRequest_deleteMembers(&r);
+    Service_OpenSecureChannel(server, connection, &open_sc_request, &p);
+    UA_OpenSecureChannelRequest_deleteMembers(&open_sc_request);
 
     /* Opening the channel failed */
     UA_SecureChannel *channel = connection->channel;

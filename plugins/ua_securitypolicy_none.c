@@ -1,8 +1,10 @@
 /* This work is licensed under a Creative Commons CCZero 1.0 Universal License.
 * See http://creativecommons.org/publicdomain/zero/1.0/ for more information. */
 
-#include "ua_securitypolicy_none.h"
 #include <stdio.h>
+#include "ua_securitypolicy_none.h"
+#include "ua_types.h"
+#include "ua_types_generated_handling.h"
 
 #define UA_STRING_STATIC(s) {sizeof(s)-1, (UA_Byte*)s}
 #define UA_STRING_STATIC_NULL {0, NULL}
@@ -14,28 +16,28 @@
 UA_StatusCode asym_verify_sp_none(const UA_ByteString* const message,
                                   const void* const context)
 {
-    return 0;
+    return UA_STATUSCODE_GOOD;
 }
 
 UA_StatusCode asym_sign_sp_none(const UA_ByteString* const message,
                                 const void* const context,
                                 UA_ByteString* const signature)
 {
-    return 0;
+    return UA_STATUSCODE_GOOD;
 }
 
 UA_StatusCode asym_encrypt_sp_none(const UA_ByteString* const plainText,
                                    const UA_Policy_SecurityContext* const securityContext,
                                    UA_ByteString* const cipher)
 {
-    return 0;
+    return UA_copy(plainText, cipher, &UA_TYPES[UA_TYPES_BYTESTRING]);
 }
 
 UA_StatusCode asym_decrypt_sp_none(const UA_ByteString* const cipher,
                                    const UA_Policy_SecurityContext* const securityContext,
                                    UA_ByteString* const decrypted)
 {
-    return 0;
+    return UA_copy(cipher, decrypted, &UA_TYPES[UA_TYPES_BYTESTRING]);
 }
 
 /////////////////////////////////////
@@ -92,7 +94,7 @@ UA_StatusCode generateKey_sp_none(const UA_ByteString* const secret,
 UA_StatusCode verifyCertificate_sp_none(const UA_ByteString* const certificate,
                                         const UA_Policy_SecurityContext* const context)
 {
-    return 0;
+    return UA_STATUSCODE_GOOD;
 }
 
 UA_StatusCode deleteMembers_sp_none(UA_SecurityPolicy* const securityPolicy)
