@@ -14,6 +14,7 @@
 /////////////////////////////////
 
 UA_StatusCode asym_verify_sp_none(const UA_ByteString* const message,
+                                  const UA_ByteString* const signature,
                                   const void* const context)
 {
     return UA_STATUSCODE_GOOD;
@@ -49,6 +50,7 @@ UA_StatusCode asym_decrypt_sp_none(const UA_ByteString* const cipher,
 ////////////////////////////////
 
 UA_StatusCode sym_verify_sp_none(const UA_ByteString* const message,
+                                 const UA_ByteString* const signature,
                                  const void* const context)
 {
     return 0;
@@ -120,9 +122,22 @@ UA_StatusCode init_sp_none(UA_SecurityPolicy* const securityPolicy, UA_Logger lo
     return securityPolicy->context.init(&securityPolicy->context, logger);
 }
 
-UA_Channel_SecurityContext makeChannelContext_sp_none(UA_SecurityPolicy* const securityPolicy)
+struct test
 {
-    return securityPolicy->channelContextPrototype;
+    int a;
+};
+
+UA_StatusCode makeChannelContext_sp_none(const UA_SecurityPolicy* const securityPolicy, UA_Channel_SecurityContext** const pp_SecurityContext)
+{
+    if (securityPolicy == NULL || pp_SecurityContext == NULL)
+    {
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+
+    *pp_SecurityContext = UA_malloc(sizeof(UA_Channel_SecurityContext));
+    memcpy(*pp_SecurityContext, &securityPolicy->channelContextPrototype, sizeof(UA_Channel_SecurityContext));
+    
+    return UA_STATUSCODE_GOOD;
 }
 ///////////////////////////////////
 // End security policy functions //
@@ -305,6 +320,17 @@ UA_StatusCode channelContext_setClientKey_sp_none(UA_Channel_SecurityContext* co
     return UA_STATUSCODE_GOOD;
 }
 
+UA_StatusCode channelContext_parseClientCertificate_sp_none(UA_Channel_SecurityContext* const securityContext,
+                                                            const UA_ByteString* const clientCertificate)
+{
+    if (securityContext == NULL || clientCertificate == NULL)
+    {
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+
+    return UA_STATUSCODE_GOOD;
+}
+
 //////////////////////////////////
 // End ChannelContext functions //
 //////////////////////////////////
@@ -365,6 +391,7 @@ UA_EXPORT UA_SecurityPolicy UA_SecurityPolicy_None = {
         .deleteMembers = channelContext_deleteMembers_sp_none,
         .setServerKey = channelContext_setServerKey_sp_none,
         .setClientKey = channelContext_setClientKey_sp_none,
+        .parseClientCertificate = channelContext_parseClientCertificate_sp_none,
 
         .data = NULL // data
     },

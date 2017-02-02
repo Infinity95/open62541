@@ -255,7 +255,7 @@ static void processHEL(UA_Connection *connection, const UA_ByteString *msg, size
 /* OPN -> Open up/renew the securechannel */
 static void
 processOPN(UA_Server *server, UA_Connection *connection,
-           UA_UInt32 channelId, const UA_ByteString *msg) {
+           UA_UInt32 channelId, const UA_ByteString *msg, size_t offset) {
     UA_StatusCode retval = UA_STATUSCODE_GOOD;
     /* Called before HEL */
     if(connection->state != UA_CONNECTION_ESTABLISHED)
@@ -269,7 +269,7 @@ processOPN(UA_Server *server, UA_Connection *connection,
 
     /* Decode the request */
     UA_AsymmetricAlgorithmSecurityHeader asymHeader;
-    size_t offset = 0;
+    //size_t offset = 0;
     retval |= UA_AsymmetricAlgorithmSecurityHeader_decodeBinary(msg, &offset, &asymHeader);
 
     if (retval != UA_STATUSCODE_GOOD) {
@@ -307,8 +307,6 @@ processOPN(UA_Server *server, UA_Connection *connection,
         return;
     }
 
-    // TODO: Verify and parse certificate (again using security policy data structure?)					======================================================
-    // TODO: Decrypt message using the appropriate algorithm (see above)								======================================================
     retval |= securityPolicy->verifyCertificate(&asymHeader.senderCertificate, &securityPolicy->context);
     if (retval != UA_STATUSCODE_GOOD)
     {
@@ -318,8 +316,20 @@ processOPN(UA_Server *server, UA_Connection *connection,
         return;
     }
 
+    // Create the channel context used for the secureChannel.
+    UA_Channel_SecurityContext* channelContext = NULL;
+    if (securityPolicy->makeChannelContext(securityPolicy, &channelContext) != UA_STATUSCODE_GOOD)
+    {
+        UA_AsymmetricAlgorithmSecurityHeader_deleteMembers(&asymHeader);
+        connection->close(connection);
+        return;
+    }
+    channelContext->init(channelContext, server->config.logger);
+
+    channelContext->parseClientCertificate(channelContext, &asymHeader.senderCertificate);
+
     // This will be the message to decrypt. i.e. the message without message header and without security header
-    const UA_ByteString cipher = {.data = msg->data + offset , .length = msg->length - offset };
+    const UA_ByteString cipher = {.data = msg->data + offset , .length = msg->length - offset};
     
     // Output buffer where the decrypted message is written to.
     UA_ByteString decryptedMessage;
@@ -327,14 +337,18 @@ processOPN(UA_Server *server, UA_Connection *connection,
     UA_ByteString_allocBuffer(&decryptedMessage, decryptedMessage.length);
 
     retval |= securityPolicy->asymmetricModule.decrypt(&cipher, &securityPolicy->context, &decryptedMessage);
-    // TODO: Write back decryptedMessage to msg? Or should we throw away msg?
 
     if (retval != UA_STATUSCODE_GOOD)
     {
+        channelContext->deleteMembers(channelContext);
+        UA_free(channelContext);
         UA_AsymmetricAlgorithmSecurityHeader_deleteMembers(&asymHeader);
         connection->close(connection);
         return;
     }
+
+    // Write back decryptedMessage to msg for further processing
+    memcpy(msg->data + offset, decryptedMessage.data, decryptedMessage.length);
 
     UA_SequenceHeader seqHeader;
     UA_NodeId requestType;
@@ -345,6 +359,8 @@ processOPN(UA_Server *server, UA_Connection *connection,
 
     /* Error occured */
     if(retval != UA_STATUSCODE_GOOD || requestType.identifier.numeric != 446) { // FIXME: Give magic number a name <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        channelContext->deleteMembers(channelContext);
+        UA_free(channelContext);
         UA_AsymmetricAlgorithmSecurityHeader_deleteMembers(&asymHeader);
         UA_NodeId_deleteMembers(&requestType);
         UA_OpenSecureChannelRequest_deleteMembers(&open_sc_request);
@@ -352,10 +368,15 @@ processOPN(UA_Server *server, UA_Connection *connection,
         return;
     }
 
+    UA_ByteString msgToVerify = {.data = msg->data, .length = msg->length - securityPolicy->asymmetricModule.signingModule.signatureSize};
+    UA_ByteString signature = {.data = msg->data + msgToVerify.length, .length = securityPolicy->asymmetricModule.signingModule.signatureSize};
+
     // Verify signature                 																======================================================
-    retval |= securityPolicy->asymmetricModule.signingModule.verify(&decryptedMessage, &securityPolicy->context); // TODO: Use msg with correct offset!!!
+    retval |= securityPolicy->asymmetricModule.signingModule.verify(&msgToVerify, &signature, &securityPolicy->context);
     if (retval != UA_STATUSCODE_GOOD)
     {
+        channelContext->deleteMembers(channelContext);
+        UA_free(channelContext);
         UA_AsymmetricAlgorithmSecurityHeader_deleteMembers(&asymHeader);
         UA_NodeId_deleteMembers(&requestType);
         UA_OpenSecureChannelRequest_deleteMembers(&open_sc_request);
@@ -388,6 +409,8 @@ processOPN(UA_Server *server, UA_Connection *connection,
     UA_ByteString_init(&resp_msg);
     retval = connection->getSendBuffer(connection, connection->localConf.sendBufferSize, &resp_msg);
     if(retval != UA_STATUSCODE_GOOD) {
+        channelContext->deleteMembers(channelContext);
+        UA_free(channelContext);
         UA_OpenSecureChannelResponse_deleteMembers(&p);
         UA_AsymmetricAlgorithmSecurityHeader_deleteMembers(&asymHeader);
         connection->close(connection);
@@ -404,6 +427,8 @@ processOPN(UA_Server *server, UA_Connection *connection,
     retval |= UA_OpenSecureChannelResponse_encodeBinary(&p, &resp_msg, &tmpPos);
 
     if(retval != UA_STATUSCODE_GOOD) {
+        channelContext->deleteMembers(channelContext);
+        UA_free(channelContext);
         connection->releaseSendBuffer(connection, &resp_msg);
         UA_OpenSecureChannelResponse_deleteMembers(&p);
         UA_AsymmetricAlgorithmSecurityHeader_deleteMembers(&asymHeader);
@@ -612,7 +637,7 @@ UA_Server_processSecureChannelMessage(UA_Server *server, UA_SecureChannel *chann
     case UA_MESSAGETYPE_OPN:
         UA_LOG_TRACE_CHANNEL(server->config.logger, channel,
                              "Process an OPN on an open channel");
-        processOPN(server, channel->connection, channel->securityToken.channelId, message);
+        processOPN(server, channel->connection, channel->securityToken.channelId, message, 0); // can this even happen??? TODO: Investigate if message header is still included in message?
         break;
     case UA_MESSAGETYPE_MSG:
         UA_LOG_TRACE_CHANNEL(server->config.logger, channel,
@@ -642,7 +667,7 @@ UA_Server_processBinaryMessage(UA_Server *server, UA_Connection *connection,
                  (UA_ProcessMessageCallback*)UA_Server_processSecureChannelMessage, server);
         if(retval != UA_STATUSCODE_GOOD)
             UA_LOG_TRACE_CHANNEL(server->config.logger, channel,
-                                 "Procesing chunkgs resulted in error code 0x%08x", retval);
+                                 "Procesing chunks resulted in error code 0x%08x", retval);
     } else {
         /* Process messages without a channel and no chunking */
         size_t offset = 0;
@@ -654,7 +679,7 @@ UA_Server_processBinaryMessage(UA_Server *server, UA_Connection *connection,
         }
 
         /* Dispatch according to the message type */
-        switch(tcpMessageHeader.messageTypeAndChunkType & 0x00ffffff) {
+        switch(tcpMessageHeader.messageTypeAndChunkType & 0x00ffffff) { // FIXME: Magic number
         case UA_MESSAGETYPE_HEL:
             UA_LOG_TRACE(server->config.logger, UA_LOGCATEGORY_NETWORK,
                          "Connection %i | Process HEL message", connection->sockfd);
@@ -667,10 +692,10 @@ UA_Server_processBinaryMessage(UA_Server *server, UA_Connection *connection,
             retval = UA_UInt32_decodeBinary(message, &offset, &channelId);
             if(retval != UA_STATUSCODE_GOOD)
                 connection->close(connection);
-            UA_ByteString offsetMessage;
-			offsetMessage.data = message->data + 12;
-			offsetMessage.length = message->length - 12;
-            processOPN(server, connection, channelId, &offsetMessage);
+            //UA_ByteString offsetMessage;
+			//offsetMessage.data = message->data + 12;
+			//offsetMessage.length = message->length - 12;
+            processOPN(server, connection, channelId, /*&offsetMessage*/ message, offset);
             break; }
         case UA_MESSAGETYPE_MSG:
             UA_LOG_TRACE(server->config.logger, UA_LOGCATEGORY_NETWORK,

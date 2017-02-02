@@ -35,6 +35,7 @@ typedef struct
      * @param context the context that contains the key to verify the supplied message with.
      */
     UA_StatusCode(*const verify)(const UA_ByteString* const message,
+                                 const UA_ByteString* const signature,
                                  const void* const context);
 
     /**
@@ -171,12 +172,14 @@ struct _UA_SecurityPolicy
 
     /**
      * Makes a copy of the channelContext prototype of this security policy.
-     * The copy needs to be initialized before use and destroyed after use.
+     * The copy needs to be initialized before use, its members deleted before desctruction and destroyed after use.
      *
      * @param securityPolicy Should only be the security policy the method is invoked on.
      *                       example: mySecurityPolicy.makeChannelContext(&mySecurityPolicy);
+     * @param pp_SecurityContext a pointer to a pointer to the security context. The supplied
+                                 pointer will be set to the memory where the SecurityContext is allocated
      */
-    UA_Channel_SecurityContext (*const makeChannelContext)(UA_SecurityPolicy* const securityPolicy);
+    UA_StatusCode (*const makeChannelContext)(const UA_SecurityPolicy* const securityPolicy, UA_Channel_SecurityContext** const pp_SecurityContext);
 
     UA_Logger logger;
 };

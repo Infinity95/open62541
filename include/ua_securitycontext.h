@@ -62,10 +62,10 @@ struct _UA_Channel_SecurityContext
     UA_StatusCode (*const init)(UA_Channel_SecurityContext* const securityContext, UA_Logger logger);
 
     /**
-     * Deletes the members of the security context
+     * Deletes the members of the security context.
      *
      * @param securityContext the context to delete the members of. Should always be the context this is called on.
-     *                        example: myCtx.deleteMembers(&myCtx);
+     *                        example: myCtx.free(&myCtx);
      */
     UA_StatusCode (*const deleteMembers)(UA_Channel_SecurityContext* const securityContext);
 
@@ -79,13 +79,23 @@ struct _UA_Channel_SecurityContext
                                         const UA_ByteString* const serverKey);
 
     /**
-    * Sets the client key in the supplied context.
-    *
-    * @param securityContext the context to work on. Should always be the context this is called on.
-    * @param clientKey the client key to store in the context.
-    */
+     * Sets the client key in the supplied context.
+     *
+     * @param securityContext the context to work on. Should always be the context this is called on.
+     * @param clientKey the client key to store in the context.
+     */
     UA_StatusCode (*const setClientKey)(UA_Channel_SecurityContext* const securityContext,
                                         const UA_ByteString* const clientKey);
+
+    /**
+     * Parses a given certificate to extract the client public key from it.
+     * Fails, if the certificate is invalid or expired.
+     *
+     * @param securityContext the context to work on. Should always be the context this is called on.
+     * @param clientPublicKey the client certificate to extract the client public key from.
+     */
+    UA_StatusCode(*const parseClientCertificate)(UA_Channel_SecurityContext* const securityContext,
+                                                 const UA_ByteString* const clientCertificate);
 
     UA_Logger logger;
 
