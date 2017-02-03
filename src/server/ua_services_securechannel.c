@@ -8,11 +8,18 @@
 
 void Service_OpenSecureChannel(UA_Server *server, UA_Connection *connection,
                                const UA_OpenSecureChannelRequest *request,
-                               UA_OpenSecureChannelResponse *response) {
+                               UA_OpenSecureChannelResponse *response,
+                               UA_Channel_SecurityContext* channelSecurityContext,
+                               const UA_SecurityPolicy* securityPolicy) {
     // todo: if(request->clientProtocolVersion != protocolVersion)
     if(request->requestType == UA_SECURITYTOKENREQUESTTYPE_ISSUE) {
         response->responseHeader.serviceResult =
-            UA_SecureChannelManager_open(&server->secureChannelManager, connection, request, response);
+            UA_SecureChannelManager_open(&server->secureChannelManager,
+                                         connection,
+                                         request,
+                                         response,
+                                         channelSecurityContext,
+                                         securityPolicy);
 
         if(response->responseHeader.serviceResult == UA_STATUSCODE_GOOD) {
             UA_LOG_INFO(server->config.logger, UA_LOGCATEGORY_SECURECHANNEL,
@@ -25,7 +32,10 @@ void Service_OpenSecureChannel(UA_Server *server, UA_Connection *connection,
         }
     } else {
         response->responseHeader.serviceResult =
-            UA_SecureChannelManager_renew(&server->secureChannelManager, connection, request, response);
+            UA_SecureChannelManager_renew(&server->secureChannelManager,
+                                          connection,
+                                          request,
+                                          response);
 
         if(response->responseHeader.serviceResult == UA_STATUSCODE_GOOD) {
             UA_LOG_DEBUG(server->config.logger, UA_LOGCATEGORY_SECURECHANNEL,

@@ -69,7 +69,9 @@ void Service_RegisterServer(UA_Server *server, UA_Session *session,
  * Integrity for Message exchange during a Session. */
 void Service_OpenSecureChannel(UA_Server *server, UA_Connection *connection,
                                const UA_OpenSecureChannelRequest *request,
-                               UA_OpenSecureChannelResponse *response);
+                               UA_OpenSecureChannelResponse *response,
+                               UA_Channel_SecurityContext* channelSecurityContext,
+                               const UA_SecurityPolicy* securityPolicy);
 
 /* Used to terminate a SecureChannel. */
 void Service_CloseSecureChannel(UA_Server *server, UA_SecureChannel *channel);

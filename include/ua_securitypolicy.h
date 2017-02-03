@@ -75,7 +75,26 @@ typedef struct
     UA_StatusCode (*const decrypt)(const UA_ByteString* const cipher,
                                    const UA_Policy_SecurityContext* const securityContext,
                                    UA_ByteString* const decrypted);
+    /**
+     * Generates a thumprint for the specified certificate using a SHA1 digest
+     *
+     * @param certificate the certificate to make a thumbprint of.
+     * @param thumbprint an output buffer for the resulting thumbprint. Always
+                         has the length specified in the thumprintLenght in the asymmetricModule.
+     */
+    UA_StatusCode (*const makeThumbprint)(const UA_ByteString* const certificate,
+                                          UA_ByteString* const thumbprint);
 
+    /**
+     * Calculates the padding size for a message with the specified amount of bytes.
+     *
+     * @param bytesToWrite
+     */
+    UA_StatusCode (*const calculatePadding)(const size_t bytesToWrite,
+                                            size_t* const paddingSize,
+                                            UA_Boolean* const extraPadding);
+
+    const size_t thumbprintLength;
     const UA_SecurityPolicySigningModule signingModule;
 } UA_SecurityPolicyAsymmetricModule;
 

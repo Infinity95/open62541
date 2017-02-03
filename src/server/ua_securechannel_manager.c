@@ -72,7 +72,9 @@ static UA_Boolean purgeFirstChannelWithoutSession(UA_SecureChannelManager *cm) {
 UA_StatusCode
 UA_SecureChannelManager_open(UA_SecureChannelManager *cm, UA_Connection *conn,
                              const UA_OpenSecureChannelRequest *request,
-                             UA_OpenSecureChannelResponse *response) {
+                             UA_OpenSecureChannelResponse *response,
+                             UA_Channel_SecurityContext* channelSecurityContext,
+                             const UA_SecurityPolicy* securityPolicy) {
     if(request->securityMode != UA_MESSAGESECURITYMODE_NONE)
         return UA_STATUSCODE_BADSECURITYMODEREJECTED;
 

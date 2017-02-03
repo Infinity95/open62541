@@ -316,7 +316,7 @@ processOPN(UA_Server *server, UA_Connection *connection,
         return;
     }
 
-    // Create the channel context used for the secureChannel.
+    // Create the channel context and parse the sender certificate used for the secureChannel.
     UA_Channel_SecurityContext* channelContext = NULL;
     if (securityPolicy->makeChannelContext(securityPolicy, &channelContext) != UA_STATUSCODE_GOOD)
     {
@@ -324,19 +324,9 @@ processOPN(UA_Server *server, UA_Connection *connection,
         connection->close(connection);
         return;
     }
-    channelContext->init(channelContext, server->config.logger);
+    retval |= channelContext->init(channelContext, server->config.logger);
 
-    channelContext->parseClientCertificate(channelContext, &asymHeader.senderCertificate);
-
-    // This will be the message to decrypt. i.e. the message without message header and without security header
-    const UA_ByteString cipher = {.data = msg->data + offset , .length = msg->length - offset};
-    
-    // Output buffer where the decrypted message is written to.
-    UA_ByteString decryptedMessage;
-    decryptedMessage.length = cipher.length;
-    UA_ByteString_allocBuffer(&decryptedMessage, decryptedMessage.length);
-
-    retval |= securityPolicy->asymmetricModule.decrypt(&cipher, &securityPolicy->context, &decryptedMessage);
+    retval |= channelContext->parseClientCertificate(channelContext, &asymHeader.senderCertificate);
 
     if (retval != UA_STATUSCODE_GOOD)
     {
@@ -347,8 +337,32 @@ processOPN(UA_Server *server, UA_Connection *connection,
         return;
     }
 
-    // Write back decryptedMessage to msg for further processing
-    memcpy(msg->data + offset, decryptedMessage.data, decryptedMessage.length);
+    // Decrypt message
+    {
+        // This will be the message to decrypt. i.e. the message without message header and without security header
+        const UA_ByteString cipher = { .data = msg->data + offset ,.length = msg->length - offset };
+
+        // Output buffer where the decrypted message is written to.
+        UA_ByteString decryptedMessage;
+        decryptedMessage.length = cipher.length;
+        UA_ByteString_allocBuffer(&decryptedMessage, decryptedMessage.length);
+
+        retval |= securityPolicy->asymmetricModule.decrypt(&cipher, &securityPolicy->context, &decryptedMessage);
+
+        if (retval != UA_STATUSCODE_GOOD)
+        {
+            channelContext->deleteMembers(channelContext);
+            UA_free(channelContext);
+            UA_AsymmetricAlgorithmSecurityHeader_deleteMembers(&asymHeader);
+            connection->close(connection);
+            return;
+        }
+
+        // Write back decryptedMessage to msg for further processing
+        memcpy(msg->data + offset, decryptedMessage.data, decryptedMessage.length);
+
+        UA_ByteString_deleteMembers(&decryptedMessage);
+    }
 
     UA_SequenceHeader seqHeader;
     UA_NodeId requestType;
@@ -368,32 +382,39 @@ processOPN(UA_Server *server, UA_Connection *connection,
         return;
     }
 
-    UA_ByteString msgToVerify = {.data = msg->data, .length = msg->length - securityPolicy->asymmetricModule.signingModule.signatureSize};
-    UA_ByteString signature = {.data = msg->data + msgToVerify.length, .length = securityPolicy->asymmetricModule.signingModule.signatureSize};
-
-    // Verify signature                 																======================================================
-    retval |= securityPolicy->asymmetricModule.signingModule.verify(&msgToVerify, &signature, &securityPolicy->context);
-    if (retval != UA_STATUSCODE_GOOD)
+    // Verify signature
     {
-        channelContext->deleteMembers(channelContext);
-        UA_free(channelContext);
-        UA_AsymmetricAlgorithmSecurityHeader_deleteMembers(&asymHeader);
-        UA_NodeId_deleteMembers(&requestType);
-        UA_OpenSecureChannelRequest_deleteMembers(&open_sc_request);
-        connection->close(connection);
-        return;
+        const UA_ByteString msgToVerify = { .data = msg->data,.length = msg->length - securityPolicy->asymmetricModule.signingModule.signatureSize };
+        const UA_ByteString signature = { .data = msg->data + msgToVerify.length,.length = securityPolicy->asymmetricModule.signingModule.signatureSize };
+
+        retval |= securityPolicy->asymmetricModule.signingModule.verify(&msgToVerify, &signature, channelContext);
+        if (retval != UA_STATUSCODE_GOOD)
+        {
+            channelContext->deleteMembers(channelContext);
+            UA_free(channelContext);
+            UA_AsymmetricAlgorithmSecurityHeader_deleteMembers(&asymHeader);
+            UA_NodeId_deleteMembers(&requestType);
+            UA_OpenSecureChannelRequest_deleteMembers(&open_sc_request);
+            connection->close(connection);
+            return;
+        }
     }
     
     /* Call the service */
-    UA_OpenSecureChannelResponse p;
-    UA_OpenSecureChannelResponse_init(&p);
-    Service_OpenSecureChannel(server, connection, &open_sc_request, &p);
+    UA_OpenSecureChannelResponse open_sc_response;
+    UA_OpenSecureChannelResponse_init(&open_sc_response);
+    Service_OpenSecureChannel(server,
+                              connection,
+                              &open_sc_request,
+                              &open_sc_response,
+                              channelContext,
+                              securityPolicy);
     UA_OpenSecureChannelRequest_deleteMembers(&open_sc_request);
 
     /* Opening the channel failed */
     UA_SecureChannel *channel = connection->channel;
     if(!channel) {
-        UA_OpenSecureChannelResponse_deleteMembers(&p);
+        UA_OpenSecureChannelResponse_deleteMembers(&open_sc_response);
         UA_AsymmetricAlgorithmSecurityHeader_deleteMembers(&asymHeader);
         connection->close(connection);
         return;
@@ -411,26 +432,59 @@ processOPN(UA_Server *server, UA_Connection *connection,
     if(retval != UA_STATUSCODE_GOOD) {
         channelContext->deleteMembers(channelContext);
         UA_free(channelContext);
-        UA_OpenSecureChannelResponse_deleteMembers(&p);
+        UA_OpenSecureChannelResponse_deleteMembers(&open_sc_response);
         UA_AsymmetricAlgorithmSecurityHeader_deleteMembers(&asymHeader);
         connection->close(connection);
         return;
     }
 
     /* Encode the message after the secureconversationmessageheader */
-    size_t tmpPos = 12; /* skip the header */
+    size_t tmpPos = 12; /* skip the header */                                           // FIXME: Remove magic number. :(
     seqHeader.sequenceNumber = UA_atomic_add(&channel->sendSequenceNumber, 1);
-    retval |= UA_AsymmetricAlgorithmSecurityHeader_encodeBinary(&asymHeader, &resp_msg, &tmpPos); // just mirror back
+    
+    if (memcmp(asymHeader.securityPolicyUri.data,
+               "http://opcfoundation.org/UA/SecurityPolicy#None",
+               min(asymHeader.securityPolicyUri.length, 47))
+        == 0)
+    {
+        retval |= UA_AsymmetricAlgorithmSecurityHeader_encodeBinary(&asymHeader, &resp_msg, &tmpPos); // just mirror back
+    }
+    else
+    {
+        UA_AsymmetricAlgorithmSecurityHeader serverAsymHeader;
+        UA_AsymmetricAlgorithmSecurityHeader_init(&serverAsymHeader);
+
+        serverAsymHeader.senderCertificate = server->config.serverCertificate;
+        serverAsymHeader.securityPolicyUri = asymHeader.securityPolicyUri;
+        retval |= UA_ByteString_allocBuffer(&serverAsymHeader.receiverCertificateThumbprint, securityPolicy->asymmetricModule.thumbprintLength);
+        if (retval != UA_STATUSCODE_GOOD)
+        {
+            // TODO: Error handling
+        }
+        
+        retval |= securityPolicy->asymmetricModule.makeThumbprint(&asymHeader.senderCertificate, &serverAsymHeader.receiverCertificateThumbprint);
+
+        if (retval != UA_STATUSCODE_GOOD)
+        {
+            // TODO: Error handling
+        }
+
+        retval |= UA_AsymmetricAlgorithmSecurityHeader_encodeBinary(&serverAsymHeader, &resp_msg, &tmpPos);
+    }
+
+    // save the current offset which is pointing right after the security header. We need to encrypt everything after
+    size_t encryptionOffset = tmpPos;
+
     retval |= UA_SequenceHeader_encodeBinary(&seqHeader, &resp_msg, &tmpPos);
     UA_NodeId responseType = UA_NODEID_NUMERIC(0, UA_TYPES[UA_TYPES_OPENSECURECHANNELRESPONSE].binaryEncodingId);
     retval |= UA_NodeId_encodeBinary(&responseType, &resp_msg, &tmpPos);
-    retval |= UA_OpenSecureChannelResponse_encodeBinary(&p, &resp_msg, &tmpPos);
+    retval |= UA_OpenSecureChannelResponse_encodeBinary(&open_sc_response, &resp_msg, &tmpPos);
 
     if(retval != UA_STATUSCODE_GOOD) {
         channelContext->deleteMembers(channelContext);
         UA_free(channelContext);
         connection->releaseSendBuffer(connection, &resp_msg);
-        UA_OpenSecureChannelResponse_deleteMembers(&p);
+        UA_OpenSecureChannelResponse_deleteMembers(&open_sc_response);
         UA_AsymmetricAlgorithmSecurityHeader_deleteMembers(&asymHeader);
         connection->close(connection);
         return;
@@ -439,21 +493,78 @@ processOPN(UA_Server *server, UA_Connection *connection,
     /* Encode the secureconversationmessageheader (cannot fail) and send */
     UA_SecureConversationMessageHeader respHeader;
     respHeader.messageHeader.messageTypeAndChunkType = UA_MESSAGETYPE_OPN + UA_CHUNKTYPE_FINAL;
-    respHeader.messageHeader.messageSize = (UA_UInt32)tmpPos;
-    respHeader.secureChannelId = p.securityToken.channelId;
+    respHeader.secureChannelId = open_sc_response.securityToken.channelId;
+
+    // TODO: Calculate padding and message size
+
+    size_t paddingSize;
+    UA_Boolean extraPadding;
+    size_t bytesToWrite = 0; // TODO: Give this a meaningful value
+    securityPolicy->asymmetricModule.calculatePadding(bytesToWrite, &paddingSize, &extraPadding);
+
+    // 1 Byte if padding exists and 1 more byte if padding needs an extra byte
+    size_t paddingBytesSize = (paddingSize == 0 ? 0 : 1) + (extraPadding ? 1 : 0);
+
+    respHeader.messageHeader.messageSize = (UA_UInt32)(tmpPos + paddingSize + paddingBytesSize);
     tmpPos = 0;
-    // TODO: Add encryption and signing stuff															======================================================
-    // This depends on the security policies. Should be implemented so that modularity is guaranteed	======================================================
+
     UA_SecureConversationMessageHeader_encodeBinary(&respHeader, &resp_msg, &tmpPos);
     resp_msg.length = respHeader.messageHeader.messageSize;
+    
+    // TODO::::::
+    // Pad the message
+
+    // Sign the message
+    {
+        const UA_ByteString messageToSign = {
+            .data = resp_msg.data,
+            .length = respHeader.messageHeader.messageSize - securityPolicy->asymmetricModule.signingModule.signatureSize
+        };
+        UA_ByteString signature = { // write signature directly to the correct place in the resp_msg
+            .data = messageToSign.data + messageToSign.length,
+            .length = securityPolicy->asymmetricModule.signingModule.signatureSize
+        };
+
+        retval |= securityPolicy->asymmetricModule.signingModule.sign(&messageToSign, &securityPolicy->context, &signature);
+
+        if (retval != UA_STATUSCODE_GOOD)
+        {
+            // TODO: Error handling
+        }
+    }
+
+    // Encrypt the message
+    {
+        const UA_ByteString messageToEncrypt = {
+            .data = resp_msg.data + encryptionOffset,
+            .length = resp_msg.length - encryptionOffset
+        };
+
+        UA_ByteString encryptedMessage;
+        retval |= UA_ByteString_allocBuffer(&encryptedMessage, messageToEncrypt.length);
+
+        if (retval != UA_STATUSCODE_GOOD)
+        {
+            // TODO: Error handling
+        }
+
+        retval |= securityPolicy->asymmetricModule.encrypt(&messageToEncrypt, &securityPolicy->context, &encryptedMessage);
+
+        if (retval != UA_STATUSCODE_GOOD)
+        {
+            // TODO: Error handling
+        }
+
+        // copy encrypted message back to original message buffer
+        memcpy(messageToEncrypt.data, encryptedMessage.data, encryptedMessage.length);
+
+        UA_ByteString_deleteMembers(&encryptedMessage);
+    }
+
     connection->send(connection, &resp_msg);
 
-    // TODO: Move this to "security policy none" and only make a general call.							======================================================
-    // The encryption and signing should be one call to a function that changes depending on the
-    // security policy used.
-
     /* Clean up */
-    UA_OpenSecureChannelResponse_deleteMembers(&p);
+    UA_OpenSecureChannelResponse_deleteMembers(&open_sc_response);
     UA_AsymmetricAlgorithmSecurityHeader_deleteMembers(&asymHeader);
 }
 

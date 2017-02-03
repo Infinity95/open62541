@@ -41,6 +41,25 @@ UA_StatusCode asym_decrypt_sp_none(const UA_ByteString* const cipher,
     return UA_copy(cipher, decrypted, &UA_TYPES[UA_TYPES_BYTESTRING]);
 }
 
+UA_StatusCode asym_makeThumbprint_sp_none(const UA_ByteString* const certificate,
+                                          UA_ByteString* const thumbprint)
+{
+    if (certificate == NULL || thumbprint == NULL)
+    {
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+    return UA_STATUSCODE_GOOD;
+}
+
+UA_StatusCode asym_calculatePadding_sp_none(const size_t bytesToWrite,
+                                            size_t* const paddingSize,
+                                            UA_Boolean* const extraPadding)
+{
+    *paddingSize = 0;
+    *extraPadding = UA_FALSE;
+    return UA_STATUSCODE_GOOD;
+}
+
 /////////////////////////////////////
 // End asymmetric module functions //
 /////////////////////////////////////
@@ -345,6 +364,10 @@ UA_EXPORT UA_SecurityPolicy UA_SecurityPolicy_None = {
     .asymmetricModule = {
         .encrypt = asym_encrypt_sp_none,
         .decrypt = asym_decrypt_sp_none,
+        .makeThumbprint = asym_makeThumbprint_sp_none,
+        .calculatePadding = asym_calculatePadding_sp_none,
+
+        .thumbprintLength = 20,
 
         /* Asymmetric signing module */
         {

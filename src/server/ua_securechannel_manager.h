@@ -37,7 +37,9 @@ void UA_SecureChannelManager_cleanupTimedOut(UA_SecureChannelManager *cm, UA_Dat
 UA_StatusCode
 UA_SecureChannelManager_open(UA_SecureChannelManager *cm, UA_Connection *conn,
                              const UA_OpenSecureChannelRequest *request,
-                             UA_OpenSecureChannelResponse *response);
+                             UA_OpenSecureChannelResponse *response,
+                             UA_Channel_SecurityContext* channelSecurityContext,
+                             const UA_SecurityPolicy* securityPolicy);
 
 UA_StatusCode
 UA_SecureChannelManager_renew(UA_SecureChannelManager *cm, UA_Connection *conn,
