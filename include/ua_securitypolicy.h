@@ -91,7 +91,7 @@ typedef struct
      * @param bytesToWrite
      */
     UA_StatusCode (*const calculatePadding)(const size_t bytesToWrite,
-                                            size_t* const paddingSize,
+                                            uint16_t* const paddingSize,
                                             UA_Boolean* const extraPadding);
 
     const size_t thumbprintLength;

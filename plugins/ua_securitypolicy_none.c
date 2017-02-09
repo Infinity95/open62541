@@ -52,7 +52,7 @@ UA_StatusCode asym_makeThumbprint_sp_none(const UA_ByteString* const certificate
 }
 
 UA_StatusCode asym_calculatePadding_sp_none(const size_t bytesToWrite,
-                                            size_t* const paddingSize,
+                                            uint16_t* const paddingSize,
                                             UA_Boolean* const extraPadding)
 {
     *paddingSize = 0;

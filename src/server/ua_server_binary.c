@@ -372,7 +372,7 @@ processOPN(UA_Server *server, UA_Connection *connection,
     retval |= UA_OpenSecureChannelRequest_decodeBinary(msg, &offset, &open_sc_request);
 
     /* Error occured */
-    if(retval != UA_STATUSCODE_GOOD || requestType.identifier.numeric != 446) { // FIXME: Give magic number a name <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    if(retval != UA_STATUSCODE_GOOD || requestType.identifier.numeric != UA_TYPES[UA_TYPES_OPENSECURECHANNELREQUEST].binaryEncodingId) {
         channelContext->deleteMembers(channelContext);
         UA_free(channelContext);
         UA_AsymmetricAlgorithmSecurityHeader_deleteMembers(&asymHeader);
@@ -428,7 +428,7 @@ processOPN(UA_Server *server, UA_Connection *connection,
     /* Allocate the return message */
     UA_ByteString resp_msg;
     UA_ByteString_init(&resp_msg);
-    retval = connection->getSendBuffer(connection, connection->localConf.sendBufferSize, &resp_msg);
+    retval = connection->getSendBuffer(connection, connection->localConf.sendBufferSize, &resp_msg); // TODO: make chunking accomodate signature space?
     if(retval != UA_STATUSCODE_GOOD) {
         channelContext->deleteMembers(channelContext);
         UA_free(channelContext);
@@ -497,22 +497,35 @@ processOPN(UA_Server *server, UA_Connection *connection,
 
     // TODO: Calculate padding and message size
 
-    size_t paddingSize;
+    uint16_t paddingSize;
     UA_Boolean extraPadding;
-    size_t bytesToWrite = 0; // TODO: Give this a meaningful value
+    size_t bytesToWrite = tmpPos - encryptionOffset; // TODO: Give this a meaningful value
     securityPolicy->asymmetricModule.calculatePadding(bytesToWrite, &paddingSize, &extraPadding);
 
     // 1 Byte if padding exists and 1 more byte if padding needs an extra byte
     size_t paddingBytesSize = (paddingSize == 0 ? 0 : 1) + (extraPadding ? 1 : 0);
 
-    respHeader.messageHeader.messageSize = (UA_UInt32)(tmpPos + paddingSize + paddingBytesSize);
+    respHeader.messageHeader.messageSize = (UA_UInt32)(tmpPos + paddingSize + paddingBytesSize + securityPolicy->asymmetricModule.signingModule.signatureSize);
+	resp_msg.length = respHeader.messageHeader.messageSize;
+	
+	size_t paddingPos = tmpPos;
     tmpPos = 0;
 
     UA_SecureConversationMessageHeader_encodeBinary(&respHeader, &resp_msg, &tmpPos);
     resp_msg.length = respHeader.messageHeader.messageSize;
     
-    // TODO::::::
     // Pad the message
+	for (uint16_t i = 0; i <= paddingSize; ++i) // <= because we want to write the padding size into one byte and then fill in the padding.
+	{
+		resp_msg.data[tmpPos] = (UA_Byte)paddingSize;
+		++tmpPos;
+	}
+
+	if (extraPadding)
+	{
+		resp_msg.data[tmpPos] = (UA_Byte)(paddingSize >> 8); // We need the most significant byte of a 2 byte integer.
+		++tmpPos;
+	}
 
     // Sign the message
     {
@@ -530,6 +543,7 @@ processOPN(UA_Server *server, UA_Connection *connection,
         if (retval != UA_STATUSCODE_GOOD)
         {
             // TODO: Error handling
+			return;
         }
     }
 
@@ -546,6 +560,7 @@ processOPN(UA_Server *server, UA_Connection *connection,
         if (retval != UA_STATUSCODE_GOOD)
         {
             // TODO: Error handling
+			return;
         }
 
         retval |= securityPolicy->asymmetricModule.encrypt(&messageToEncrypt, &securityPolicy->context, &encryptedMessage);
@@ -553,6 +568,7 @@ processOPN(UA_Server *server, UA_Connection *connection,
         if (retval != UA_STATUSCODE_GOOD)
         {
             // TODO: Error handling
+			return;
         }
 
         // copy encrypted message back to original message buffer
