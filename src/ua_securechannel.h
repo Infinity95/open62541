@@ -13,6 +13,8 @@ extern "C" {
 #include "ua_types.h"
 #include "ua_transport_generated.h"
 #include "ua_connection_internal.h"
+#include "ua_securitycontext.h"
+#include "ua_securitypolicy.h"
 
 struct UA_Session;
 typedef struct UA_Session UA_Session;
@@ -41,24 +43,59 @@ typedef struct {
 } UA_ChunkInfo;
 
 struct UA_SecureChannel {
+    UA_Boolean temporary; // this flag is set to false if the channel is fully opened.
     UA_MessageSecurityMode  securityMode;
     UA_ChannelSecurityToken securityToken; // the channelId is contained in the securityToken
     UA_ChannelSecurityToken nextSecurityToken; // the channelId is contained in the securityToken
     UA_AsymmetricAlgorithmSecurityHeader clientAsymAlgSettings;
     UA_AsymmetricAlgorithmSecurityHeader serverAsymAlgSettings;
+
+    /** The active security policy and context of the channel */
+    const UA_SecurityPolicy* securityPolicy;
+    UA_Channel_SecurityContext* securityContext;
+
+    /** Stores all available security policies that may be used when establishing a connection. */
+    UA_SecurityPolicies availableSecurityPolicies;
+
     UA_ByteString  clientNonce;
     UA_ByteString  serverNonce;
     UA_UInt32      receiveSequenceNumber;
     UA_UInt32      sendSequenceNumber;
     UA_Connection *connection;
+
+    UA_Logger logger;
+
     LIST_HEAD(session_pointerlist, SessionEntry) sessions;
     LIST_HEAD(chunk_pointerlist, ChunkEntry) chunks;
 };
 
-void UA_SecureChannel_init(UA_SecureChannel *channel);
+/**
+ * \brief Initializes the secure channel.
+ *
+ * \param channel the channel to initialize.
+ * \param securityPolicies the securityPolicies struct that contains all available policies
+ *                         the channel may choose from when a channel is being established.
+ * \param logger the logger the securechannel may use to log messages.
+ */
+void UA_SecureChannel_init(UA_SecureChannel *channel, UA_SecurityPolicies securityPolicies, UA_Logger logger);
 void UA_SecureChannel_deleteMembersCleanup(UA_SecureChannel *channel);
 
-UA_StatusCode UA_SecureChannel_generateNonce(UA_ByteString *nonce);
+/**
+ * \brief Generates a nonce.
+ *
+ * Uses the random generator of the supplied security policy
+ *
+ * \param nonce will contain the nonce after being successfully called.
+ * \param securityPolicy the SecurityPolicy to use.
+ */
+UA_StatusCode UA_SecureChannel_generateNonce(UA_ByteString* const nonce, const UA_SecurityPolicy* const securityPolicy);
+
+/**
+ * Generates new keys and sets them in the channel context
+ *
+ * \param channel the channel to generate new keys for
+ */
+UA_StatusCode UA_SecureChannel_generateNewKeys(UA_SecureChannel* const channel);
 
 void UA_SecureChannel_attachSession(UA_SecureChannel *channel, UA_Session *session);
 void UA_SecureChannel_detachSession(UA_SecureChannel *channel, UA_Session *session);
@@ -77,9 +114,21 @@ typedef void
                              UA_MessageType messageType, UA_UInt32 requestId,
                              const UA_ByteString *message);
 
+/**
+ * \brief Processes all chunks in the chunks ByteString.
+ *
+ * If a final chunk is processed, the callback function is called with the complete message body.
+ *
+ * \param channel the channel the chunks were recieved on.
+ * \param chunks the memory region where the chunks are stored.
+ * \param callback the callback function that gets called with the complete message body, once a final chunk is processed.
+ * \param application data pointer to application specific data that gets passed on to the callback function.
+ */
 UA_StatusCode
-UA_SecureChannel_processChunks(UA_SecureChannel *channel, const UA_ByteString *chunks,
-                               UA_ProcessMessageCallback callback, void *application);
+UA_SecureChannel_processChunks(UA_SecureChannel *channel,
+                               const UA_ByteString *chunks,
+                               UA_ProcessMessageCallback callback,
+                               void *application);
 
 /**
  * Log Helper
