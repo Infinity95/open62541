@@ -1,5 +1,6 @@
-/* This work is licensed under a Creative Commons CCZero 1.0 Universal License.
-* See http://creativecommons.org/publicdomain/zero/1.0/ for more information. */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include <stdio.h>
 #include "ua_securitypolicy_none.h"
@@ -15,37 +16,31 @@
 
 static UA_StatusCode asym_verify_sp_none(const UA_ByteString* const message,
                                          const UA_ByteString* const signature,
-                                         const void* const context)
-{
+                                         const void* const context) {
     return UA_STATUSCODE_GOOD;
 }
 
 static UA_StatusCode asym_sign_sp_none(const UA_ByteString* const message,
                                        const void* const context,
-                                       UA_ByteString* const signature)
-{
+                                       UA_ByteString* const signature) {
     return UA_STATUSCODE_GOOD;
 }
 
 static UA_StatusCode asym_encrypt_sp_none(const UA_ByteString* const plainText,
                                           const UA_Policy_SecurityContext* const securityContext,
-                                          UA_ByteString* const cipher)
-{
+                                          UA_ByteString* const cipher) {
     return UA_copy(plainText, cipher, &UA_TYPES[UA_TYPES_BYTESTRING]);
 }
 
 static UA_StatusCode asym_decrypt_sp_none(const UA_ByteString* const cipher,
                                           const UA_Policy_SecurityContext* const securityContext,
-                                          UA_ByteString* const decrypted)
-{
+                                          UA_ByteString* const decrypted) {
     return UA_copy(cipher, decrypted, &UA_TYPES[UA_TYPES_BYTESTRING]);
 }
 
 static UA_StatusCode asym_makeThumbprint_sp_none(const UA_ByteString* const certificate,
-                                                 UA_ByteString* const thumbprint)
-{
-    if (certificate == NULL || thumbprint == NULL)
-    {
+                                                 UA_ByteString* const thumbprint) {
+    if(certificate == NULL || thumbprint == NULL) {
         return UA_STATUSCODE_BADINTERNALERROR;
     }
     return UA_STATUSCODE_GOOD;
@@ -54,8 +49,7 @@ static UA_StatusCode asym_makeThumbprint_sp_none(const UA_ByteString* const cert
 static UA_StatusCode asym_calculatePadding_sp_none(const UA_SecurityPolicy* const securityPolicy,
                                                    const size_t bytesToWrite,
                                                    UA_Byte* const paddingSize,
-                                                   UA_Byte* const extraPaddingSize)
-{
+                                                   UA_Byte* const extraPaddingSize) {
     *paddingSize = 0;
     *extraPaddingSize = 0;
     return UA_STATUSCODE_GOOD;
@@ -71,43 +65,37 @@ static UA_StatusCode asym_calculatePadding_sp_none(const UA_SecurityPolicy* cons
 
 static UA_StatusCode sym_verify_sp_none(const UA_ByteString* const message,
                                         const UA_ByteString* const signature,
-                                        const void* const context)
-{
+                                        const void* const context) {
     return UA_STATUSCODE_GOOD;
 }
 
 static UA_StatusCode sym_sign_sp_none(const UA_ByteString* const message,
                                       const void* const context,
-                                      UA_ByteString* const signature)
-{
+                                      UA_ByteString* const signature) {
     return UA_STATUSCODE_GOOD;
 }
 
 static UA_StatusCode sym_encrypt_sp_none(const UA_ByteString* const plainText,
                                          const UA_Channel_SecurityContext* const securityContext,
-                                         UA_ByteString* const cipher)
-{
+                                         UA_ByteString* const cipher) {
     return UA_copy(plainText, cipher, &UA_TYPES[UA_TYPES_BYTESTRING]);
 }
 
 static UA_StatusCode sym_decrypt_sp_none(const UA_ByteString* const cipher,
                                          const UA_Channel_SecurityContext* const securityContext,
-                                         UA_ByteString* const decrypted)
-{
+                                         UA_ByteString* const decrypted) {
     return UA_copy(cipher, decrypted, &UA_TYPES[UA_TYPES_BYTESTRING]);
 }
 
 static UA_StatusCode sym_generateKey_sp_none(const UA_ByteString* const secret,
                                              const UA_ByteString* const seed,
                                              const size_t length,
-                                             UA_ByteString* const out)
-{
+                                             UA_ByteString* const out) {
     return UA_STATUSCODE_GOOD;
 }
 
 static UA_StatusCode sym_generateNonce_sp_none(const UA_SecurityPolicy* const securityPolicy,
-                                               UA_ByteString* const out)
-{
+                                               UA_ByteString* const out) {
     out->length = securityPolicy->symmetricModule.encryptingKeyLength;
     out->data[0] = 'a';
 
@@ -117,8 +105,7 @@ static UA_StatusCode sym_generateNonce_sp_none(const UA_SecurityPolicy* const se
 static UA_StatusCode sym_calculatePadding_sp_none(const UA_SecurityPolicy* const securityPolicy,
                                                   const size_t bytesToWrite,
                                                   UA_Byte* const paddingSize,
-                                                  UA_Byte* const extraPaddingSize)
-{
+                                                  UA_Byte* const extraPaddingSize) {
     *paddingSize = 0;
     *extraPaddingSize = 0;
     return UA_STATUSCODE_GOOD;
@@ -132,15 +119,12 @@ static UA_StatusCode sym_calculatePadding_sp_none(const UA_SecurityPolicy* const
 // Security policy functions //
 ///////////////////////////////
 static UA_StatusCode verifyCertificate_sp_none(const UA_ByteString* const certificate,
-                                               const UA_Policy_SecurityContext* const context)
-{
+                                               const UA_Policy_SecurityContext* const context) {
     return UA_STATUSCODE_GOOD;
 }
 
-static UA_StatusCode deleteMembers_sp_none(UA_SecurityPolicy* const securityPolicy)
-{
-    if (securityPolicy == NULL)
-    {
+static UA_StatusCode deleteMembers_sp_none(UA_SecurityPolicy* const securityPolicy) {
+    if(securityPolicy == NULL) {
         return UA_STATUSCODE_BADINTERNALERROR;
     }
 
@@ -148,10 +132,8 @@ static UA_StatusCode deleteMembers_sp_none(UA_SecurityPolicy* const securityPoli
 }
 
 
-static UA_StatusCode init_sp_none(UA_SecurityPolicy* const securityPolicy, UA_Logger logger)
-{
-    if (securityPolicy == NULL)
-    {
+static UA_StatusCode init_sp_none(UA_SecurityPolicy* const securityPolicy, UA_Logger logger) {
+    if(securityPolicy == NULL) {
         return UA_STATUSCODE_BADINTERNALERROR;
     }
 
@@ -160,10 +142,8 @@ static UA_StatusCode init_sp_none(UA_SecurityPolicy* const securityPolicy, UA_Lo
     return securityPolicy->context.init(&securityPolicy->context, logger);
 }
 
-static UA_StatusCode makeChannelContext_sp_none(const UA_SecurityPolicy* const securityPolicy, UA_Channel_SecurityContext** const pp_SecurityContext)
-{
-    if (securityPolicy == NULL || pp_SecurityContext == NULL)
-    {
+static UA_StatusCode makeChannelContext_sp_none(const UA_SecurityPolicy* const securityPolicy, UA_Channel_SecurityContext** const pp_SecurityContext) {
+    if(securityPolicy == NULL || pp_SecurityContext == NULL) {
         return UA_STATUSCODE_BADINTERNALERROR;
     }
 
@@ -183,23 +163,19 @@ static UA_StatusCode makeChannelContext_sp_none(const UA_SecurityPolicy* const s
 
 // this is not really needed in security policy none because no context is required
 // it is there to serve as a small example for policies that need context per policy
-typedef struct
-{
+typedef struct {
     int callCounter;
 } UA_SP_NONE_PolicyContextData;
 
 static UA_StatusCode policyContext_init_sp_none(UA_Policy_SecurityContext* const securityContext,
-                                                UA_Logger logger)
-{
-    if (securityContext == NULL)
-    {
+                                                UA_Logger logger) {
+    if(securityContext == NULL) {
         return UA_STATUSCODE_BADINTERNALERROR;
     }
 
     securityContext->data = (UA_SP_NONE_PolicyContextData*)UA_malloc(sizeof(UA_SP_NONE_PolicyContextData));
 
-    if (securityContext->data == NULL)
-    {
+    if(securityContext->data == NULL) {
         return UA_STATUSCODE_BADOUTOFMEMORY;
     }
 
@@ -215,10 +191,8 @@ static UA_StatusCode policyContext_init_sp_none(UA_Policy_SecurityContext* const
     return UA_STATUSCODE_GOOD;
 }
 
-static UA_StatusCode policyContext_deleteMembers_sp_none(UA_Policy_SecurityContext* const securityContext)
-{
-    if (securityContext == NULL)
-    {
+static UA_StatusCode policyContext_deleteMembers_sp_none(UA_Policy_SecurityContext* const securityContext) {
+    if(securityContext == NULL) {
         return UA_STATUSCODE_BADINTERNALERROR;
     }
 
@@ -235,10 +209,8 @@ static UA_StatusCode policyContext_deleteMembers_sp_none(UA_Policy_SecurityConte
 }
 
 static UA_StatusCode policyContext_setServerPrivateKey_sp_none(UA_Policy_SecurityContext* const securityContext,
-                                                               const UA_ByteString* const privateKey)
-{
-    if (securityContext == NULL || privateKey == NULL)
-    {
+                                                               const UA_ByteString* const privateKey) {
+    if(securityContext == NULL || privateKey == NULL) {
         return UA_STATUSCODE_BADINTERNALERROR;
     }
 
@@ -246,10 +218,8 @@ static UA_StatusCode policyContext_setServerPrivateKey_sp_none(UA_Policy_Securit
 }
 
 static UA_StatusCode policyContext_setCertificateTrustList_sp_none(UA_Policy_SecurityContext* const securityContext,
-                                                                   const UA_ByteString* const trustList)
-{
-    if (securityContext == NULL || trustList == NULL)
-    {
+                                                                   const UA_ByteString* const trustList) {
+    if(securityContext == NULL || trustList == NULL) {
         return UA_STATUSCODE_BADINTERNALERROR;
     }
 
@@ -257,10 +227,8 @@ static UA_StatusCode policyContext_setCertificateTrustList_sp_none(UA_Policy_Sec
 }
 
 static UA_StatusCode policyContext_setCertificateRevocationList_sp_none(UA_Policy_SecurityContext* const securityContext,
-                                                                        const UA_ByteString* const revocationList)
-{
-    if (securityContext == NULL || revocationList == NULL)
-    {
+                                                                        const UA_ByteString* const revocationList) {
+    if(securityContext == NULL || revocationList == NULL) {
         return UA_STATUSCODE_BADINTERNALERROR;
     }
 
@@ -277,21 +245,17 @@ static UA_StatusCode policyContext_setCertificateRevocationList_sp_none(UA_Polic
 
 // this is not really needed in security policy none because no context is required
 // it is there to serve as a small example for policies that need context per channel
-typedef struct
-{
+typedef struct {
     int callCounter;
 } UA_SP_NONE_ChannelContextData;
 
-static UA_StatusCode channelContext_init_sp_none(UA_Channel_SecurityContext* const securityContext, UA_Logger logger)
-{
-    if (securityContext == NULL)
-    {
+static UA_StatusCode channelContext_init_sp_none(UA_Channel_SecurityContext* const securityContext, UA_Logger logger) {
+    if(securityContext == NULL) {
         return UA_STATUSCODE_BADINTERNALERROR;
     }
 
     securityContext->data = (UA_SP_NONE_ChannelContextData*)UA_malloc(sizeof(UA_SP_NONE_ChannelContextData));
-    if (securityContext->data == NULL)
-    {
+    if(securityContext->data == NULL) {
         return UA_STATUSCODE_BADOUTOFMEMORY;
     }
 
@@ -303,10 +267,8 @@ static UA_StatusCode channelContext_init_sp_none(UA_Channel_SecurityContext* con
     return UA_STATUSCODE_GOOD;
 }
 
-static UA_StatusCode channelContext_deleteMembers_sp_none(UA_Channel_SecurityContext* const securityContext)
-{
-    if (securityContext == NULL)
-    {
+static UA_StatusCode channelContext_deleteMembers_sp_none(UA_Channel_SecurityContext* const securityContext) {
+    if(securityContext == NULL) {
         return UA_STATUSCODE_BADINTERNALERROR;
     }
 
@@ -323,10 +285,8 @@ static UA_StatusCode channelContext_deleteMembers_sp_none(UA_Channel_SecurityCon
 }
 
 static UA_StatusCode channelContext_setLocalEncryptingKey_sp_none(UA_Channel_SecurityContext* const securityContext,
-                                                                  const UA_ByteString* const key)
-{
-    if (securityContext == NULL || key == NULL)
-    {
+                                                                  const UA_ByteString* const key) {
+    if(securityContext == NULL || key == NULL) {
         fprintf(stderr, "Error while calling channelContext_setLocalEncryptingKey_sp_none. Null pointer passed.");
         return UA_STATUSCODE_BADINTERNALERROR;
     }
@@ -339,10 +299,8 @@ static UA_StatusCode channelContext_setLocalEncryptingKey_sp_none(UA_Channel_Sec
 }
 
 static UA_StatusCode channelContext_setLocalSigningKey_sp_none(UA_Channel_SecurityContext* const securityContext,
-                                                               const UA_ByteString* const key)
-{
-    if (securityContext == NULL || key == NULL)
-    {
+                                                               const UA_ByteString* const key) {
+    if(securityContext == NULL || key == NULL) {
         fprintf(stderr, "Error while calling channelContext_setLocalSigningKey_sp_none. Null pointer passed.");
         return UA_STATUSCODE_BADINTERNALERROR;
     }
@@ -356,10 +314,8 @@ static UA_StatusCode channelContext_setLocalSigningKey_sp_none(UA_Channel_Securi
 
 
 static UA_StatusCode channelContext_setLocalIv_sp_none(UA_Channel_SecurityContext* const securityContext,
-                                                       const UA_ByteString* const iv)
-{
-    if (securityContext == NULL || iv == NULL)
-    {
+                                                       const UA_ByteString* const iv) {
+    if(securityContext == NULL || iv == NULL) {
         fprintf(stderr, "Error while calling channelContext_setLocalIv_sp_none. Null pointer passed.");
         return UA_STATUSCODE_BADINTERNALERROR;
     }
@@ -372,10 +328,8 @@ static UA_StatusCode channelContext_setLocalIv_sp_none(UA_Channel_SecurityContex
 }
 
 static UA_StatusCode channelContext_setRemoteEncryptingKey_sp_none(UA_Channel_SecurityContext* const securityContext,
-                                                                   const UA_ByteString* const key)
-{
-    if (securityContext == NULL || key == NULL)
-    {
+                                                                   const UA_ByteString* const key) {
+    if(securityContext == NULL || key == NULL) {
         fprintf(stderr, "Error while calling channelContext_setRemoteEncryptingKey_sp_none. Null pointer passed.");
         return UA_STATUSCODE_BADINTERNALERROR;
     }
@@ -388,10 +342,8 @@ static UA_StatusCode channelContext_setRemoteEncryptingKey_sp_none(UA_Channel_Se
 }
 
 static UA_StatusCode channelContext_setRemoteSigningKey_sp_none(UA_Channel_SecurityContext* const securityContext,
-                                                                const UA_ByteString* const key)
-{
-    if (securityContext == NULL || key == NULL)
-    {
+                                                                const UA_ByteString* const key) {
+    if(securityContext == NULL || key == NULL) {
         fprintf(stderr, "Error while calling channelContext_setRemoteSigningKey_sp_none. Null pointer passed.");
         return UA_STATUSCODE_BADINTERNALERROR;
     }
@@ -404,10 +356,8 @@ static UA_StatusCode channelContext_setRemoteSigningKey_sp_none(UA_Channel_Secur
 }
 
 static UA_StatusCode channelContext_setRemoteIv_sp_none(UA_Channel_SecurityContext* const securityContext,
-                                                        const UA_ByteString* const iv)
-{
-    if (securityContext == NULL || iv == NULL)
-    {
+                                                        const UA_ByteString* const iv) {
+    if(securityContext == NULL || iv == NULL) {
         fprintf(stderr, "Error while calling channelContext_setRemoteIv_sp_none. Null pointer passed.");
         return UA_STATUSCODE_BADINTERNALERROR;
     }
@@ -420,10 +370,8 @@ static UA_StatusCode channelContext_setRemoteIv_sp_none(UA_Channel_SecurityConte
 }
 
 static UA_StatusCode channelContext_parseClientCertificate_sp_none(UA_Channel_SecurityContext* const securityContext,
-                                                                   const UA_ByteString* const clientCertificate)
-{
-    if (securityContext == NULL || clientCertificate == NULL)
-    {
+                                                                   const UA_ByteString* const clientCertificate) {
+    if(securityContext == NULL || clientCertificate == NULL) {
         return UA_STATUSCODE_BADINTERNALERROR;
     }
 
@@ -436,77 +384,80 @@ static UA_StatusCode channelContext_parseClientCertificate_sp_none(UA_Channel_Se
 
 UA_EXPORT UA_SecurityPolicy UA_SecurityPolicy_None = {
     /* The policy uri that identifies the implemented algorithms */
-    .policyUri = UA_STRING_STATIC("http://opcfoundation.org/UA/SecurityPolicy#None"),
+    UA_STRING_STATIC("http://opcfoundation.org/UA/SecurityPolicy#None"), // .policyUri
 
-    .verifyCertificate = verifyCertificate_sp_none,
+    verifyCertificate_sp_none, // .verifyCertificate
 
     /* Asymmetric module */
-    .asymmetricModule = {
-        .encrypt = asym_encrypt_sp_none,
-        .decrypt = asym_decrypt_sp_none,
-        .makeThumbprint = asym_makeThumbprint_sp_none,
-        .calculatePadding = asym_calculatePadding_sp_none,
+    { // .asymmetricModule
+        asym_encrypt_sp_none, // .encrypt
+        asym_decrypt_sp_none, // .decrypt
+        asym_makeThumbprint_sp_none, // .makeThumbprint
+        asym_calculatePadding_sp_none, // .calculatePadding
 
-        .thumbprintLength = 20,
+        20, // .thumbprintLength
 
         /* Asymmetric signing module */
         {
-            .verify = asym_verify_sp_none,
-            .sign = asym_sign_sp_none,
-            .signatureSize = 0 //size_t signatureSize; in bytes
+            asym_verify_sp_none, // .verify
+            asym_sign_sp_none, // .sign
+            0 // .signatureSize // size_t signatureSize; in bytes
         }
     },
 
     /* Symmetric module */
-    .symmetricModule = {
-        .encrypt = sym_encrypt_sp_none,
-        .decrypt = sym_decrypt_sp_none,
-        .generateKey = sym_generateKey_sp_none,
-        .generateNonce = sym_generateNonce_sp_none,
-        .calculatePadding = sym_calculatePadding_sp_none,
+    { // .symmetricModule
+        sym_encrypt_sp_none, // .encrypt
+        sym_decrypt_sp_none, // .decrypt
+        sym_generateKey_sp_none, // .generateKey
+        sym_generateNonce_sp_none, // .generateNonce 
+        sym_calculatePadding_sp_none, // .calculatePadding
 
         /* Symmetric signing module */
-        .signingModule = {
-            .verify = sym_verify_sp_none,
-            .sign = sym_sign_sp_none,
-            .signatureSize = 0 //size_t signatureSize; in bytes
+        { // .signingModule
+            sym_verify_sp_none, // .verify
+            sym_sign_sp_none, // .sign
+            0 // .signatureSize // size_t signatureSize; in bytes
         },
 
-        .signingKeyLength = 0,
-        .encryptingKeyLength = 1,
-        .encryptingBlockSize = 0
+        0, // .signingKeyLength
+        1, // .encryptingKeyLength
+        0 // .encryptingBlockSize
     },
 
-    .context = {
-        .init = policyContext_init_sp_none,
-        .deleteMembers = policyContext_deleteMembers_sp_none,
-        .setServerPrivateKey = policyContext_setServerPrivateKey_sp_none,
-        .setCertificateTrustList = policyContext_setCertificateTrustList_sp_none,
-        .setCertificateRevocationList = policyContext_setCertificateRevocationList_sp_none,
+    { // .context
+        policyContext_init_sp_none, // .init
+        policyContext_deleteMembers_sp_none, // .deleteMembers
+        policyContext_setServerPrivateKey_sp_none, // .setServerPrivateKey
+        policyContext_setCertificateTrustList_sp_none, // .setCertificateTrustList
+        policyContext_setCertificateRevocationList_sp_none, // .setCertificateRevocationList
 
-        .data = NULL
+        NULL, // .data
+        NULL // .logger
     },
 
-    .deleteMembers = deleteMembers_sp_none,
-    .init = init_sp_none,
+    deleteMembers_sp_none, // .deleteMembers
+    init_sp_none, // .init
 
     /* Channel context prototype */
-    .channelContextPrototype = {
-        .init = channelContext_init_sp_none,
-        .deleteMembers = channelContext_deleteMembers_sp_none,
+    { // .channelContextPrototype
+        channelContext_init_sp_none,  // .init
+        channelContext_deleteMembers_sp_none, // .deleteMembers
 
-        .setLocalEncryptingKey = channelContext_setLocalEncryptingKey_sp_none,
-        .setLocalSigningKey = channelContext_setLocalSigningKey_sp_none,
-        .setLocalIv = channelContext_setLocalIv_sp_none,
+        channelContext_setLocalEncryptingKey_sp_none, // .setLocalEncryptingKey
+        channelContext_setLocalSigningKey_sp_none, // .setLocalSigningKey
+        channelContext_setLocalIv_sp_none, // .setLocalIv
 
-        .setRemoteEncryptingKey = channelContext_setRemoteEncryptingKey_sp_none,
-        .setRemoteSigningKey = channelContext_setRemoteSigningKey_sp_none,
-        .setRemoteIv = channelContext_setRemoteIv_sp_none,
+        channelContext_setRemoteEncryptingKey_sp_none, // .setRemoteEncryptingKey
+        channelContext_setRemoteSigningKey_sp_none, // .setRemoteSigningKey
+        channelContext_setRemoteIv_sp_none, // .setRemoteIv
 
-        .parseClientCertificate = channelContext_parseClientCertificate_sp_none,
+        channelContext_parseClientCertificate_sp_none, // .parseClientCertificate
 
-        .data = NULL // data
+        NULL, // .logger
+        NULL // .data
     },
 
-    .makeChannelContext = makeChannelContext_sp_none
+    makeChannelContext_sp_none, // .makeChannelContext
+    NULL // .logger
 };
