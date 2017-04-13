@@ -116,18 +116,20 @@ int main(int argc, char** argv) {
     config.serverCertificate = loadCertificate();
 
     // Set desired security policies
-    UA_SecurityPolicy securityPolicies[] = { UA_SecurityPolicy_None };
+    UA_SecurityPolicy securityPolicies[] = { UA_SecurityPolicy_None, UA_SecurityPolicy_Basic128Rsa15 };
     config.securityPolicies.count = sizeof(securityPolicies) / sizeof(securityPolicies[0]);
     config.securityPolicies.policies = securityPolicies;
 
-    // Populate policy with needed information
-    UA_SecurityPolicy* policy = &config.securityPolicies.policies[0];
-    policy->init(policy, config.logger);
-    UA_ByteString privateKey = { 1, (UA_Byte*)"A" };
-    UA_ByteString certList = { 1,(UA_Byte*)"B" };
-    policy->context.setServerPrivateKey(&policy->context, &privateKey);
-    policy->context.setCertificateTrustList(&policy->context, &certList);
-    policy->context.setCertificateRevocationList(&policy->context, &certList);
+    // Populate policies with needed information
+    for(size_t i = 0; i < config.securityPolicies.count; ++i) {
+        UA_SecurityPolicy* policy = &config.securityPolicies.policies[i];
+        policy->init(policy, config.logger);
+        UA_ByteString privateKey = { 1, (UA_Byte*)"A" };
+        UA_ByteString certList = { 1,(UA_Byte*)"B" };
+        policy->context.setServerPrivateKey(&policy->context, &privateKey);
+        policy->context.setCertificateTrustList(&policy->context, &certList);
+        policy->context.setCertificateRevocationList(&policy->context, &certList);
+    }
 
     UA_Server *server = UA_Server_new(config);
 
