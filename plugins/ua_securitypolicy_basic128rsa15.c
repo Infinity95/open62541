@@ -6,10 +6,10 @@
 #include "ua_securitypolicy_basic128rsa15.h"
 #include "ua_types.h"
 #include "ua_types_generated_handling.h"
-#include "mbedtls\include\mbedtls\md.h"
-#include "mbedtls\include\mbedtls\md_internal.h"
+#include "mbedtls\md.h"
+#include "mbedtls\md_internal.h"
 #include "ua_util.h"
-#include "mbedtls\include\mbedtls\ctr_drbg.h"
+#include "mbedtls\ctr_drbg.h"
 
 #define UA_STRING_STATIC(s) {sizeof(s)-1, (UA_Byte*)s}
 #define UA_STRING_STATIC_NULL {0, NULL}

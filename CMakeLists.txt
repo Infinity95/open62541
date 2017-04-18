@@ -16,11 +16,13 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-##########################
-# Submodule Dependencies #
-##########################
+################
+# Dependencies #
+################
 
-add_subdirectory("deps/mbedtls")
+find_package(mbedtls REQUIRED)
+list(APPEND open62541_LIBRARIES ${MBEDTLS_LIBRARIES})
+list(APPEND DEPENDENCY_INCLUDE_DIRS ${MBEDTLS_INCLUDE_DIRS})
 
 #################
 # Cmake modules #
@@ -212,7 +214,8 @@ if (UA_ENABLE_DISCOVERY_MULTICAST)
 endif()
 include_directories(${PROJECT_BINARY_DIR}/src_generated
                     ${PROJECT_SOURCE_DIR}/include
-                    ${PROJECT_SOURCE_DIR}/deps)
+                    ${PROJECT_SOURCE_DIR}/deps
+                    ${DEPENDENCY_INCLUDE_DIRS})
 
 set(exported_headers ${PROJECT_BINARY_DIR}/src_generated/ua_config.h
                      ${PROJECT_SOURCE_DIR}/deps/ms_stdint.h

@@ -1,6 +1,3 @@
 [submodule "deps/mdnsd"]
 	path = deps/mdnsd
 	url = https://github.com/Pro/mdnsd.git
-[submodule "deps/mbedtls"]
-	path = deps/mbedtls
-	url = https://github.com/ARMmbed/mbedtls.git
