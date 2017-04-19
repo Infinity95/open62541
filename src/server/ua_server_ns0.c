@@ -437,6 +437,9 @@ void UA_Server_createNS0(UA_Server *server) {
     UA_Server_addObjectTypeNode_begin(server, UA_NODEID_NUMERIC(0, UA_NS0ID_BASEOBJECTTYPE),
                                       UA_QUALIFIEDNAME(0, "BaseObjectType"), baseobj_attr, NULL);
 
+    addObjectTypeNode(server, "ModellingRuleType", UA_NS0ID_MODELLINGRULETYPE,
+                      false, UA_NS0ID_BASEOBJECTTYPE);
+
     addObjectTypeNode(server, "FolderType", UA_NS0ID_FOLDERTYPE,
                       false, UA_NS0ID_BASEOBJECTTYPE);
 
@@ -493,6 +496,16 @@ void UA_Server_createNS0(UA_Server *server) {
     addObjectNode(server, "Views", UA_NS0ID_VIEWSFOLDER, UA_NS0ID_ROOTFOLDER,
                   UA_NS0ID_ORGANIZES, UA_NS0ID_FOLDERTYPE);
 
+    /*******************/
+    /* Modelling Rules */
+    /*******************/
+
+    addObjectNode(server, "Mandatory", UA_NS0ID_MODELLINGRULE_MANDATORY,
+                  0, 0, UA_NS0ID_MODELLINGRULETYPE);
+
+    addObjectNode(server, "Optional", UA_NS0ID_MODELLINGRULE_OPTIONAL,
+                  0, 0, UA_NS0ID_MODELLINGRULETYPE);
+
     /*********************/
     /* The Server Object */
     /*********************/
@@ -506,8 +519,15 @@ void UA_Server_createNS0(UA_Server *server) {
     server_attr.displayName = UA_LOCALIZEDTEXT("en_US", "Server");
     UA_Server_addObjectNode_begin(server, UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER),
                                   UA_QUALIFIEDNAME(0, "Server"), server_attr, NULL);
+
+    /* ServerArray */
+    UA_Variant_setArray(&var, &server->config.applicationDescription.applicationUri,
+                        1, &UA_TYPES[UA_TYPES_STRING]);
+    addVariableNode(server, UA_NS0ID_SERVER_SERVERARRAY, "ServerArray", 1,
+                    &UA_TYPES[UA_TYPES_STRING].typeId, &var,
+                    UA_NS0ID_SERVER, UA_NS0ID_HASPROPERTY, UA_NS0ID_PROPERTYTYPE);
     
-    /* Server-NamespaceArray */
+    /* NamespaceArray */
     UA_VariableAttributes nsarray_attr;
     UA_VariableAttributes_init(&nsarray_attr);
     nsarray_attr.displayName = UA_LOCALIZEDTEXT("en_US", "NamespaceArray");
@@ -525,11 +545,6 @@ void UA_Server_createNS0(UA_Server *server) {
                              UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER),
                              UA_NODEID_NUMERIC(0, UA_NS0ID_HASPROPERTY),
                              UA_NODEID_NUMERIC(0, UA_NS0ID_PROPERTYTYPE), NULL);
-
-    UA_Variant_setArray(&var, &server->config.applicationDescription.applicationUri, 1,
-                        &UA_TYPES[UA_TYPES_STRING]);
-    addVariableNode(server, UA_NS0ID_SERVER_SERVERARRAY, "ServerArray", 1, &UA_TYPES[UA_TYPES_STRING].typeId,
-                    &var, UA_NS0ID_SERVER, UA_NS0ID_HASPROPERTY, UA_NS0ID_PROPERTYTYPE);
 
     /* Begin ServerCapabilities */
     UA_ObjectAttributes servercap_attr;

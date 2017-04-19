@@ -145,10 +145,6 @@ void UA_Server_delete(UA_Server *server) {
     // Delete the timed work
     UA_RepeatedJobsList_deleteMembers(&server->repeatedJobs);
 
-    for(size_t i = 0; i < server->config.securityPolicies.count; ++i) {
-        server->config.securityPolicies.policies[i].deleteMembers(&server->config.securityPolicies.policies[i]);
-    }
-
     // Delete all internal data
     UA_SecureChannelManager_deleteMembers(&server->secureChannelManager);
     UA_SessionManager_deleteMembers(&server->sessionManager);
@@ -298,12 +294,10 @@ UA_Server_new(const UA_ServerConfig config) {
     /* Initialize the handling of repeated jobs */
 #ifdef UA_ENABLE_MULTITHREADING
     UA_RepeatedJobsList_init(&server->repeatedJobs,
-        (UA_RepeatedJobsListProcessCallback)UA_Server_dispatchJob,
-                             server);
+                             (UA_RepeatedJobsListProcessCallback)UA_Server_dispatchJob, server);
 #else
     UA_RepeatedJobsList_init(&server->repeatedJobs,
-        (UA_RepeatedJobsListProcessCallback)UA_Server_processJob,
-                             server);
+                             (UA_RepeatedJobsListProcessCallback)UA_Server_processJob, server);
 #endif
 
     /* Initialized the linked list for delayed callbacks */
