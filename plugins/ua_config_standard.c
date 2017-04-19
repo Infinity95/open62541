@@ -7,6 +7,7 @@
 #include "ua_accesscontrol_default.h"
 #include "ua_types_generated.h"
 #include "ua_securitypolicy_none.h"
+#include "ua_securitypolicy_basic128rsa15.h"
 
 
  /*******************************/
@@ -199,11 +200,12 @@ UA_EXPORT UA_StatusCode UA_ServerConfig_standard_new(UA_ServerConfig *outConf) {
 
     UA_ServerConfig conf = UA_ServerConfig_standard;
 
-    conf.securityPolicies.count = 1;
+    conf.securityPolicies.count = 2;
 
     conf.securityPolicies.policies = (UA_SecurityPolicy*)UA_malloc(sizeof(UA_SecurityPolicy) * conf.securityPolicies.count);
 
     memcpy(&conf.securityPolicies.policies[0], &UA_SecurityPolicy_None, sizeof(UA_SecurityPolicy));
+    memcpy(&conf.securityPolicies.policies[1], &UA_SecurityPolicy_Basic128Rsa15, sizeof(UA_SecurityPolicy));
 
     for(size_t i = 0; i < conf.securityPolicies.count; ++i) {
         UA_SecurityPolicy *const policy = &conf.securityPolicies.policies[i];
