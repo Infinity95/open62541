@@ -11,6 +11,8 @@
 #include "mbedtls\md_internal.h"
 #include "ua_util.h"
 #include "mbedtls\ctr_drbg.h"
+#include "mbedtls\x509.h"
+#include "mbedtls\x509_crt.h"
 
 #define UA_STRING_STATIC(s) {sizeof(s)-1, (UA_Byte*)s}
 #define UA_STRING_STATIC_NULL {0, NULL}
@@ -21,6 +23,10 @@
 
 typedef struct {
     mbedtls_ctr_drbg_context drbgContext;
+
+    mbedtls_x509_crl certificateRevocationList;
+    mbedtls_x509_crt certificateTrustList;
+    mbedtls_pk_context localPrivateKey;
 } UA_SP_basic128rsa15_PolicyContextData;
 
 static UA_StatusCode policyContext_init_sp_basic128rsa15(UA_Policy_SecurityContext *const securityContext,
@@ -42,6 +48,12 @@ static UA_StatusCode policyContext_init_sp_basic128rsa15(UA_Policy_SecurityConte
     // Initialize the PolicyContext data to sensible values
     UA_SP_basic128rsa15_PolicyContextData* data = (UA_SP_basic128rsa15_PolicyContextData*)securityContext->data;
 
+    mbedtls_ctr_drbg_init(&data->drbgContext);
+
+    mbedtls_x509_crl_init(&data->certificateRevocationList);
+    mbedtls_x509_crt_init(&data->certificateTrustList);
+    mbedtls_pk_init(&data->localPrivateKey);
+
     UA_LOG_DEBUG(securityContext->logger, UA_LOGCATEGORY_SECURITYPOLICY, "Initialized PolicyContext for sp_basic128rsa15");
 
     return UA_STATUSCODE_GOOD;
@@ -54,6 +66,12 @@ static UA_StatusCode policyContext_deleteMembers_sp_basic128rsa15(UA_Policy_Secu
 
     // delete all allocated members in the data block
     UA_SP_basic128rsa15_PolicyContextData* data = (UA_SP_basic128rsa15_PolicyContextData*)securityContext->data;
+
+    mbedtls_ctr_drbg_free(&data->drbgContext);
+
+    mbedtls_x509_crl_free(&data->certificateRevocationList);
+    mbedtls_x509_crt_free(&data->certificateTrustList);
+    mbedtls_pk_free(&data->localPrivateKey);
 
     UA_free(securityContext->data);
 
@@ -68,6 +86,12 @@ static UA_StatusCode policyContext_setServerPrivateKey_sp_basic128rsa15(UA_Polic
         return UA_STATUSCODE_BADINTERNALERROR;
     }
 
+    UA_SP_basic128rsa15_PolicyContextData *contextData = (UA_SP_basic128rsa15_PolicyContextData*)securityContext->data;
+
+    int err = mbedtls_pk_parse_key(&contextData->localPrivateKey, privateKey->data, privateKey->length, NULL, 0);
+    if(err) // TODO: more precise error handling?
+        return UA_STATUSCODE_BADINTERNALERROR;
+
     return UA_STATUSCODE_GOOD;
 }
 
@@ -77,6 +101,12 @@ static UA_StatusCode policyContext_setCertificateTrustList_sp_basic128rsa15(UA_P
         return UA_STATUSCODE_BADINTERNALERROR;
     }
 
+    UA_SP_basic128rsa15_PolicyContextData *contextData = (UA_SP_basic128rsa15_PolicyContextData*)securityContext->data;
+
+    int err = mbedtls_x509_crt_parse(&contextData->certificateTrustList, trustList->data, trustList->length);
+    if(err) // TODO: more precise error handling?
+        return UA_STATUSCODE_BADINTERNALERROR;
+
     return UA_STATUSCODE_GOOD;
 }
 
@@ -85,6 +115,12 @@ static UA_StatusCode policyContext_setCertificateRevocationList_sp_basic128rsa15
     if(securityContext == NULL || revocationList == NULL) {
         return UA_STATUSCODE_BADINTERNALERROR;
     }
+
+    UA_SP_basic128rsa15_PolicyContextData *contextData = (UA_SP_basic128rsa15_PolicyContextData*)securityContext->data;
+
+    int err = mbedtls_x509_crl_parse(&contextData->certificateRevocationList, revocationList->data, revocationList->length);
+    if(err) // TODO: more precise error handling?
+        return UA_STATUSCODE_BADINTERNALERROR;
 
     return UA_STATUSCODE_GOOD;
 }
@@ -105,6 +141,8 @@ typedef struct {
     UA_ByteString remoteSigningKey;
     UA_ByteString remoteEncryptingKey;
     UA_ByteString remoteIv;
+
+    mbedtls_x509_crt remoteCertificate;
 } UA_SP_basic128rsa15_ChannelContextData;
 
 static UA_StatusCode channelContext_init_sp_basic128rsa15(UA_Channel_SecurityContext *const securityContext,
@@ -133,6 +171,8 @@ static UA_StatusCode channelContext_init_sp_basic128rsa15(UA_Channel_SecurityCon
     UA_ByteString_init(&contextData->remoteEncryptingKey);
     UA_ByteString_init(&contextData->remoteIv);
 
+    mbedtls_x509_crt_init(&contextData->remoteCertificate);
+
     return UA_STATUSCODE_GOOD;
 }
 
@@ -151,6 +191,8 @@ static UA_StatusCode channelContext_deleteMembers_sp_basic128rsa15(UA_Channel_Se
     UA_ByteString_deleteMembers(&data->remoteSigningKey);
     UA_ByteString_deleteMembers(&data->remoteEncryptingKey);
     UA_ByteString_deleteMembers(&data->remoteIv);
+
+    mbedtls_x509_crt_free(&data->remoteCertificate);
 
     UA_free(securityContext->data);
 
@@ -236,11 +278,32 @@ static UA_StatusCode channelContext_setRemoteIv_sp_basic128rsa15(UA_Channel_Secu
     return UA_ByteString_copy(iv, &data->remoteIv);
 }
 
-static UA_StatusCode channelContext_parseClientCertificate_sp_basic128rsa15(UA_Channel_SecurityContext* const securityContext,
-                                                                            const UA_ByteString* const clientCertificate) {
-    if(securityContext == NULL || clientCertificate == NULL) {
+static UA_StatusCode channelContext_parseRemoteCertificate_sp_basic128rsa15(UA_Channel_SecurityContext* const securityContext,
+                                                                            const UA_ByteString* const remoteCertificate) {
+    if(securityContext == NULL || remoteCertificate == NULL) {
         return UA_STATUSCODE_BADINTERNALERROR;
     }
+
+    UA_StatusCode retval = UA_STATUSCODE_GOOD;
+    int mbedErr = 0;
+    UA_SP_basic128rsa15_ChannelContextData* const contextData = (UA_SP_basic128rsa15_ChannelContextData*)securityContext->data;
+
+    mbedErr |= mbedtls_x509_crt_parse(&contextData->remoteCertificate, remoteCertificate->data, remoteCertificate->length);
+    if(mbedErr)
+        return UA_STATUSCODE_BADSECURITYCHECKSFAILED;
+
+    mbedErr |= mbedtls_x509_time_is_future(&contextData->remoteCertificate.valid_from);
+    if(mbedErr)
+        return UA_STATUSCODE_BADCERTIFICATEISSUERTIMEINVALID;
+    mbedErr |= mbedtls_x509_time_is_past(&contextData->remoteCertificate.valid_to);
+    if(mbedErr)
+        return UA_STATUSCODE_BADCERTIFICATETIMEINVALID;
+
+    mbedtls_rsa_context *rsaContext = mbedtls_pk_rsa(contextData->remoteCertificate.pk);
+
+    if(rsaContext->len < securityContext->securityPolicy->asymmetricModule.minAsymmetricKeyLength ||
+       rsaContext->len > securityContext->securityPolicy->asymmetricModule.maxAsymmetricKeyLength)
+        return UA_STATUSCODE_BADCERTIFICATEUSENOTALLOWED;
 
     return UA_STATUSCODE_GOOD;
 }
@@ -272,6 +335,13 @@ static UA_StatusCode asym_encrypt_sp_basic128rsa15(const UA_Policy_SecurityConte
 
 static UA_StatusCode asym_decrypt_sp_basic128rsa15(const UA_Policy_SecurityContext* const securityContext,
                                                    UA_ByteString* const data) {
+    if(securityContext == NULL || data == NULL)
+        return UA_STATUSCODE_BADINTERNALERROR;
+
+    UA_SP_basic128rsa15_PolicyContextData *contextData = (UA_SP_basic128rsa15_PolicyContextData*)securityContext->data;
+
+
+
     return UA_STATUSCODE_GOOD;
 }
 
@@ -283,10 +353,14 @@ static UA_StatusCode asym_makeThumbprint_sp_basic128rsa15(const UA_ByteString* c
     return UA_STATUSCODE_GOOD;
 }
 
-static UA_StatusCode asym_calculatePadding_sp_basic128rsa15(const UA_SecurityPolicy* const securityPolicy,
-                                                            const size_t bytesToWrite,
-                                                            UA_Byte* const paddingSize,
-                                                            UA_Byte* const extraPaddingSize) {
+static UA_UInt16 asym_calculatePadding_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
+                                                        const size_t bytesToWrite,
+                                                        UA_Byte *const paddingSize,
+                                                        UA_Byte *const extraPaddingSize) {
+    
+    if(securityPolicy == NULL || paddingSize == NULL || extraPaddingSize == NULL)
+        return 0;
+
     UA_UInt16 plainTextBlockSize = 0; // TODO: Acquire this from somewhere?
     UA_UInt16 padding = plainTextBlockSize -
         ((bytesToWrite + securityPolicy->asymmetricModule.signingModule.signatureSize + 1) %
@@ -294,7 +368,8 @@ static UA_StatusCode asym_calculatePadding_sp_basic128rsa15(const UA_SecurityPol
 
     *paddingSize = (UA_Byte)padding;
     *extraPaddingSize = (UA_Byte)(padding >> 8);
-    return UA_STATUSCODE_GOOD;
+    
+    return padding;
 }
 
 /////////////////////////////////////
@@ -543,10 +618,13 @@ static UA_StatusCode sym_generateNonce_sp_basic128rsa15(const UA_SecurityPolicy*
     return UA_STATUSCODE_GOOD;
 }
 
-static UA_StatusCode sym_calculatePadding_sp_basic128rsa15(const UA_SecurityPolicy* const securityPolicy,
-                                                           const size_t bytesToWrite,
-                                                           UA_Byte* const paddingSize,
-                                                           UA_Byte* const extraPaddingSize) {
+static UA_UInt16 sym_calculatePadding_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
+                                                       const size_t bytesToWrite,
+                                                       UA_Byte *const paddingSize,
+                                                       UA_Byte *const extraPaddingSize) {
+    
+    if(securityPolicy == NULL || paddingSize == NULL || extraPaddingSize == NULL)
+        return 0;
 
     UA_UInt16 padding = (UA_UInt16)(securityPolicy->symmetricModule.encryptingBlockSize -
         ((bytesToWrite + securityPolicy->symmetricModule.signingModule.signatureSize + 1) %
@@ -554,7 +632,8 @@ static UA_StatusCode sym_calculatePadding_sp_basic128rsa15(const UA_SecurityPoli
 
     *paddingSize = (UA_Byte)padding;
     *extraPaddingSize = (UA_Byte)(padding >> 8);
-    return UA_STATUSCODE_GOOD;
+    
+    return padding;
 }
 
 ////////////////////////////////////
@@ -564,8 +643,31 @@ static UA_StatusCode sym_calculatePadding_sp_basic128rsa15(const UA_SecurityPoli
 ///////////////////////////////
 // Security policy functions //
 ///////////////////////////////
-static UA_StatusCode verifyCertificate_sp_basic128rsa15(const UA_ByteString* const certificate,
-                                                        const UA_Policy_SecurityContext* const context) {
+static UA_StatusCode verifyCertificate_sp_basic128rsa15(const UA_Policy_SecurityContext *const policyContext,
+                                                        const UA_Channel_SecurityContext *const channelContext) {
+    UA_SP_basic128rsa15_PolicyContextData *policyContextData = (UA_SP_basic128rsa15_PolicyContextData*)policyContext->data;
+    UA_SP_basic128rsa15_ChannelContextData *channelContextData = (UA_SP_basic128rsa15_ChannelContextData*)channelContext->data;
+    int mbedErr = 0;
+
+    mbedtls_x509_crt_profile crtProfile = {
+        MBEDTLS_X509_ID_FLAG(MBEDTLS_MD_SHA1) | MBEDTLS_X509_ID_FLAG(MBEDTLS_MD_SHA256),
+        0xFFFFFF,
+        0x000000,
+        policyContext->securityPolicy->asymmetricModule.minAsymmetricKeyLength * 8 // in bits
+    }; // TODO: remove magic numbers
+
+    int flags = 0;
+    mbedErr |= mbedtls_x509_crt_verify_with_profile(&channelContextData->remoteCertificate,
+                                                    &policyContextData->certificateTrustList,
+                                                    &policyContextData->certificateRevocationList,
+                                                    &crtProfile,
+                                                    NULL,
+                                                    &flags,
+                                                    NULL,
+                                                    NULL);
+    if(mbedErr)
+        return UA_STATUSCODE_BADSECURITYCHECKSFAILED;
+
     return UA_STATUSCODE_GOOD;
 }
 
@@ -616,6 +718,8 @@ UA_EXPORT UA_SecurityPolicy UA_SecurityPolicy_Basic128Rsa15 = {
         asym_makeThumbprint_sp_basic128rsa15, // .makeThumbprint
         asym_calculatePadding_sp_basic128rsa15, // .calculatePadding
 
+        128, // .minAsymmetricKeyLength
+        256, // .maxAsymmetricKeyLength
         20, // .thumbprintLength
 
             /* Asymmetric signing module */
@@ -673,7 +777,7 @@ UA_EXPORT UA_SecurityPolicy UA_SecurityPolicy_Basic128Rsa15 = {
         channelContext_setRemoteSigningKey_sp_basic128rsa15, // .setRemoteSigningKey
         channelContext_setRemoteIv_sp_basic128rsa15, // .setRemoteIv
 
-        channelContext_parseClientCertificate_sp_basic128rsa15, // .parseClientCertificate
+        channelContext_parseRemoteCertificate_sp_basic128rsa15, // .parseRemoteCertificate
 
         NULL, // .logger
         NULL // .data

@@ -12,15 +12,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include "open62541.h"
+#include <direct.h>
 
 UA_Boolean running = true;
 UA_Logger logger = UA_Log_Stdout;
 
-static UA_ByteString loadCertificate(void) {
+static UA_ByteString loadPrivateKey(void) {
     UA_ByteString certificate = UA_STRING_NULL;
     FILE *fp = NULL;
     //FIXME: a potiential bug of locating the certificate, we need to get the path from the server's config
-    fp=fopen("server_cert.der", "rb");
+    fp = fopen("H:/Programming/open62541/build/bin/examples/my_key.der", "rb");
 
     if(!fp) {
         errno = 0; // we read errno also from the tcp layer...
@@ -29,7 +30,57 @@ static UA_ByteString loadCertificate(void) {
 
     fseek(fp, 0, SEEK_END);
     certificate.length = (size_t)ftell(fp);
-    certificate.data = (UA_Byte*)malloc(certificate.length*sizeof(UA_Byte));
+    certificate.data = (UA_Byte*)malloc(certificate.length * sizeof(UA_Byte));
+    if(!certificate.data)
+        return certificate;
+
+    fseek(fp, 0, SEEK_SET);
+    if(fread(certificate.data, sizeof(UA_Byte), certificate.length, fp) < (size_t)certificate.length)
+        UA_ByteString_deleteMembers(&certificate); // error reading the cert
+    fclose(fp);
+
+    return certificate;
+}
+
+static UA_ByteString loadTrustList(void) {
+    UA_ByteString certificate = UA_STRING_NULL;
+    FILE *fp = NULL;
+    //FIXME: a potiential bug of locating the certificate, we need to get the path from the server's config
+    fp = fopen("H:/Programming/open62541/build/bin/examples/uaexpert.der", "rb");
+
+    if(!fp) {
+        errno = 0; // we read errno also from the tcp layer...
+        return certificate;
+    }
+
+    fseek(fp, 0, SEEK_END);
+    certificate.length = (size_t)ftell(fp);
+    certificate.data = (UA_Byte*)malloc(certificate.length * sizeof(UA_Byte));
+    if(!certificate.data)
+        return certificate;
+
+    fseek(fp, 0, SEEK_SET);
+    if(fread(certificate.data, sizeof(UA_Byte), certificate.length, fp) < (size_t)certificate.length)
+        UA_ByteString_deleteMembers(&certificate); // error reading the cert
+    fclose(fp);
+
+    return certificate;
+}
+
+static UA_ByteString loadCertificate(void) {
+    UA_ByteString certificate = UA_STRING_NULL;
+    FILE *fp = NULL;
+    //FIXME: a potiential bug of locating the certificate, we need to get the path from the server's config
+    fp = fopen("H:/Programming/open62541/build/bin/examples/server_cert.pem", "rb");
+
+    if(!fp) {
+        errno = 0; // we read errno also from the tcp layer...
+        return certificate;
+    }
+
+    fseek(fp, 0, SEEK_END);
+    certificate.length = (size_t)ftell(fp);
+    certificate.data = (UA_Byte*)malloc(certificate.length * sizeof(UA_Byte));
     if(!certificate.data)
         return certificate;
 
@@ -95,7 +146,7 @@ noargMethod(void *methodHandle, const UA_NodeId *objectId,
 
 static UA_StatusCode
 outargMethod(void *methodHandle, const UA_NodeId *objectId,
-            const UA_NodeId *sessionId, void *sessionHandle,
+             const UA_NodeId *sessionId, void *sessionHandle,
              size_t inputSize, const UA_Variant *input,
              size_t outputSize, UA_Variant *output) {
     UA_Int32 out = 42;
@@ -117,10 +168,17 @@ int main(int argc, char** argv) {
     /* load certificate */
     config.serverCertificate = loadCertificate();
 
+    UA_ByteString trustList = loadTrustList();
+    UA_ByteString privateKey = loadPrivateKey();
+    for(size_t i = 0; i < config.securityPolicies.count; ++i) {
+        UA_Policy_SecurityContext *context = &config.securityPolicies.policies[i].context;
+        context->setCertificateTrustList(context, &trustList);
+        context->setServerPrivateKey(context, &privateKey);
+    }
+
     UA_Server *server = UA_Server_new(config);
 
-    if (server == NULL)
-    {
+    if(server == NULL) {
         UA_ServerConfig_standard_deleteMembers(&config);
         return -1;
     }
@@ -138,7 +196,7 @@ int main(int argc, char** argv) {
     UA_NodeId parentNodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER);
     UA_NodeId parentReferenceNodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES);
     UA_Server_addVariableNode(server, myIntegerNodeId, parentNodeId, parentReferenceNodeId,
-        myIntegerName, UA_NODEID_NULL, myVar, NULL, NULL);
+                              myIntegerName, UA_NODEID_NULL, myVar, NULL, NULL);
     UA_Variant_deleteMembers(&myVar.value);
 
     /* add a variable with the datetime data source */
@@ -148,8 +206,8 @@ int main(int argc, char** argv) {
     dateDataSource.write = NULL;
     UA_VariableAttributes v_attr;
     UA_VariableAttributes_init(&v_attr);
-    v_attr.description = UA_LOCALIZEDTEXT("en_US","current time");
-    v_attr.displayName = UA_LOCALIZEDTEXT("en_US","current time");
+    v_attr.description = UA_LOCALIZEDTEXT("en_US", "current time");
+    v_attr.displayName = UA_LOCALIZEDTEXT("en_US", "current time");
     v_attr.accessLevel = UA_ACCESSLEVELMASK_READ | UA_ACCESSLEVELMASK_WRITE;
     const UA_QualifiedName dateName = UA_QUALIFIEDNAME(1, "current time");
     UA_NodeId dataSourceId;
@@ -182,12 +240,12 @@ int main(int argc, char** argv) {
     addmethodattributes.executable = true;
     addmethodattributes.userExecutable = true;
     UA_Server_addMethodNode(server, UA_NODEID_NUMERIC(1, 62541),
-        UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER),
-        UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT),
-        UA_QUALIFIEDNAME(1, "hello_world"), addmethodattributes,
-        &helloWorld, /* callback of the method node */
-        NULL, /* handle passed with the callback */
-        1, &inputArguments, 1, &outputArguments, NULL);
+                            UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER),
+                            UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT),
+                            UA_QUALIFIEDNAME(1, "hello_world"), addmethodattributes,
+                            &helloWorld, /* callback of the method node */
+                            NULL, /* handle passed with the callback */
+                            1, &inputArguments, 1, &outputArguments, NULL);
 #endif
 
     /* Add folders for demo information model */
@@ -202,29 +260,29 @@ int main(int argc, char** argv) {
     object_attr.description = UA_LOCALIZEDTEXT("en_US", "Demo");
     object_attr.displayName = UA_LOCALIZEDTEXT("en_US", "Demo");
     UA_Server_addObjectNode(server, UA_NODEID_NUMERIC(1, DEMOID),
-        UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER),
-        UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES), UA_QUALIFIEDNAME(1, "Demo"),
-        UA_NODEID_NUMERIC(0, UA_NS0ID_FOLDERTYPE), object_attr, NULL, NULL);
+                            UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER),
+                            UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES), UA_QUALIFIEDNAME(1, "Demo"),
+                            UA_NODEID_NUMERIC(0, UA_NS0ID_FOLDERTYPE), object_attr, NULL, NULL);
 
     object_attr.description = UA_LOCALIZEDTEXT("en_US", "Scalar");
     object_attr.displayName = UA_LOCALIZEDTEXT("en_US", "Scalar");
     UA_Server_addObjectNode(server, UA_NODEID_NUMERIC(1, SCALARID),
-        UA_NODEID_NUMERIC(1, DEMOID), UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES),
-        UA_QUALIFIEDNAME(1, "Scalar"),
-        UA_NODEID_NUMERIC(0, UA_NS0ID_FOLDERTYPE), object_attr, NULL, NULL);
+                            UA_NODEID_NUMERIC(1, DEMOID), UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES),
+                            UA_QUALIFIEDNAME(1, "Scalar"),
+                            UA_NODEID_NUMERIC(0, UA_NS0ID_FOLDERTYPE), object_attr, NULL, NULL);
 
     object_attr.description = UA_LOCALIZEDTEXT("en_US", "Array");
     object_attr.displayName = UA_LOCALIZEDTEXT("en_US", "Array");
     UA_Server_addObjectNode(server, UA_NODEID_NUMERIC(1, ARRAYID),
-        UA_NODEID_NUMERIC(1, DEMOID), UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES),
-        UA_QUALIFIEDNAME(1, "Array"),
-        UA_NODEID_NUMERIC(0, UA_NS0ID_FOLDERTYPE), object_attr, NULL, NULL);
+                            UA_NODEID_NUMERIC(1, DEMOID), UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES),
+                            UA_QUALIFIEDNAME(1, "Array"),
+                            UA_NODEID_NUMERIC(0, UA_NS0ID_FOLDERTYPE), object_attr, NULL, NULL);
 
     object_attr.description = UA_LOCALIZEDTEXT("en_US", "Matrix");
     object_attr.displayName = UA_LOCALIZEDTEXT("en_US", "Matrix");
     UA_Server_addObjectNode(server, UA_NODEID_NUMERIC(1, MATRIXID), UA_NODEID_NUMERIC(1, DEMOID),
-        UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES), UA_QUALIFIEDNAME(1, "Matrix"),
-        UA_NODEID_NUMERIC(0, UA_NS0ID_FOLDERTYPE), object_attr, NULL, NULL);
+                            UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES), UA_QUALIFIEDNAME(1, "Matrix"),
+                            UA_NODEID_NUMERIC(0, UA_NS0ID_FOLDERTYPE), object_attr, NULL, NULL);
 
     /* Fill demo nodes for each type*/
     UA_UInt32 id = 51000; // running id in namespace 0
@@ -290,8 +348,8 @@ int main(int argc, char** argv) {
     /* Hierarchy of depth 10 for CTT testing with forward and inverse references */
     /* Enter node "depth 9" in CTT configuration - Project->Settings->Server
        Test->NodeIds->Paths->Starting Node 1 */
-    object_attr.description = UA_LOCALIZEDTEXT("en_US","DepthDemo");
-    object_attr.displayName = UA_LOCALIZEDTEXT("en_US","DepthDemo");
+    object_attr.description = UA_LOCALIZEDTEXT("en_US", "DepthDemo");
+    object_attr.displayName = UA_LOCALIZEDTEXT("en_US", "DepthDemo");
     UA_Server_addObjectNode(server, UA_NODEID_NUMERIC(1, DEPTHID),
                             UA_NODEID_NUMERIC(1, DEMOID),
                             UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES), UA_QUALIFIEDNAME(1, "DepthDemo"),
@@ -305,10 +363,10 @@ int main(int argc, char** argv) {
 #else
         sprintf(name, "depth%i", i);
 #endif
-        object_attr.description = UA_LOCALIZEDTEXT("en_US",name);
-        object_attr.displayName = UA_LOCALIZEDTEXT("en_US",name);
-        UA_Server_addObjectNode(server, UA_NODEID_NUMERIC(1, id+i),
-                                UA_NODEID_NUMERIC(1, i==1 ? DEPTHID : id+i-1), UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES),
+        object_attr.description = UA_LOCALIZEDTEXT("en_US", name);
+        object_attr.displayName = UA_LOCALIZEDTEXT("en_US", name);
+        UA_Server_addObjectNode(server, UA_NODEID_NUMERIC(1, id + i),
+                                UA_NODEID_NUMERIC(1, i == 1 ? DEPTHID : id + i - 1), UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES),
                                 UA_QUALIFIEDNAME(1, name),
                                 UA_NODEID_NUMERIC(0, UA_NS0ID_FOLDERTYPE), object_attr, NULL, NULL);
     }
@@ -336,12 +394,12 @@ int main(int argc, char** argv) {
     addmethodattributes.executable = true;
     addmethodattributes.userExecutable = true;
     UA_Server_addMethodNode(server, UA_NODEID_NUMERIC(1, NOARGID),
-        UA_NODEID_NUMERIC(1, DEMOID),
-        UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT),
-        UA_QUALIFIEDNAME(1, "noarg"), addmethodattributes,
-        &noargMethod, /* callback of the method node */
-        NULL, /* handle passed with the callback */
-        0, NULL, 0, NULL, NULL);
+                            UA_NODEID_NUMERIC(1, DEMOID),
+                            UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT),
+                            UA_QUALIFIEDNAME(1, "noarg"), addmethodattributes,
+                            &noargMethod, /* callback of the method node */
+                            NULL, /* handle passed with the callback */
+                            0, NULL, 0, NULL, NULL);
 
     /* Method with in arguments */
     UA_MethodAttributes_init(&addmethodattributes);
@@ -356,12 +414,12 @@ int main(int argc, char** argv) {
     inputArguments.valueRank = -1; //uaexpert will crash if set to 0 ;)
 
     UA_Server_addMethodNode(server, UA_NODEID_NUMERIC(1, INARGID),
-        UA_NODEID_NUMERIC(1, DEMOID),
-        UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT),
-        UA_QUALIFIEDNAME(1, "noarg"), addmethodattributes,
-        &noargMethod, /* callback of the method node */
-        NULL, /* handle passed with the callback */
-        1, &inputArguments, 0, NULL, NULL);
+                            UA_NODEID_NUMERIC(1, DEMOID),
+                            UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT),
+                            UA_QUALIFIEDNAME(1, "noarg"), addmethodattributes,
+                            &noargMethod, /* callback of the method node */
+                            NULL, /* handle passed with the callback */
+                            1, &inputArguments, 0, NULL, NULL);
 
     /* Method with out arguments */
     UA_MethodAttributes_init(&addmethodattributes);
@@ -376,12 +434,12 @@ int main(int argc, char** argv) {
     outputArguments.valueRank = -1;
 
     UA_Server_addMethodNode(server, UA_NODEID_NUMERIC(1, OUTARGID),
-        UA_NODEID_NUMERIC(1, DEMOID),
-        UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT),
-        UA_QUALIFIEDNAME(1, "outarg"), addmethodattributes,
-        &outargMethod, /* callback of the method node */
-        NULL, /* handle passed with the callback */
-        0, NULL, 1, &outputArguments, NULL);
+                            UA_NODEID_NUMERIC(1, DEMOID),
+                            UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT),
+                            UA_QUALIFIEDNAME(1, "outarg"), addmethodattributes,
+                            &outargMethod, /* callback of the method node */
+                            NULL, /* handle passed with the callback */
+                            0, NULL, 1, &outputArguments, NULL);
 
     /* Method with inout arguments */
     UA_MethodAttributes_init(&addmethodattributes);
@@ -390,12 +448,12 @@ int main(int argc, char** argv) {
     addmethodattributes.userExecutable = true;
 
     UA_Server_addMethodNode(server, UA_NODEID_NUMERIC(1, INOUTARGID),
-        UA_NODEID_NUMERIC(1, DEMOID),
-        UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT),
-        UA_QUALIFIEDNAME(1, "inoutarg"), addmethodattributes,
-        &outargMethod, /* callback of the method node */
-        NULL, /* handle passed with the callback */
-        1, &inputArguments, 1, &outputArguments, NULL);
+                            UA_NODEID_NUMERIC(1, DEMOID),
+                            UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT),
+                            UA_QUALIFIEDNAME(1, "inoutarg"), addmethodattributes,
+                            &outargMethod, /* callback of the method node */
+                            NULL, /* handle passed with the callback */
+                            1, &inputArguments, 1, &outputArguments, NULL);
 #endif
 
     /* run server */
