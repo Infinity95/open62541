@@ -17,79 +17,46 @@
 UA_Boolean running = true;
 UA_Logger logger = UA_Log_Stdout;
 
-static UA_ByteString loadPrivateKey(void) {
-    UA_ByteString certificate = UA_STRING_NULL;
+static UA_ByteString loadFile(const char *const path) {
+    UA_ByteString fileContents = UA_STRING_NULL;
     FILE *fp = NULL;
-    //FIXME: a potiential bug of locating the certificate, we need to get the path from the server's config
-    fp = fopen("H:/Programming/open62541/build/bin/examples/my_key.der", "rb");
+
+    fp = fopen(path, "rb");
 
     if(!fp) {
         errno = 0; // we read errno also from the tcp layer...
-        return certificate;
+        return fileContents;
     }
 
     fseek(fp, 0, SEEK_END);
-    certificate.length = (size_t)ftell(fp);
-    certificate.data = (UA_Byte*)malloc(certificate.length * sizeof(UA_Byte));
-    if(!certificate.data)
-        return certificate;
+    fileContents.length = (size_t)ftell(fp);
+    fileContents.data = (UA_Byte*)malloc(fileContents.length * sizeof(UA_Byte));
+    if(!fileContents.data)
+        return fileContents;
 
     fseek(fp, 0, SEEK_SET);
-    if(fread(certificate.data, sizeof(UA_Byte), certificate.length, fp) < (size_t)certificate.length)
-        UA_ByteString_deleteMembers(&certificate); // error reading the cert
+    if(fread(fileContents.data, sizeof(UA_Byte), fileContents.length, fp) < (size_t)fileContents.length)
+        UA_ByteString_deleteMembers(&fileContents); // error reading the file
     fclose(fp);
 
-    return certificate;
+    return fileContents;
+}
+
+static UA_ByteString loadPrivateKey(void) {
+    UA_ByteString privateKey = loadFile("H:/Programming/open62541/build/bin/examples/my_key.pem");
+
+    // The string needs to be null terminated, so we replace the last byte (which should be \n) with \0
+    privateKey.data[privateKey.length - 1] = '\0';
+
+    return privateKey;
 }
 
 static UA_ByteString loadTrustList(void) {
-    UA_ByteString certificate = UA_STRING_NULL;
-    FILE *fp = NULL;
-    //FIXME: a potiential bug of locating the certificate, we need to get the path from the server's config
-    fp = fopen("H:/Programming/open62541/build/bin/examples/uaexpert.der", "rb");
-
-    if(!fp) {
-        errno = 0; // we read errno also from the tcp layer...
-        return certificate;
-    }
-
-    fseek(fp, 0, SEEK_END);
-    certificate.length = (size_t)ftell(fp);
-    certificate.data = (UA_Byte*)malloc(certificate.length * sizeof(UA_Byte));
-    if(!certificate.data)
-        return certificate;
-
-    fseek(fp, 0, SEEK_SET);
-    if(fread(certificate.data, sizeof(UA_Byte), certificate.length, fp) < (size_t)certificate.length)
-        UA_ByteString_deleteMembers(&certificate); // error reading the cert
-    fclose(fp);
-
-    return certificate;
+    return loadFile("H:/Programming/open62541/build/bin/examples/uaexpert.der");
 }
 
 static UA_ByteString loadCertificate(void) {
-    UA_ByteString certificate = UA_STRING_NULL;
-    FILE *fp = NULL;
-    //FIXME: a potiential bug of locating the certificate, we need to get the path from the server's config
-    fp = fopen("H:/Programming/open62541/build/bin/examples/server_cert.pem", "rb");
-
-    if(!fp) {
-        errno = 0; // we read errno also from the tcp layer...
-        return certificate;
-    }
-
-    fseek(fp, 0, SEEK_END);
-    certificate.length = (size_t)ftell(fp);
-    certificate.data = (UA_Byte*)malloc(certificate.length * sizeof(UA_Byte));
-    if(!certificate.data)
-        return certificate;
-
-    fseek(fp, 0, SEEK_SET);
-    if(fread(certificate.data, sizeof(UA_Byte), certificate.length, fp) < (size_t)certificate.length)
-        UA_ByteString_deleteMembers(&certificate); // error reading the cert
-    fclose(fp);
-
-    return certificate;
+    return loadFile("H:/Programming/open62541/build/bin/examples/server_cert.der");
 }
 
 static void stopHandler(int sign) {
