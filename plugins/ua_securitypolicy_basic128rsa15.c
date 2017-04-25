@@ -147,6 +147,12 @@ static UA_StatusCode policyContext_setCertificateRevocationList_sp_basic128rsa15
     return UA_STATUSCODE_GOOD;
 }
 
+static size_t policyContext_getLocalAsymSignatureSize_sp_basic128rsa15(const UA_Policy_SecurityContext *const securityContext) {
+    UA_SP_basic128rsa15_PolicyContextData *contextData = (UA_SP_basic128rsa15_PolicyContextData*)securityContext->data;
+    mbedtls_rsa_context *rsaContext = mbedtls_pk_rsa(contextData->localPrivateKey);
+    return rsaContext->len;
+}
+
 /////////////////////////////////
 // End PolicyContext functions //
 /////////////////////////////////
@@ -330,10 +336,17 @@ static UA_StatusCode channelContext_parseRemoteCertificate_sp_basic128rsa15(UA_C
     return UA_STATUSCODE_GOOD;
 }
 
-static size_t channelContext_getSignatureSize_sp_basic128rsa15(const UA_Channel_SecurityContext *const securityContext) {
+static size_t channelContext_getRemoteAsymSignatureSize_sp_basic128rsa15(const UA_Channel_SecurityContext *const securityContext) {
     UA_SP_basic128rsa15_ChannelContextData *const contextData = (UA_SP_basic128rsa15_ChannelContextData*)securityContext->data;
     mbedtls_rsa_context *rsaContext = mbedtls_pk_rsa(contextData->remoteCertificate.pk);
     return rsaContext->len;
+}
+
+static size_t channelContext_getRemoteAsymPlainTextBlockSize_sp_basic128rsa15(const UA_Channel_SecurityContext *const securityContext) {
+    UA_SP_basic128rsa15_ChannelContextData *const contextData = (UA_SP_basic128rsa15_ChannelContextData*)securityContext->data;
+    mbedtls_rsa_context *rsaContext = mbedtls_pk_rsa(contextData->remoteCertificate.pk);
+    size_t rsaPaddingLen = 11;
+    return rsaContext->len - rsaPaddingLen;
 }
 
 //////////////////////////////////
@@ -469,6 +482,7 @@ static UA_StatusCode asym_makeThumbprint_sp_basic128rsa15(const UA_ByteString* c
 }
 
 static UA_UInt16 asym_calculatePadding_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
+                                                        const UA_Channel_SecurityContext *const channelContext,
                                                         const size_t bytesToWrite,
                                                         UA_Byte *const paddingSize,
                                                         UA_Byte *const extraPaddingSize) {
@@ -476,9 +490,9 @@ static UA_UInt16 asym_calculatePadding_sp_basic128rsa15(const UA_SecurityPolicy 
     if(securityPolicy == NULL || paddingSize == NULL || extraPaddingSize == NULL)
         return 0;
 
-    UA_UInt16 plainTextBlockSize = 0; // TODO: Acquire this from somewhere?
+    UA_UInt16 plainTextBlockSize = (UA_UInt16)channelContext->getRemoteAsymPlainTextBlockSize(channelContext);
     UA_UInt16 padding = plainTextBlockSize -
-        ((bytesToWrite + securityPolicy->asymmetricModule.signingModule.signatureSize + 1) %
+        ((bytesToWrite + securityPolicy->context.getLocalAsymSignatureSize(&securityPolicy->context) + 1) %
          plainTextBlockSize);
 
     *paddingSize = (UA_Byte)padding;
@@ -881,6 +895,7 @@ UA_EXPORT UA_SecurityPolicy UA_SecurityPolicy_Basic128Rsa15 = {
         policyContext_setServerPrivateKey_sp_basic128rsa15, // .setServerPrivateKey
         policyContext_setCertificateTrustList_sp_basic128rsa15, // .setCertificateTrustList
         policyContext_setCertificateRevocationList_sp_basic128rsa15, // .setCertificateRevocationList
+        policyContext_getLocalAsymSignatureSize_sp_basic128rsa15, // .getLocalAsymSignatureSize
 
         NULL, // .data
         NULL // .logger
@@ -904,7 +919,8 @@ UA_EXPORT UA_SecurityPolicy UA_SecurityPolicy_Basic128Rsa15 = {
 
         channelContext_parseRemoteCertificate_sp_basic128rsa15, // .parseRemoteCertificate
 
-        channelContext_getSignatureSize_sp_basic128rsa15,
+        channelContext_getRemoteAsymSignatureSize_sp_basic128rsa15, // .getRemoteAsymSignatureSize
+        channelContext_getRemoteAsymPlainTextBlockSize_sp_basic128rsa15, // .getRemoteAsymPlainTextBlockSize
 
         NULL, // .logger
         NULL // .data
