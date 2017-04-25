@@ -1074,13 +1074,13 @@ UA_SecureChannel_processAsymmetricOPNChunk(const UA_ByteString* const chunk,
             UA_Byte secondToLastPaddingByte = chunk->data[chunkSize - signatureSize - 2];
             // extra padding byte!
             if(secondToLastPaddingByte != lastPaddingByte) {
-                paddingSize = (lastPaddingByte << 8) | secondToLastPaddingByte;
-                paddingSize += 2; // paddingSize byte and extraPaddingSize byte
+                paddingSize = (UA_UInt16)((lastPaddingByte << 8) | secondToLastPaddingByte);
+                ++paddingSize; // extraPaddingSize byte
             }
             else {
                 paddingSize = lastPaddingByte;
-                paddingSize++; // paddingSize byte
             }
+            ++paddingSize; // paddingSize byte
         }
     }
     *bodySize = chunkSize - *processedBytes - signatureSize - paddingSize;
