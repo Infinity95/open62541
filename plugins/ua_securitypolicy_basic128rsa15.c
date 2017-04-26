@@ -233,7 +233,7 @@ static UA_StatusCode channelContext_deleteMembers_sp_basic128rsa15(UA_Channel_Se
 static UA_StatusCode channelContext_setLocalSymEncryptingKey_sp_basic128rsa15(UA_Channel_SecurityContext* const securityContext,
                                                                            const UA_ByteString* const key) {
     if(securityContext == NULL || key == NULL) {
-        UA_LOG_ERROR(securityContext->logger, UA_LOGCATEGORY_SECURITYPOLICY,
+        fprintf(stderr,
                      "Error while calling channelContext_setLocalEncryptingKey_sp_basic128rsa15. Null pointer passed.");
         return UA_STATUSCODE_BADINTERNALERROR;
     }
@@ -246,7 +246,7 @@ static UA_StatusCode channelContext_setLocalSymEncryptingKey_sp_basic128rsa15(UA
 static UA_StatusCode channelContext_setLocalSymSigningKey_sp_basic128rsa15(UA_Channel_SecurityContext* const securityContext,
                                                                         const UA_ByteString* const key) {
     if(securityContext == NULL || key == NULL) {
-        UA_LOG_ERROR(securityContext->logger, UA_LOGCATEGORY_SECURITYPOLICY,
+        fprintf(stderr,
                      "Error while calling channelContext_setLocalSigningKey_sp_basic128rsa15. Null pointer passed.");
         return UA_STATUSCODE_BADINTERNALERROR;
     }
@@ -260,7 +260,7 @@ static UA_StatusCode channelContext_setLocalSymSigningKey_sp_basic128rsa15(UA_Ch
 static UA_StatusCode channelContext_setLocalSymIv_sp_basic128rsa15(UA_Channel_SecurityContext* const securityContext,
                                                                 const UA_ByteString* const iv) {
     if(securityContext == NULL || iv == NULL) {
-        UA_LOG_ERROR(securityContext->logger, UA_LOGCATEGORY_SECURITYPOLICY,
+        fprintf(stderr,
                      "Error while calling channelContext_setLocalIv_sp_basic128rsa15. Null pointer passed.");
         return UA_STATUSCODE_BADINTERNALERROR;
     }
@@ -273,7 +273,7 @@ static UA_StatusCode channelContext_setLocalSymIv_sp_basic128rsa15(UA_Channel_Se
 static UA_StatusCode channelContext_setRemoteSymEncryptingKey_sp_basic128rsa15(UA_Channel_SecurityContext* const securityContext,
                                                                             const UA_ByteString* const key) {
     if(securityContext == NULL || key == NULL) {
-        UA_LOG_ERROR(securityContext->logger, UA_LOGCATEGORY_SECURITYPOLICY,
+        fprintf(stderr,
                      "Error while calling channelContext_setRemoteEncryptingKey_sp_basic128rsa15. Null pointer passed.");
         return UA_STATUSCODE_BADINTERNALERROR;
     }
@@ -286,7 +286,7 @@ static UA_StatusCode channelContext_setRemoteSymEncryptingKey_sp_basic128rsa15(U
 static UA_StatusCode channelContext_setRemoteSymSigningKey_sp_basic128rsa15(UA_Channel_SecurityContext* const securityContext,
                                                                          const UA_ByteString* const key) {
     if(securityContext == NULL || key == NULL) {
-        UA_LOG_ERROR(securityContext->logger, UA_LOGCATEGORY_SECURITYPOLICY,
+        fprintf(stderr,
                      "Error while calling channelContext_setRemoteSigningKey_sp_basic128rsa15. Null pointer passed.");
         return UA_STATUSCODE_BADINTERNALERROR;
     }
@@ -299,7 +299,7 @@ static UA_StatusCode channelContext_setRemoteSymSigningKey_sp_basic128rsa15(UA_C
 static UA_StatusCode channelContext_setRemoteSymIv_sp_basic128rsa15(UA_Channel_SecurityContext* const securityContext,
                                                                  const UA_ByteString* const iv) {
     if(securityContext == NULL || iv == NULL) {
-        UA_LOG_ERROR(securityContext->logger, UA_LOGCATEGORY_SECURITYPOLICY,
+        fprintf(stderr,
                      "Error while calling channelContext_setRemoteIv_sp_basic128rsa15. Null pointer passed.");
         return UA_STATUSCODE_BADINTERNALERROR;
     }
@@ -649,7 +649,7 @@ static UA_StatusCode hmacSha1(const UA_ByteString* const key,
 static UA_StatusCode sym_verify_sp_basic128rsa15(const UA_ByteString* const message,
                                                  const UA_ByteString* const signature,
                                                  const void* const context) {
-    UA_Policy_SecurityContext *const policyContext = (UA_Policy_SecurityContext*)context;
+    UA_Channel_SecurityContext *const policyContext = (UA_Channel_SecurityContext*)context;
     UA_SP_basic128rsa15_ChannelContextData *const data = (UA_SP_basic128rsa15_ChannelContextData*)policyContext->data;
     if(signature->length != policyContext->securityPolicy->symmetricModule.signingModule.signatureSize) {
         UA_LOG_ERROR(policyContext->logger, UA_LOGCATEGORY_SECURITYPOLICY,
@@ -860,11 +860,9 @@ static UA_StatusCode sym_generateKey_sp_basic128rsa15(const UA_ByteString* const
 
 static UA_StatusCode sym_generateNonce_sp_basic128rsa15(const UA_SecurityPolicy* const securityPolicy,
                                                         UA_ByteString* const out) {
-    UA_assert(securityPolicy->symmetricModule.encryptingKeyLength == out->length);
-
     if(mbedtls_ctr_drbg_random(&((UA_SP_basic128rsa15_PolicyContextData*)securityPolicy->context.data)->drbgContext,
                                out->data,
-                               securityPolicy->symmetricModule.encryptingKeyLength)
+                               out->length)
        != 0)
         return UA_STATUSCODE_BADINTERNALERROR;
 
@@ -989,7 +987,8 @@ UA_EXPORT UA_SecurityPolicy UA_SecurityPolicy_Basic128Rsa15 = {
         {
             asym_verify_sp_basic128rsa15, // .verify
             asym_sign_sp_basic128rsa15, // .sign
-            0 // .signatureSize // size_t signatureSize; in bytes .... Not applicable since dependant on rsa key length
+            0, // .signatureSize // size_t signatureSize; in bytes .... Not applicable since dependant on rsa key length
+            UA_STRING_STATIC("http://www.w3.org/2000/09/xmldsig#rsa-sha1\0") // .signatureAlgorithmUri
         }
     },
 
@@ -1005,7 +1004,8 @@ UA_EXPORT UA_SecurityPolicy UA_SecurityPolicy_Basic128Rsa15 = {
         { // .signingModule
             sym_verify_sp_basic128rsa15, // .verify
             sym_sign_sp_basic128rsa15, // .sign
-            20 // .signatureSize // size_t signatureSize; in bytes
+            20, // .signatureSize // size_t signatureSize; in bytes
+            UA_STRING_STATIC("http://www.w3.org/2000/09/xmldsig#hmac-sha1\0") // .signatureAlgorithmUri
         },
 
     16, // .signingKeyLength

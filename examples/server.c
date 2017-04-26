@@ -31,8 +31,10 @@ static UA_ByteString loadFile(const char *const path) {
     fseek(fp, 0, SEEK_END);
     fileContents.length = (size_t)ftell(fp);
     fileContents.data = (UA_Byte*)malloc(fileContents.length * sizeof(UA_Byte));
-    if(!fileContents.data)
+    if(!fileContents.data) {
+        fclose(fp);
         return fileContents;
+    }
 
     fseek(fp, 0, SEEK_SET);
     if(fread(fileContents.data, sizeof(UA_Byte), fileContents.length, fp) < (size_t)fileContents.length)
@@ -428,6 +430,8 @@ int main(int argc, char** argv) {
 
     /* deallocate certificate's memory */
     UA_ByteString_deleteMembers(&config.serverCertificate);
+    UA_ByteString_deleteMembers(&privateKey);
+    UA_ByteString_deleteMembers(&trustList);
 
     UA_Server_delete(server);
     nl.deleteMembers(&nl);
