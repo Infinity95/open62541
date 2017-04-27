@@ -140,9 +140,14 @@ int main(int argc, char** argv) {
     UA_ByteString trustList = loadTrustList();
     UA_ByteString privateKey = loadPrivateKey();
     for(size_t i = 0; i < config.securityPolicies.count; ++i) {
-        UA_Policy_SecurityContext *context = &config.securityPolicies.policies[i].context;
-        context->setCertificateTrustList(context, &trustList);
-        context->setServerPrivateKey(context, &privateKey);
+        const UA_SecurityPolicy *const securityPolicy = &config.securityPolicies.policies[i];
+        const UA_Endpoint_SecurityContext *const endpointContext = &securityPolicy->endpointContext;
+        endpointContext->setCertificateTrustList(securityPolicy,
+                                                 &trustList,
+                                                 securityPolicy->endpointContextData);
+        endpointContext->setServerPrivateKey(securityPolicy,
+                                             &privateKey,
+                                             securityPolicy->endpointContextData);
     }
 
     UA_Server *server = UA_Server_new(config);
