@@ -462,7 +462,7 @@ static void UA_SecureChannel_hideBytesAsym(UA_SecureChannel *const channel,
         *buf_start +=
         UA_SecureChannel_calculateAsymAlgSecurityHeaderLength(&channel->localAsymAlgSettings);
 
-    size_t potentialEncryptionMaxSize = (*buf_end - *buf_start) + UA_SEQUENCE_HEADER_LENGTH;
+    size_t potentialEncryptionMaxSize = (size_t)(*buf_end - *buf_start) + UA_SEQUENCE_HEADER_LENGTH;
 
     // Hide bytes for signature and padding
     if(channel->securityMode == UA_MESSAGESECURITYMODE_SIGN ||
@@ -574,8 +574,8 @@ static UA_StatusCode UA_SecureChannel_sendOPNChunkAsymmetric(UA_ChunkInfo* const
     if(channel->securityMode == UA_MESSAGESECURITYMODE_SIGN ||
        channel->securityMode == UA_MESSAGESECURITYMODE_SIGNANDENCRYPT)
         total_length +=
-        securityPolicy->endpointContext.getLocalAsymSignatureSize(securityPolicy,
-                                                                  securityPolicy->endpointContextData);
+        (UA_UInt32)securityPolicy->endpointContext.getLocalAsymSignatureSize(securityPolicy,
+                                                                             securityPolicy->endpointContextData);
 
     // Encode the chunk headers at the beginning of the buffer
     UA_Byte *header_pos = ci->messageBuffer.data;
@@ -586,9 +586,9 @@ static UA_StatusCode UA_SecureChannel_sendOPNChunkAsymmetric(UA_ChunkInfo* const
         size_t dataToEncryptLength = total_length -
             (UA_SECURE_CONVERSATION_MESSAGE_HEADER_LENGTH + securityHeaderLength);
         respHeader.messageHeader.messageSize = total_length +
-            securityPolicy->channelContext.getRemoteAsymEncryptionBufferLengthOverhead(securityPolicy,
-                                                                                       channel->securityContext,
-                                                                                       dataToEncryptLength);
+            (UA_UInt32)securityPolicy->channelContext.getRemoteAsymEncryptionBufferLengthOverhead(securityPolicy,
+                                                                                                  channel->securityContext,
+                                                                                                  dataToEncryptLength);
     }
     if(ci->errorCode == UA_STATUSCODE_GOOD) {
         if(ci->final)
