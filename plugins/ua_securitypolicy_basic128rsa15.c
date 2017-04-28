@@ -21,9 +21,9 @@
 
 #define UA_SECURITYPOLICY_BASIC128RSA15_RSAPADDING_LEN 11
 
-/////////////////////////////
-// PolicyContext functions //
-/////////////////////////////
+///////////////////////////////
+// EndpointContext functions //
+///////////////////////////////
 
 typedef struct {
     mbedtls_ctr_drbg_context drbgContext;
@@ -193,18 +193,101 @@ typedef struct {
     mbedtls_x509_crt remoteCertificate;
 } UA_SP_basic128rsa15_ChannelContextData;
 
+/**
+ * \brief Verifies the certificate using the trust list and revocation list in the policy context.
+ *
+ * \param policyContext the policy context that contains the revocation and trust lists.
+ * \param channelContext the channel context that contains the already parsed certificate.
+ */
 static UA_StatusCode
-channelContext_init_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                     void **const pp_contextData) {
-    if(securityPolicy == NULL || pp_contextData == NULL) {
+verifyCertificate_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
+                                   const void *const endpointContext,
+                                   const void *const channelContext) {
+
+    if(securityPolicy == NULL || endpointContext == NULL || channelContext == NULL)
+        return UA_STATUSCODE_BADINTERNALERROR;
+
+    UA_SP_basic128rsa15_EndpointContextData *const endpointContextData =
+        (UA_SP_basic128rsa15_EndpointContextData*)endpointContext;
+    UA_SP_basic128rsa15_ChannelContextData *const channelContextData =
+        (UA_SP_basic128rsa15_ChannelContextData*)channelContext;
+    int mbedErr = 0;
+
+    mbedtls_x509_crt_profile crtProfile = {
+        MBEDTLS_X509_ID_FLAG(MBEDTLS_MD_SHA1) | MBEDTLS_X509_ID_FLAG(MBEDTLS_MD_SHA256),
+        0xFFFFFF,
+        0x000000,
+        securityPolicy->asymmetricModule.minAsymmetricKeyLength * 8 // in bits
+    }; // TODO: remove magic numbers
+
+    int flags = 0;
+    mbedErr |= mbedtls_x509_crt_verify_with_profile(&channelContextData->remoteCertificate,
+                                                    &endpointContextData->certificateTrustList,
+                                                    &endpointContextData->certificateRevocationList,
+                                                    &crtProfile,
+                                                    NULL,
+                                                    &flags,
+                                                    NULL,
+                                                    NULL);
+    if(mbedErr)
+        return UA_STATUSCODE_BADSECURITYCHECKSFAILED;
+
+    return UA_STATUSCODE_GOOD;
+}
+
+static UA_StatusCode
+parseRemoteCertificate_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
+                                        const UA_ByteString *const remoteCertificate,
+                                        void *const contextData) {
+    if(securityPolicy == NULL || remoteCertificate == NULL || contextData == NULL) {
         return UA_STATUSCODE_BADINTERNALERROR;
     }
+
+    UA_StatusCode retval = UA_STATUSCODE_GOOD;
+    int mbedErr = 0;
+    UA_SP_basic128rsa15_ChannelContextData *const data =
+        (UA_SP_basic128rsa15_ChannelContextData*)contextData;
+
+    mbedErr |= mbedtls_x509_crt_parse(&data->remoteCertificate, remoteCertificate->data, remoteCertificate->length);
+    if(mbedErr)
+        return UA_STATUSCODE_BADSECURITYCHECKSFAILED;
+
+    mbedErr |= mbedtls_x509_time_is_future(&data->remoteCertificate.valid_from);
+    if(mbedErr)
+        return UA_STATUSCODE_BADCERTIFICATEISSUERTIMEINVALID;
+    mbedErr |= mbedtls_x509_time_is_past(&data->remoteCertificate.valid_to);
+    if(mbedErr)
+        return UA_STATUSCODE_BADCERTIFICATETIMEINVALID;
+
+    mbedtls_rsa_context *rsaContext = mbedtls_pk_rsa(data->remoteCertificate.pk);
+
+    if(rsaContext->len < securityPolicy->asymmetricModule.minAsymmetricKeyLength ||
+       rsaContext->len > securityPolicy->asymmetricModule.maxAsymmetricKeyLength)
+        return UA_STATUSCODE_BADCERTIFICATEUSENOTALLOWED;
+
+    return UA_STATUSCODE_GOOD;
+}
+
+static UA_StatusCode
+channelContext_deleteMembers_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
+                                              void *const contextData);
+
+static UA_StatusCode
+channelContext_init_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
+                                     const void *const endpointContext,
+                                     const UA_ByteString *remoteCertificate,
+                                     void **const pp_contextData) {
+
+    UA_StatusCode retval = UA_STATUSCODE_GOOD;
+
+    if(securityPolicy == NULL || endpointContext == NULL ||
+       remoteCertificate == NULL || pp_contextData == NULL)
+        return UA_STATUSCODE_BADINTERNALERROR;
 
     *pp_contextData = UA_malloc(sizeof(UA_SP_basic128rsa15_ChannelContextData));
     if(*pp_contextData == NULL)
         return UA_STATUSCODE_BADOUTOFMEMORY;
 
-    // Initialize the channelcontext data here to sensible values
     UA_SP_basic128rsa15_ChannelContextData* const contextData =
         (UA_SP_basic128rsa15_ChannelContextData*)*pp_contextData;
 
@@ -218,7 +301,28 @@ channelContext_init_sp_basic128rsa15(const UA_SecurityPolicy *const securityPoli
 
     mbedtls_x509_crt_init(&contextData->remoteCertificate);
 
-    return UA_STATUSCODE_GOOD;
+    // TODO: this can be optimized so that we dont allocate memory before parsing the certificate
+    retval |= parseRemoteCertificate_sp_basic128rsa15(securityPolicy,
+                                                      remoteCertificate,
+                                                      *pp_contextData);
+    if(retval != UA_STATUSCODE_GOOD) {
+        channelContext_deleteMembers_sp_basic128rsa15(securityPolicy,
+                                                      *pp_contextData);
+        *pp_contextData = NULL;
+        return retval;
+    }
+
+    retval |= verifyCertificate_sp_basic128rsa15(securityPolicy,
+                                                 endpointContext,
+                                                 *pp_contextData);
+    if(retval != UA_STATUSCODE_GOOD) {
+        channelContext_deleteMembers_sp_basic128rsa15(securityPolicy,
+                                                      *pp_contextData);
+        *pp_contextData = NULL;
+        return retval;
+    }
+
+    return retval;
 }
 
 static UA_StatusCode
@@ -351,34 +455,29 @@ channelContext_setRemoteSymIv_sp_basic128rsa15(const UA_SecurityPolicy *const se
 }
 
 static UA_StatusCode
-channelContext_parseRemoteCertificate_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                                       const UA_ByteString *const remoteCertificate,
-                                                       void *const contextData) {
-    if(securityPolicy == NULL || remoteCertificate == NULL || contextData == NULL) {
+channelContext_compareCertificate_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
+                                                   const void *const channelContext,
+                                                   const UA_ByteString *const certificate) {
+
+    if(securityPolicy == NULL || certificate == NULL)
         return UA_STATUSCODE_BADINTERNALERROR;
-    }
 
-    UA_StatusCode retval = UA_STATUSCODE_GOOD;
     int mbedErr = 0;
-    UA_SP_basic128rsa15_ChannelContextData *const data =
-        (UA_SP_basic128rsa15_ChannelContextData*)contextData;
 
-    mbedErr |= mbedtls_x509_crt_parse(&data->remoteCertificate, remoteCertificate->data, remoteCertificate->length);
+    mbedtls_x509_crt cert;
+
+    mbedErr |= mbedtls_x509_crt_parse(&cert, certificate->data, certificate->length);
     if(mbedErr)
         return UA_STATUSCODE_BADSECURITYCHECKSFAILED;
+    
+    const UA_SP_basic128rsa15_ChannelContextData *const data =
+        (const UA_SP_basic128rsa15_ChannelContextData*)channelContext;
+    
+    if(cert.raw.len != data->remoteCertificate.raw.len)
+        return UA_STATUSCODE_BADSECURITYCHECKSFAILED;
 
-    mbedErr |= mbedtls_x509_time_is_future(&data->remoteCertificate.valid_from);
-    if(mbedErr)
-        return UA_STATUSCODE_BADCERTIFICATEISSUERTIMEINVALID;
-    mbedErr |= mbedtls_x509_time_is_past(&data->remoteCertificate.valid_to);
-    if(mbedErr)
-        return UA_STATUSCODE_BADCERTIFICATETIMEINVALID;
-
-    mbedtls_rsa_context *rsaContext = mbedtls_pk_rsa(data->remoteCertificate.pk);
-
-    if(rsaContext->len < securityPolicy->asymmetricModule.minAsymmetricKeyLength ||
-       rsaContext->len > securityPolicy->asymmetricModule.maxAsymmetricKeyLength)
-        return UA_STATUSCODE_BADCERTIFICATEUSENOTALLOWED;
+    if(memcmp(cert.raw.p, data->remoteCertificate.raw.p, cert.raw.len) != 0)
+        return UA_STATUSCODE_BADSECURITYCHECKSFAILED;
 
     return UA_STATUSCODE_GOOD;
 }
@@ -1031,41 +1130,6 @@ sym_calculatePadding_sp_basic128rsa15(const UA_SecurityPolicy *const securityPol
 ///////////////////////////////
 // Security policy functions //
 ///////////////////////////////
-static UA_StatusCode
-verifyCertificate_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                   const void *const endpointContext,
-                                   const void *const channelContext) {
-
-    if(securityPolicy == NULL || endpointContext == NULL || channelContext == NULL)
-        return UA_STATUSCODE_BADINTERNALERROR;
-
-    UA_SP_basic128rsa15_EndpointContextData *const endpointContextData =
-        (UA_SP_basic128rsa15_EndpointContextData*)endpointContext;
-    UA_SP_basic128rsa15_ChannelContextData *const channelContextData =
-        (UA_SP_basic128rsa15_ChannelContextData*)channelContext;
-    int mbedErr = 0;
-
-    mbedtls_x509_crt_profile crtProfile = {
-        MBEDTLS_X509_ID_FLAG(MBEDTLS_MD_SHA1) | MBEDTLS_X509_ID_FLAG(MBEDTLS_MD_SHA256),
-        0xFFFFFF,
-        0x000000,
-        securityPolicy->asymmetricModule.minAsymmetricKeyLength * 8 // in bits
-    }; // TODO: remove magic numbers
-
-    int flags = 0;
-    mbedErr |= mbedtls_x509_crt_verify_with_profile(&channelContextData->remoteCertificate,
-                                                    &endpointContextData->certificateTrustList,
-                                                    &endpointContextData->certificateRevocationList,
-                                                    &crtProfile,
-                                                    NULL,
-                                                    &flags,
-                                                    NULL,
-                                                    NULL);
-    if(mbedErr)
-        return UA_STATUSCODE_BADSECURITYCHECKSFAILED;
-
-    return UA_STATUSCODE_GOOD;
-}
 
 static UA_StatusCode
 deleteMembers_sp_basic128rsa15(UA_SecurityPolicy *const securityPolicy) {
@@ -1110,9 +1174,7 @@ UA_EXPORT UA_SecurityPolicy UA_SecurityPolicy_Basic128Rsa15 = {
     /* The policy uri that identifies the implemented algorithms */
     UA_STRING_STATIC("http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15"), // .policyUri
 
-    verifyCertificate_sp_basic128rsa15, // .verifyCertificate
-
-                               /* Asymmetric module */
+    /* Asymmetric module */
     { // .asymmetricModule
         asym_encrypt_sp_basic128rsa15, // .encrypt
         asym_decrypt_sp_basic128rsa15, // .decrypt
@@ -1174,7 +1236,7 @@ UA_EXPORT UA_SecurityPolicy UA_SecurityPolicy_Basic128Rsa15 = {
         channelContext_setRemoteSymSigningKey_sp_basic128rsa15, // .setRemoteSymSigningKey
         channelContext_setRemoteSymIv_sp_basic128rsa15, // .setRemoteSymIv
 
-        channelContext_parseRemoteCertificate_sp_basic128rsa15, // .parseRemoteCertificate
+        channelContext_compareCertificate_sp_basic128rsa15, // .compareCertificate
 
         channelContext_getRemoteAsymSignatureSize_sp_basic128rsa15, // .getRemoteAsymSignatureSize
         channelContext_getRemoteAsymPlainTextBlockSize_sp_basic128rsa15, // .getRemoteAsymPlainTextBlockSize
