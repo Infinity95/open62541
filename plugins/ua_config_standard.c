@@ -196,7 +196,7 @@ const UA_SubscriptionSettings UA_SubscriptionSettings_standard = {
 
 #endif
 
-UA_EXPORT UA_ServerConfig *UA_ServerConfig_standard_new() {
+UA_EXPORT UA_ServerConfig *UA_ServerConfig_standard_new(void) {
 
     UA_ServerConfig *conf = UA_malloc(sizeof(UA_ServerConfig));
     if(conf == NULL)
@@ -234,6 +234,8 @@ UA_EXPORT void UA_ServerConfig_standard_deleteMembers(UA_ServerConfig *config) {
 
         policy->deleteMembers(policy);
     }
+
+    UA_free(config->securityPolicies.policies);
 
     UA_free(config);
 }

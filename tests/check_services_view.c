@@ -14,6 +14,7 @@
 
 UA_Server *server_translate_browse;
 UA_Boolean *running_translate_browse;
+UA_ServerConfig *config;
 UA_ServerNetworkLayer nl_translate_browse;
 pthread_t server_thread_translate_browse;
 
@@ -23,11 +24,20 @@ static void *serverloop_register(void *_) {
     return NULL;
 }
 
+static void setup_config(void) {
+    config = UA_ServerConfig_standard_new();
+}
+
+static void teardown_config(void) {
+    UA_ServerConfig_standard_deleteMembers(config);
+}
+
 static void setup_server(void) {
     // start server
+    setup_config();
     running_translate_browse = UA_Boolean_new();
     *running_translate_browse = true;
-    UA_ServerConfig config_register = UA_ServerConfig_standard;
+    UA_ServerConfig config_register = *config;
     config_register.applicationDescription.applicationUri = UA_String_fromChars("urn:open62541.test.server_translate_browse");
     nl_translate_browse = UA_ServerNetworkLayerTCP(UA_ConnectionConfig_standard, 16664);
     config_register.networkLayers = &nl_translate_browse;
@@ -45,12 +55,14 @@ static void teardown_server(void) {
     UA_String_deleteMembers(&server_translate_browse->config.applicationDescription.applicationUri);
     UA_Server_delete(server_translate_browse);
     nl_translate_browse.deleteMembers(&nl_translate_browse);
+    teardown_config();
 }
 
 
 START_TEST(Service_Browse_WithBrowseName)
     {
-        UA_Server *server = UA_Server_new(UA_ServerConfig_standard);
+        setup_config();
+        UA_Server *server = UA_Server_new(*config);
 
         UA_BrowseDescription bd;
         UA_BrowseDescription_init(&bd);
@@ -67,10 +79,9 @@ START_TEST(Service_Browse_WithBrowseName)
 
         UA_BrowseResult_deleteMembers(&br);
         UA_Server_delete(server);
+        teardown_config();
     }
 END_TEST
-
-#define BROWSE_PATHS_SIZE 3
 
 START_TEST(Service_TranslateBrowsePathsToNodeIds)
     {
@@ -84,50 +95,40 @@ START_TEST(Service_TranslateBrowsePathsToNodeIds)
         // Equals the following node IDs:
         // /85/2253/2256/2259
 
+#define BROWSE_PATHS_SIZE 3
         char *paths[BROWSE_PATHS_SIZE] = {"Server", "ServerStatus", "State"};
-        UA_UInt32 ids[BROWSE_PATHS_SIZE] = {2253, 2256, 2259};
+        UA_UInt32 ids[BROWSE_PATHS_SIZE] = {UA_NS0ID_ORGANIZES, UA_NS0ID_HASCOMPONENT, UA_NS0ID_HASCOMPONENT};
+        UA_BrowsePath browsePath;
+        UA_BrowsePath_init(&browsePath);
+        browsePath.startingNode = UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER);
+        browsePath.relativePath.elements = UA_Array_new(BROWSE_PATHS_SIZE, &UA_TYPES[UA_TYPES_RELATIVEPATHELEMENT]);
+        browsePath.relativePath.elementsSize = BROWSE_PATHS_SIZE;
 
-
-        UA_BrowsePath *browsePaths = UA_Array_new(BROWSE_PATHS_SIZE, &UA_TYPES[UA_TYPES_BROWSEPATH]);
-
-        for (unsigned int i = 0; i < BROWSE_PATHS_SIZE; i++) {
-            UA_BrowsePath_init(&browsePaths[i]);
-            browsePaths[i].startingNode = UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER);
-            browsePaths[i].relativePath.elementsSize = i + 1;
-            browsePaths[i].relativePath.elements = UA_Array_new(i + 1, &UA_TYPES[UA_TYPES_RELATIVEPATHELEMENT]);
-            for (unsigned int j = 0; j <= i; j++) {
-                UA_RelativePathElement_init(&browsePaths[i].relativePath.elements[j]);
-                browsePaths[i].relativePath.elements[j].isInverse = UA_TRUE;
-
-                browsePaths[i].relativePath.elements[j].targetName = UA_QUALIFIEDNAME_ALLOC(0, paths[j]);
-            }
+        for(size_t i = 0; i < BROWSE_PATHS_SIZE; i++) {
+            UA_RelativePathElement *elem = &browsePath.relativePath.elements[i];
+            elem->referenceTypeId = UA_NODEID_NUMERIC(0, ids[i]);
+            elem->targetName = UA_QUALIFIEDNAME_ALLOC(0, paths[i]);
         }
 
         UA_TranslateBrowsePathsToNodeIdsRequest request;
         UA_TranslateBrowsePathsToNodeIdsRequest_init(&request);
-        request.browsePaths = browsePaths;
-        request.browsePathsSize = BROWSE_PATHS_SIZE;
+        request.browsePaths = &browsePath;
+        request.browsePathsSize = 1;
 
-        {
+        UA_TranslateBrowsePathsToNodeIdsResponse response = UA_Client_Service_translateBrowsePathsToNodeIds(client, request);
 
-            UA_TranslateBrowsePathsToNodeIdsResponse response = UA_Client_Service_translateBrowsePathsToNodeIds(client, request);
+        ck_assert_int_eq(response.responseHeader.serviceResult, UA_STATUSCODE_GOOD);
+        ck_assert_int_eq(response.resultsSize, 1);
 
-            ck_assert_int_eq(response.responseHeader.serviceResult, UA_STATUSCODE_GOOD);
-            ck_assert_int_eq(response.resultsSize, BROWSE_PATHS_SIZE);
+        ck_assert_int_eq(response.results[0].targetsSize, 1);
+        ck_assert_int_eq(response.results[0].targets[0].targetId.nodeId.identifierType, UA_NODEIDTYPE_NUMERIC);
+        ck_assert_int_eq(response.results[0].targets[0].targetId.nodeId.identifier.numeric, UA_NS0ID_SERVER_SERVERSTATUS_STATE);
 
-            for (int i = 0; i < BROWSE_PATHS_SIZE; i++) {
-                ck_assert_int_eq(response.results[i].targetsSize, 1);
-                ck_assert_int_eq(response.results[i].targets[0].targetId.nodeId.identifierType, UA_NODEIDTYPE_NUMERIC);
-                ck_assert_int_eq(response.results[i].targets[0].targetId.nodeId.identifier.numeric, ids[i]);
-
-            }
-
-            UA_TranslateBrowsePathsToNodeIdsRequest_deleteMembers(&request);
-            UA_TranslateBrowsePathsToNodeIdsResponse_deleteMembers(&response);
-            retVal = UA_Client_disconnect(client);
-            ck_assert_int_eq(retVal, UA_STATUSCODE_GOOD);
-            UA_Client_delete(client);
-        }
+        UA_BrowsePath_deleteMembers(&browsePath);
+        UA_TranslateBrowsePathsToNodeIdsResponse_deleteMembers(&response);
+        retVal = UA_Client_disconnect(client);
+        ck_assert_int_eq(retVal, UA_STATUSCODE_GOOD);
+        UA_Client_delete(client);
     }
 END_TEST
 
