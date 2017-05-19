@@ -127,29 +127,18 @@ outargMethod(void *methodHandle, const UA_NodeId *objectId,
 int main(int argc, char** argv) {
     signal(SIGINT, stopHandler); /* catches ctrl-c */
 
-    UA_ServerNetworkLayer nl = UA_ServerNetworkLayerTCP(UA_ConnectionConfig_standard, 16664);
-    UA_ServerConfig *config = UA_ServerConfig_standard_new();
-    if(config == NULL)
-        return -1;
-
-    config->networkLayers = &nl;
-    config->networkLayersSize = 1;
-
-    /* load certificate */
-    config->serverCertificate = loadCertificate();
-
+    /* load certificate and stuff */
+    UA_ByteString cert = loadCertificate();
     UA_ByteString trustList = loadTrustList();
     UA_ByteString privateKey = loadPrivateKey();
-    for(size_t i = 0; i < config->securityPolicies.count; ++i) {
-        const UA_SecurityPolicy *const securityPolicy = &config->securityPolicies.policies[i];
-        const UA_Endpoint_SecurityContext *const endpointContext = &securityPolicy->endpointContext;
-        endpointContext->setCertificateTrustList(securityPolicy,
-                                                 &trustList,
-                                                 securityPolicy->endpointContextData);
-        endpointContext->setServerPrivateKey(securityPolicy,
-                                             &privateKey,
-                                             securityPolicy->endpointContextData);
-    }
+
+    UA_ServerConfig *config = UA_ServerConfig_standard_basic128rsa15_new(16664,
+                                                                         &cert,
+                                                                         &privateKey,
+                                                                         &trustList,
+                                                                         NULL);
+    if(config == NULL)
+        return -1;
 
     UA_Server *server = UA_Server_new(*config);
 
@@ -435,12 +424,11 @@ int main(int argc, char** argv) {
     UA_StatusCode retval = UA_Server_run(server, &running); /* run until ctrl-c is received */
 
     /* deallocate certificate's memory */
-    UA_ByteString_deleteMembers(&config->serverCertificate);
     UA_ByteString_deleteMembers(&privateKey);
     UA_ByteString_deleteMembers(&trustList);
+    UA_ByteString_deleteMembers(&cert);
 
     UA_Server_delete(server);
-    nl.deleteMembers(&nl);
 
     UA_ServerConfig_standard_deleteMembers(config);
     return (int)retval;
