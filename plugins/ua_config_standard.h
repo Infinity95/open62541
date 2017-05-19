@@ -25,10 +25,19 @@ extern UA_EXPORT const UA_ClientConfig UA_ClientConfig_standard;
  * \param portNumber the port number for the tcp network layer
  * \param certificate an optional certificate for the endpoint
  */
-UA_EXPORT UA_ServerConfig *UA_ServerConfig_standard_parametrized_new(UA_UInt16 portNumber,
-                                                                    const UA_ByteString *certificate);
+UA_EXPORT UA_ServerConfig*
+UA_ServerConfig_standard_parametrized_new(UA_UInt16 portNumber,
+                                          const UA_ByteString *certificate);
 
-UA_EXPORT UA_ServerConfig *UA_ServerConfig_standard_new(void);
+UA_EXPORT UA_ServerConfig*
+UA_ServerConfig_standard_basic128rsa15_new(UA_UInt16 portNumber,
+                                           const UA_ByteString *certificate,
+                                           const UA_ByteString *privateKey,
+                                           const UA_ByteString *trustList,
+                                           const UA_ByteString *revocationList);
+
+UA_EXPORT UA_ServerConfig*
+UA_ServerConfig_standard_new(void);
 
 UA_EXPORT void UA_ServerConfig_standard_deleteMembers(UA_ServerConfig *config);
 
