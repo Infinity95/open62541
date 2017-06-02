@@ -17,6 +17,7 @@ extern "C" {
 #include "ua_log.h"
 #include "ua_job.h"
 #include "ua_connection.h"
+#include "ua_securitypolicy.h"
 
 /**
  * .. _server:
@@ -155,7 +156,6 @@ typedef struct {
     /* Server Description */
     UA_BuildInfo buildInfo;
     UA_ApplicationDescription applicationDescription;
-    UA_ByteString serverCertificate;
 #ifdef UA_ENABLE_DISCOVERY
     UA_String mdnsServerName;
     size_t serverCapabilitiesSize;
@@ -169,6 +169,10 @@ typedef struct {
     /* Networking */
     size_t networkLayersSize;
     UA_ServerNetworkLayer *networkLayers;
+
+    /* Available endpoints */
+    size_t endpointsSize;
+    UA_Endpoint *endpoints;
 
     /* Access Control */
     UA_AccessControl accessControl;

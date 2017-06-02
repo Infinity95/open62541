@@ -12,6 +12,7 @@
 #include "ua_transport_generated_encoding_binary.h"
 #include "ua_util.h"
 #include "ua_nodeids.h"
+#include "ua_securitypolicy_none.h"
 
 /*********************/
 /* Create and Delete */
@@ -20,6 +21,15 @@
 static void UA_Client_init(UA_Client* client, UA_ClientConfig config) {
     memset(client, 0, sizeof(UA_Client));
     client->channel.connection = &client->connection;
+    client->channel.endpoint = (UA_Endpoint*)UA_malloc(sizeof(UA_Endpoint));
+    client->channel.endpoints = (UA_Endpoints*)UA_malloc(sizeof(UA_Endpoints));
+    UA_EndpointDescription_init(&client->channel.endpoint->endpointDescription);
+    client->channel.endpoints->endpoints = client->channel.endpoint;
+    client->channel.endpoints->count = 1;
+    client->channel.endpoint->securityPolicy = &UA_SecurityPolicy_None;
+    UA_SecurityPolicy_None.endpointContext.init(&UA_SecurityPolicy_None,
+                                                NULL,
+                                                &client->channel.endpoint->securityContext);
     client->config = config;
 }
 
@@ -33,6 +43,10 @@ UA_Client * UA_Client_new(UA_ClientConfig config) {
 
 static void UA_Client_deleteMembers(UA_Client* client) {
     UA_Client_disconnect(client);
+    UA_SecurityPolicy_None.endpointContext.deleteMembers(&UA_SecurityPolicy_None,
+                                                         client->channel.endpoint->securityContext);
+    UA_free(client->channel.endpoint);
+    UA_free(client->channel.endpoints);
     UA_SecureChannel_deleteMembersCleanup(&client->channel);
     UA_Connection_deleteMembers(&client->connection);
     if(client->endpointUrl.data)
@@ -95,16 +109,17 @@ HelAckHandshake(UA_Client *client) {
     hello.receiveBufferSize = conn->localConf.recvBufferSize;
     hello.sendBufferSize = conn->localConf.sendBufferSize;
 
-    size_t offset = 8;
-    retval = UA_TcpHelloMessage_encodeBinary(&hello, &message, &offset);
+    UA_Byte *bufPos = &message.data[8]; /* skip the header */
+    const UA_Byte *bufEnd = &message.data[message.length];
+    retval = UA_TcpHelloMessage_encodeBinary(&hello, &bufPos, &bufEnd);
     UA_TcpHelloMessage_deleteMembers(&hello);
 
     /* Encode the message header at offset 0 */
     UA_TcpMessageHeader messageHeader;
     messageHeader.messageTypeAndChunkType = UA_CHUNKTYPE_FINAL + UA_MESSAGETYPE_HEL;
-    messageHeader.messageSize = (UA_UInt32)offset;
-    offset = 0;
-    retval |= UA_TcpMessageHeader_encodeBinary(&messageHeader, &message, &offset);
+    messageHeader.messageSize = (UA_UInt32)((uintptr_t)bufPos - (uintptr_t)message.data);
+    bufPos = message.data;
+    retval |= UA_TcpMessageHeader_encodeBinary(&messageHeader, &bufPos, &bufEnd);
     if(retval != UA_STATUSCODE_GOOD) {
         conn->releaseSendBuffer(conn, &message);
         return retval;
@@ -133,7 +148,7 @@ HelAckHandshake(UA_Client *client) {
     }
 
     /* Decode the message */
-    offset = 0;
+    size_t offset = 0;
     UA_TcpAcknowledgeMessage ackMessage;
     retval = UA_TcpMessageHeader_decodeBinary(&reply, &offset, &messageHeader);
     retval |= UA_TcpAcknowledgeMessage_decodeBinary(&reply, &offset, &ackMessage);
@@ -182,24 +197,25 @@ SecureChannelHandshake(UA_Client *client, UA_Boolean renew) {
         return retval;
 
     /* Jump over the messageHeader that will be encoded last */
-    size_t offset = 12;
+    UA_Byte *bufPos = &message.data[12];
+    const UA_Byte *bufEnd = &message.data[message.length];
 
     /* Encode the Asymmetric Security Header */
     UA_AsymmetricAlgorithmSecurityHeader asymHeader;
     UA_AsymmetricAlgorithmSecurityHeader_init(&asymHeader);
     asymHeader.securityPolicyUri = UA_STRING("http://opcfoundation.org/UA/SecurityPolicy#None");
-    retval = UA_AsymmetricAlgorithmSecurityHeader_encodeBinary(&asymHeader, &message, &offset);
+    retval = UA_AsymmetricAlgorithmSecurityHeader_encodeBinary(&asymHeader, &bufPos, &bufEnd);
 
     /* Encode the sequence header */
     UA_SequenceHeader seqHeader;
     seqHeader.sequenceNumber = ++client->channel.sendSequenceNumber;
     seqHeader.requestId = ++client->requestId;
-    retval |= UA_SequenceHeader_encodeBinary(&seqHeader, &message, &offset);
+    retval |= UA_SequenceHeader_encodeBinary(&seqHeader, &bufPos, &bufEnd);
 
     /* Encode the NodeId of the OpenSecureChannel Service */
     UA_NodeId requestType =
         UA_NODEID_NUMERIC(0, UA_TYPES[UA_TYPES_OPENSECURECHANNELREQUEST].binaryEncodingId);
-    retval |= UA_NodeId_encodeBinary(&requestType, &message, &offset);
+    retval |= UA_NodeId_encodeBinary(&requestType, &bufPos, &bufEnd);
 
     /* Encode the OpenSecureChannelRequest */
     UA_OpenSecureChannelRequest opnSecRq;
@@ -218,18 +234,19 @@ SecureChannelHandshake(UA_Client *client, UA_Boolean renew) {
     opnSecRq.securityMode = UA_MESSAGESECURITYMODE_NONE;
     opnSecRq.clientNonce = client->channel.clientNonce;
     opnSecRq.requestedLifetime = client->config.secureChannelLifeTime;
-    retval |= UA_OpenSecureChannelRequest_encodeBinary(&opnSecRq, &message, &offset);
+    retval |= UA_OpenSecureChannelRequest_encodeBinary(&opnSecRq, &bufPos, &bufEnd);
 
     /* Encode the message header at the beginning */
+    size_t length = (uintptr_t)(bufPos - message.data);
+    bufPos = message.data;
     UA_SecureConversationMessageHeader messageHeader;
     messageHeader.messageHeader.messageTypeAndChunkType = UA_MESSAGETYPE_OPN + UA_CHUNKTYPE_FINAL;
-    messageHeader.messageHeader.messageSize = (UA_UInt32)offset;
+    messageHeader.messageHeader.messageSize = (UA_UInt32)length;
     if(renew)
         messageHeader.secureChannelId = client->channel.securityToken.channelId;
     else
         messageHeader.secureChannelId = 0;
-    offset = 0;
-    retval |= UA_SecureConversationMessageHeader_encodeBinary(&messageHeader, &message, &offset);
+    retval |= UA_SecureConversationMessageHeader_encodeBinary(&messageHeader, &bufPos, &bufEnd);
 
     /* Clean up and return if encoding the message failed */
     if(retval != UA_STATUSCODE_GOOD) {
@@ -238,7 +255,7 @@ SecureChannelHandshake(UA_Client *client, UA_Boolean renew) {
     }
 
     /* Send the message */
-    message.length = messageHeader.messageHeader.messageSize;
+    message.length = length;
     retval = conn->send(conn, &message);
     if(retval != UA_STATUSCODE_GOOD)
         return retval;
@@ -255,7 +272,7 @@ SecureChannelHandshake(UA_Client *client, UA_Boolean renew) {
     }
 
     /* Decode the header */
-    offset = 0;
+    size_t offset = 0;
     retval = UA_SecureConversationMessageHeader_decodeBinary(&reply, &offset, &messageHeader);
     retval |= UA_AsymmetricAlgorithmSecurityHeader_decodeBinary(&reply, &offset, &asymHeader);
     retval |= UA_SequenceHeader_decodeBinary(&reply, &offset, &seqHeader);
@@ -540,16 +557,22 @@ CloseSecureChannel(UA_Client *client) {
         return retval;
     }
 
-    size_t offset = 12;
-    retval |= UA_SymmetricAlgorithmSecurityHeader_encodeBinary(&symHeader, &message, &offset);
-    retval |= UA_SequenceHeader_encodeBinary(&seqHeader, &message, &offset);
-    retval |= UA_NodeId_encodeBinary(&typeId, &message, &offset);
-    retval |= UA_encodeBinary(&request, &UA_TYPES[UA_TYPES_CLOSESECURECHANNELREQUEST],
-                              NULL, NULL, &message, &offset);
+    /* Jump over the header */
+    UA_Byte *bufPos = &message.data[UA_SECURE_CONVERSATION_MESSAGE_HEADER_LENGTH];
 
-    msgHeader.messageHeader.messageSize = (UA_UInt32)offset;
-    offset = 0;
-    retval |= UA_SecureConversationMessageHeader_encodeBinary(&msgHeader, &message, &offset);
+    const UA_Byte *bufEnd = &message.data[message.length];
+    
+    /* Encode some more headers and the CloseSecureChannelRequest */
+    retval |= UA_SymmetricAlgorithmSecurityHeader_encodeBinary(&symHeader, &bufPos, &bufEnd);
+    retval |= UA_SequenceHeader_encodeBinary(&seqHeader, &bufPos, &bufEnd);
+    retval |= UA_NodeId_encodeBinary(&typeId, &bufPos, &bufEnd);
+    retval |= UA_encodeBinary(&request, &UA_TYPES[UA_TYPES_CLOSESECURECHANNELREQUEST],
+                              &bufPos, &bufEnd, NULL, NULL);
+
+    /* Encode the header */
+    msgHeader.messageHeader.messageSize = (UA_UInt32)((uintptr_t)bufPos - (uintptr_t)message.data);
+    bufPos = message.data;
+    retval |= UA_SecureConversationMessageHeader_encodeBinary(&msgHeader, &bufPos, &bufEnd);
 
     if(retval == UA_STATUSCODE_GOOD) {
         message.length = msgHeader.messageHeader.messageSize;

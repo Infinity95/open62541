@@ -9,6 +9,8 @@
 #include "ua_util.h"
 #include "ua_services.h"
 #include "ua_nodeids.h"
+#include "ua_types_generated.h"
+#include "ua_types_generated_handling.h"
 
 #ifdef UA_ENABLE_GENERATE_NAMESPACE0
 #include "ua_namespaceinit_generated.h"
@@ -31,7 +33,7 @@ UA_UInt16 addNamespace(UA_Server *server, const UA_String name) {
 
     /* Make the array bigger */
     UA_String *newNS = (UA_String*)UA_realloc(server->namespaces,
-                                  sizeof(UA_String) * (server->namespacesSize + 1));
+                                              sizeof(UA_String) * (server->namespacesSize + 1));
     if(!newNS)
         return 0;
     server->namespaces = newNS;
@@ -117,14 +119,14 @@ UA_Server_forEachChildNodeCall(UA_Server *server, UA_NodeId parentNodeId,
     UA_ReferenceNode *refs = NULL;
     size_t refssize = parent->referencesSize;
     UA_StatusCode retval = UA_Array_copy(parent->references, parent->referencesSize,
-                                         (void**)&refs, &UA_TYPES[UA_TYPES_REFERENCENODE]);
+        (void**)&refs, &UA_TYPES[UA_TYPES_REFERENCENODE]);
     if(retval != UA_STATUSCODE_GOOD) {
         UA_RCU_UNLOCK();
         return retval;
     }
 
     for(size_t i = parent->referencesSize; i > 0; --i) {
-        UA_ReferenceNode *ref = &refs[i-1];
+        UA_ReferenceNode *ref = &refs[i - 1];
         retval |= callback(ref->targetId.nodeId, ref->isInverse,
                            ref->referenceTypeId, handle);
     }
@@ -153,8 +155,12 @@ void UA_Server_delete(UA_Server *server) {
     UA_Server_deleteExternalNamespaces(server);
 #endif
     UA_Array_delete(server->namespaces, server->namespacesSize, &UA_TYPES[UA_TYPES_STRING]);
-    UA_Array_delete(server->endpointDescriptions, server->endpointDescriptionsSize,
-                    &UA_TYPES[UA_TYPES_ENDPOINTDESCRIPTION]);
+    
+    for(size_t i = 0; i < server->endpoints.count; ++i) {
+        UA_EndpointDescription_deleteMembers(&server->endpoints.endpoints[i].endpointDescription);
+    }
+    UA_free(server->endpoints.endpoints);
+    server->endpoints.count = 0;
 
 #ifdef UA_ENABLE_DISCOVERY
     registeredServer_list_entry *rs, *rs_tmp;
@@ -208,52 +214,19 @@ static void UA_Server_cleanup(UA_Server *server, void *_) {
 #endif
 }
 
+// TODO: Maybe make endpoints more configurable? Currently all policies are added to each network layer
+// TODO: to form an endpoint. Also message security mode is always none or signandencrypt
 /* Create endpoints w/o endpointurl. It is added from the networklayers at startup */
 static void
-addEndpointDefinitions(UA_Server *server) {
-    server->endpointDescriptions =
-        (UA_EndpointDescription*)UA_Array_new(server->config.networkLayersSize,
-                                              &UA_TYPES[UA_TYPES_ENDPOINTDESCRIPTION]);
-    server->endpointDescriptionsSize = server->config.networkLayersSize;
+addEndpointDefinitions(UA_Server* server) {
+    server->endpoints.endpoints = (UA_Endpoint*) UA_malloc(sizeof(UA_Endpoint) * server->config.endpointsSize);
+    server->endpoints.count = server->config.endpointsSize;
 
-    for(size_t i = 0; i < server->config.networkLayersSize; ++i) {
-        UA_EndpointDescription *endpoint = &server->endpointDescriptions[i];
-        endpoint->securityMode = UA_MESSAGESECURITYMODE_NONE;
-        endpoint->securityPolicyUri =
-            UA_STRING_ALLOC("http://opcfoundation.org/UA/SecurityPolicy#None");
-        endpoint->transportProfileUri =
-            UA_STRING_ALLOC("http://opcfoundation.org/UA-Profile/Transport/uatcp-uasc-uabinary");
-
-        size_t policies = 0;
-        if(server->config.accessControl.enableAnonymousLogin)
-            ++policies;
-        if(server->config.accessControl.enableUsernamePasswordLogin)
-            ++policies;
-        endpoint->userIdentityTokensSize = policies;
-        endpoint->userIdentityTokens =
-            (UA_UserTokenPolicy*)UA_Array_new(policies, &UA_TYPES[UA_TYPES_USERTOKENPOLICY]);
-
-        size_t currentIndex = 0;
-        if(server->config.accessControl.enableAnonymousLogin) {
-            UA_UserTokenPolicy_init(&endpoint->userIdentityTokens[currentIndex]);
-            endpoint->userIdentityTokens[currentIndex].tokenType = UA_USERTOKENTYPE_ANONYMOUS;
-            endpoint->userIdentityTokens[currentIndex].policyId = UA_STRING_ALLOC(ANONYMOUS_POLICY);
-            ++currentIndex;
-        }
-        if(server->config.accessControl.enableUsernamePasswordLogin) {
-            UA_UserTokenPolicy_init(&endpoint->userIdentityTokens[currentIndex]);
-            endpoint->userIdentityTokens[currentIndex].tokenType = UA_USERTOKENTYPE_USERNAME;
-            endpoint->userIdentityTokens[currentIndex].policyId = UA_STRING_ALLOC(USERNAME_POLICY);
-        }
-
-        /* The standard says "the HostName specified in the Server Certificate is the
-           same as the HostName contained in the endpointUrl provided in the
-           EndpointDescription */
-        UA_String_copy(&server->config.serverCertificate, &endpoint->serverCertificate);
-        UA_ApplicationDescription_copy(&server->config.applicationDescription, &endpoint->server);
-
-        /* copy the discovery url only once the networlayer has been started */
-        // UA_String_copy(&server->config.networkLayers[i].discoveryUrl, &endpoint->endpointUrl);
+    for(size_t i = 0; i < server->config.endpointsSize; ++i) {
+        server->endpoints.endpoints[i].securityPolicy = server->config.endpoints[i].securityPolicy;
+        server->endpoints.endpoints[i].securityContext = server->config.endpoints[i].securityContext;
+        UA_EndpointDescription_copy(&server->config.endpoints[i].endpointDescription,
+                                    &server->endpoints.endpoints[i].endpointDescription);
     }
 }
 
@@ -262,6 +235,14 @@ UA_Server_new(const UA_ServerConfig config) {
     UA_Server *server = (UA_Server *)UA_calloc(1, sizeof(UA_Server));
     if(!server)
         return NULL;
+
+    if(config.endpointsSize == 0) {
+        UA_LOG_FATAL(config.logger,
+                     UA_LOGCATEGORY_SERVER,
+                     "There has to be at least one endpoint.");
+        UA_free(server);
+        return NULL;
+    }
 
     server->config = config;
     server->startTime = UA_DateTime_now();

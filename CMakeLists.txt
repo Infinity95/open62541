@@ -27,9 +27,9 @@ include(AssignSourceGroup)
 ###########
 
 set(OPEN62541_VER_MAJOR 0)
-set(OPEN62541_VER_MINOR 2)
+set(OPEN62541_VER_MINOR 3)
 set(OPEN62541_VER_PATCH 0)
-set(OPEN62541_VER_LABEL "-rc2") # Appended to the X.Y.Z version format. For example "-rc1" or an empty string
+set(OPEN62541_VER_LABEL "") # Appended to the X.Y.Z version format. For example "-rc1" or an empty string
 
 # Set OPEN62541_VER_COMMIT
 if(GIT_FOUND)
@@ -218,6 +218,10 @@ set(exported_headers ${PROJECT_BINARY_DIR}/src_generated/ua_config.h
                      ${PROJECT_SOURCE_DIR}/include/ua_connection.h
                      ${PROJECT_SOURCE_DIR}/include/ua_job.h
                      ${PROJECT_SOURCE_DIR}/include/ua_log.h
+                     ${PROJECT_SOURCE_DIR}/include/ua_securitycontext_fwd.h
+                     ${PROJECT_SOURCE_DIR}/include/ua_securitypolicy_fwd.h
+                     ${PROJECT_SOURCE_DIR}/include/ua_securitycontext.h
+                     ${PROJECT_SOURCE_DIR}/include/ua_securitypolicy.h
                      ${PROJECT_SOURCE_DIR}/include/ua_server.h
                      ${PROJECT_SOURCE_DIR}/include/ua_client.h
                      ${PROJECT_SOURCE_DIR}/include/ua_client_highlevel.h
@@ -225,6 +229,7 @@ set(exported_headers ${PROJECT_BINARY_DIR}/src_generated/ua_config.h
                      ${PROJECT_SOURCE_DIR}/plugins/ua_accesscontrol_default.h
                      ${PROJECT_SOURCE_DIR}/plugins/ua_log_stdout.h
                      ${PROJECT_SOURCE_DIR}/plugins/ua_config_standard.h
+                     ${PROJECT_SOURCE_DIR}/plugins/ua_securitypolicy_none.h
 )
 set(internal_headers ${PROJECT_SOURCE_DIR}/deps/queue.h
                      ${PROJECT_SOURCE_DIR}/deps/pcg_basic.h
@@ -293,6 +298,7 @@ set(lib_sources ${PROJECT_SOURCE_DIR}/src/ua_types.c
                 ${PROJECT_SOURCE_DIR}/plugins/ua_clock.c
                 ${PROJECT_SOURCE_DIR}/plugins/ua_log_stdout.c
                 ${PROJECT_SOURCE_DIR}/plugins/ua_config_standard.c
+                ${PROJECT_SOURCE_DIR}/plugins/ua_securitypolicy_none.c
                 ${PROJECT_SOURCE_DIR}/deps/libc_time.c
                 ${PROJECT_SOURCE_DIR}/deps/pcg_basic.c
 )
@@ -406,7 +412,7 @@ add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/open62541.c
                            ${OPEN62541_VER_COMMIT} ${CMAKE_CURRENT_BINARY_DIR}/open62541.c ${internal_headers} ${lib_sources}
                    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tools/amalgamate.py ${internal_headers} ${lib_sources})
 
-ADD_CUSTOM_TARGET(open625451_amalgamation DEPENDS ${PROJECT_BINARY_DIR}/open62541.h
+ADD_CUSTOM_TARGET(open62541_amalgamation DEPENDS ${PROJECT_BINARY_DIR}/open62541.h
                                                   ${PROJECT_BINARY_DIR}/open62541.c)
 
 # example information model from nodeset xml
@@ -436,6 +442,11 @@ assign_source_group(${exported_headers})
 
 if(UA_ENABLE_AMALGAMATION)
     add_library(open62541-object OBJECT ${PROJECT_BINARY_DIR}/open62541.c ${PROJECT_BINARY_DIR}/open62541.h)
+
+    # make sure the open62541_amalgamation target builds before so that amalgamation is finished and it is not executed again for open62541-object 
+    # and thus may overwrite the amalgamation result during multiprocessor compilation
+    add_dependencies(open62541-object open62541_amalgamation)
+
     target_include_directories(open62541-object PRIVATE ${PROJECT_BINARY_DIR})
     if(UA_COMPILE_AS_CXX)
         set_source_files_properties(${PROJECT_BINARY_DIR}/open62541.c PROPERTIES LANGUAGE CXX)
@@ -596,3 +607,4 @@ set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "_CmakePredifinedTargets"
 set_target_properties(open62541 PROPERTIES FOLDER "open62541/lib")
 set_target_properties(open62541-object PROPERTIES FOLDER "open62541/lib")
 set_target_properties(lint PROPERTIES FOLDER "CodeAnalysis")
+set_target_properties(open62541_amalgamation PROPERTIES FOLDER "open62541/lib")
