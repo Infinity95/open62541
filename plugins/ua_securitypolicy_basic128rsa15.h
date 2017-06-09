@@ -9,7 +9,7 @@
 extern "C" {
 #endif
 
-#include "ua_securitypolicy.h"
+#include "ua_plugin_securitypolicy.h"
 
 typedef int(*UA_EntropySourceFunc_sp_basic128rsa15)(void *data, unsigned char *output, size_t len, size_t *olen);
 

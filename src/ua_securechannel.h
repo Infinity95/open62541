@@ -13,11 +13,21 @@ extern "C" {
 #include "ua_types.h"
 #include "ua_transport_generated.h"
 #include "ua_connection_internal.h"
-#include "ua_securitycontext.h"
-#include "ua_securitypolicy.h"
+#include "ua_plugin_securitypolicy.h"
 
 struct UA_Session;
 typedef struct UA_Session UA_Session;
+
+/* Definitions for fixed lengths taken from the standard */
+#define UA_SECURE_MESSAGE_HEADER_LENGTH 24
+#define UA_ASYMMETRIC_ALG_SECURITY_HEADER_FIXED_LENGTH 12
+#define UA_SYMMETRIC_ALG_SECURITY_HEADER_LENGTH 4
+#define UA_MESSAGE_HEADER_LENGTH 8
+#define UA_SEQUENCE_HEADER_LENGTH 8
+#define UA_SECURE_CONVERSATION_MESSAGE_HEADER_LENGTH 12
+#define UA_SECUREMH_AND_SYMALGH_LENGTH \
+    (UA_SECURE_CONVERSATION_MESSAGE_HEADER_LENGTH + \
+    UA_SYMMETRIC_ALG_SECURITY_HEADER_LENGTH)
 
 struct SessionEntry {
     LIST_ENTRY(SessionEntry) pointers;

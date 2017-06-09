@@ -10,21 +10,11 @@
 #include "ua_transport_generated_encoding_binary.h"
 #include "ua_types_generated_handling.h"
 #include "ua_transport_generated_handling.h"
-#include "ua_securitycontext.h"
-#include "ua_securitypolicy.h"
+#include "ua_plugin_securitypolicy.h"
 
 const UA_ByteString
 UA_SECURITY_POLICY_NONE_URI = { 47, (UA_Byte*)"http://opcfoundation.org/UA/SecurityPolicy#None" };
 
-#define UA_SECURE_MESSAGE_HEADER_LENGTH 24
-#define UA_ASYMMETRIC_ALG_SECURITY_HEADER_FIXED_LENGTH 12
-#define UA_SYMMETRIC_ALG_SECURITY_HEADER_LENGTH 4
-#define UA_MESSAGE_HEADER_LENGTH 8
-#define UA_SEQUENCE_HEADER_LENGTH 8
-#define UA_SECURE_CONVERSATION_MESSAGE_HEADER_LENGTH 12
-#define UA_SECUREMH_AND_SYMALGH_LENGTH \
-    (UA_SECURE_CONVERSATION_MESSAGE_HEADER_LENGTH + \
-    UA_SYMMETRIC_ALG_SECURITY_HEADER_LENGTH)
 #define UA_BITMASK_MESSAGETYPE 0x00ffffff
 #define UA_BITMASK_CHUNKTYPE 0xff000000
 
@@ -253,7 +243,7 @@ void UA_SecureChannel_revolveTokens(UA_SecureChannel* channel) {
 /***********************/
 
 static UA_StatusCode
-UA_SecureChannel_sendChunk(UA_ChunkInfo* ci, UA_Byte **buf_pos, UA_Byte **buf_end) {
+UA_SecureChannel_sendChunk(UA_ChunkInfo* ci, UA_Byte **buf_pos, const UA_Byte **buf_end) {
     UA_SecureChannel* const channel = ci->channel;
     UA_Connection* const connection = channel->connection;
     const UA_SecurityPolicy* const securityPolicy = channel->endpoint->securityPolicy;
@@ -278,18 +268,18 @@ UA_SecureChannel_sendChunk(UA_ChunkInfo* ci, UA_Byte **buf_pos, UA_Byte **buf_en
     if(ci->errorCode != UA_STATUSCODE_GOOD) {
         *buf_pos = buf_body_start;
         UA_String errorMsg = UA_STRING_NULL;
-        UA_encodeBinary(&ci->errorCode,
-                        &UA_TYPES[UA_TYPES_UINT32],
-                        buf_pos,
-                        buf_end,
-                        NULL,
-                        NULL);
-        UA_encodeBinary(&errorMsg,
-                        &UA_TYPES[UA_TYPES_STRING],
-                        buf_pos,
-                        buf_end,
-                        NULL,
-                        NULL);
+        ci->errorCode |= UA_encodeBinary(&ci->errorCode,
+                                         &UA_TYPES[UA_TYPES_UINT32],
+                                         buf_pos,
+                                         buf_end,
+                                         NULL,
+                                         NULL);
+        ci->errorCode |= UA_encodeBinary(&errorMsg,
+                                         &UA_TYPES[UA_TYPES_STRING],
+                                         buf_pos,
+                                         buf_end,
+                                         NULL,
+                                         NULL);
         ci->final = true; /* Mark chunk as finished */
     }
 
@@ -340,8 +330,9 @@ UA_SecureChannel_sendChunk(UA_ChunkInfo* ci, UA_Byte **buf_pos, UA_Byte **buf_en
     }
     else {
         respHeader.messageHeader.messageTypeAndChunkType += UA_CHUNKTYPE_ABORT;
+
     }
-    UA_encodeBinary(&respHeader,
+    ci->errorCode |= UA_encodeBinary(&respHeader,
                     &UA_TRANSPORT[UA_TRANSPORT_SECURECONVERSATIONMESSAGEHEADER],
                     &header_pos,
                     buf_end,
@@ -350,7 +341,7 @@ UA_SecureChannel_sendChunk(UA_ChunkInfo* ci, UA_Byte **buf_pos, UA_Byte **buf_en
 
     UA_SymmetricAlgorithmSecurityHeader symSecHeader;
     symSecHeader.tokenId = channel->securityToken.tokenId;
-    UA_encodeBinary(&symSecHeader.tokenId,
+    ci->errorCode |= UA_encodeBinary(&symSecHeader.tokenId,
                     &UA_TRANSPORT[UA_TRANSPORT_SYMMETRICALGORITHMSECURITYHEADER],
                     &header_pos,
                     buf_end,
@@ -360,7 +351,8 @@ UA_SecureChannel_sendChunk(UA_ChunkInfo* ci, UA_Byte **buf_pos, UA_Byte **buf_en
     UA_SequenceHeader seqHeader;
     seqHeader.requestId = ci->requestId;
     seqHeader.sequenceNumber = UA_atomic_add(&channel->sendSequenceNumber, 1);
-    UA_encodeBinary(&seqHeader, &UA_TRANSPORT[UA_TRANSPORT_SEQUENCEHEADER],
+
+    ci->errorCode |= UA_encodeBinary(&seqHeader, &UA_TRANSPORT[UA_TRANSPORT_SEQUENCEHEADER],
                     &header_pos, buf_end, NULL, NULL);
 
     /* Sign message */
@@ -402,10 +394,8 @@ UA_SecureChannel_sendChunk(UA_ChunkInfo* ci, UA_Byte **buf_pos, UA_Byte **buf_en
         if(retval != UA_STATUSCODE_GOOD)
             return retval;
 
-        /* Forward the data pointer so that the payload is encoded after the message header.
-         * TODO: This works but is a bit too clever. Instead, we could return an offset to the
-         * binary encoding exchangeBuffer function. */
-        *buf_pos = ci->messageBuffer.data + UA_SECURE_MESSAGE_HEADER_LENGTH;
+        // Forward the data pointer so that the payload is encoded after the message header.
+        *buf_pos = &ci->messageBuffer.data[UA_SECURE_MESSAGE_HEADER_LENGTH];
         *buf_end = &ci->messageBuffer.data[ci->messageBuffer.length];
 
         if(channel->securityMode == UA_MESSAGESECURITYMODE_SIGN ||
@@ -430,7 +420,7 @@ UA_SecureChannel_calculateAsymAlgSecurityHeaderLength(
 
 static void UA_SecureChannel_hideBytesAsym(UA_SecureChannel *const channel,
                                            UA_Byte **const buf_start,
-                                           UA_Byte **const buf_end) {
+                                           const UA_Byte **const buf_end) {
     *buf_start += UA_SECURE_CONVERSATION_MESSAGE_HEADER_LENGTH + UA_SEQUENCE_HEADER_LENGTH;
 
     const UA_SecurityPolicy *const securityPolicy = channel->endpoint->securityPolicy;
@@ -473,7 +463,7 @@ static void UA_SecureChannel_hideBytesAsym(UA_SecureChannel *const channel,
  */
 static UA_StatusCode UA_SecureChannel_sendOPNChunkAsymmetric(UA_ChunkInfo* const ci,
                                                              UA_Byte **buf_pos,
-                                                             UA_Byte **buf_end) {
+                                                             const UA_Byte **buf_end) {
     UA_SecureChannel* const channel = ci->channel;
     UA_Connection* const connection = channel->connection;
     const UA_SecurityPolicy* const securityPolicy = channel->endpoint->securityPolicy;
@@ -582,17 +572,17 @@ static UA_StatusCode UA_SecureChannel_sendOPNChunkAsymmetric(UA_ChunkInfo* const
         return ci->errorCode;
     }
 
-    UA_encodeBinary(&respHeader, &UA_TRANSPORT[UA_TRANSPORT_SECURECONVERSATIONMESSAGEHEADER],
+    ci->errorCode |= UA_encodeBinary(&respHeader, &UA_TRANSPORT[UA_TRANSPORT_SECURECONVERSATIONMESSAGEHEADER],
                     &header_pos, buf_end, NULL, NULL);
 
-    UA_encodeBinary(asymHeader,
+    ci->errorCode |= UA_encodeBinary(asymHeader,
                     &UA_TRANSPORT[UA_TRANSPORT_ASYMMETRICALGORITHMSECURITYHEADER],
                     &header_pos, buf_end, NULL, NULL);
 
     UA_SequenceHeader seqHeader;
     seqHeader.requestId = ci->requestId;
     seqHeader.sequenceNumber = UA_atomic_add(&channel->sendSequenceNumber, 1);
-    UA_encodeBinary(&seqHeader, &UA_TRANSPORT[UA_TRANSPORT_SEQUENCEHEADER],
+    ci->errorCode |= UA_encodeBinary(&seqHeader, &UA_TRANSPORT[UA_TRANSPORT_SEQUENCEHEADER],
                     &header_pos, buf_end, NULL, NULL);
 
     // Sign message
@@ -686,9 +676,9 @@ UA_SecureChannel_sendBinaryMessage(UA_SecureChannel* channel, UA_UInt32 requestI
     if(retval != UA_STATUSCODE_GOOD)
         return retval;
 
-    UA_ExchangeEncodeBuffer sendChunk = NULL;
+    UA_ExchangeEncodeBuffer_func sendChunk = NULL;
     UA_Byte *buf_start = NULL;
-    UA_Byte *buf_end = &ci.messageBuffer.data[ci.messageBuffer.length];
+    const UA_Byte *buf_end = &ci.messageBuffer.data[ci.messageBuffer.length];
 
     switch(ci.messageType) {
     case UA_MESSAGETYPE_MSG:
@@ -705,7 +695,7 @@ UA_SecureChannel_sendBinaryMessage(UA_SecureChannel* channel, UA_UInt32 requestI
             buf_end -= 2;
 
         /* Set the callback */
-        sendChunk = (UA_ExchangeEncodeBuffer)UA_SecureChannel_sendChunk;
+        sendChunk = (UA_ExchangeEncodeBuffer_func)UA_SecureChannel_sendChunk;
         break;
 
     case UA_MESSAGETYPE_OPN:
@@ -713,7 +703,7 @@ UA_SecureChannel_sendBinaryMessage(UA_SecureChannel* channel, UA_UInt32 requestI
 
         UA_SecureChannel_hideBytesAsym(channel, &buf_start, &buf_end);
 
-        sendChunk = (UA_ExchangeEncodeBuffer)UA_SecureChannel_sendOPNChunkAsymmetric;
+        sendChunk = (UA_ExchangeEncodeBuffer_func)UA_SecureChannel_sendOPNChunkAsymmetric;
         break;
 
     default:
@@ -728,10 +718,10 @@ UA_SecureChannel_sendBinaryMessage(UA_SecureChannel* channel, UA_UInt32 requestI
     /* Encode the message type */
     UA_NodeId typeId = contentType->typeId; /* always numeric */
     typeId.identifier.numeric = contentType->binaryEncodingId;
-    UA_encodeBinary(&typeId, &UA_TYPES[UA_TYPES_NODEID], &buf_start, &buf_end, NULL, NULL);
+    retval |= UA_encodeBinary(&typeId, &UA_TYPES[UA_TYPES_NODEID], &buf_start, &buf_end, NULL, NULL);
 
     /* Encode with the chunking callback */
-    retval = UA_encodeBinary(content, contentType, &buf_start, &buf_end, sendChunk, &ci);
+    retval |= UA_encodeBinary(content, contentType, &buf_start, &buf_end, sendChunk, &ci);
 
     /* Encoding failed, release the message */
     if(retval != UA_STATUSCODE_GOOD) {
@@ -1017,25 +1007,29 @@ UA_SecureChannel_processAsymmetricOPNChunk(const UA_ByteString* const chunk,
 
 
     if(channel->endpoint == NULL) {
-        // iterate available security policies and choose the correct one
+        // iterate available endpoints and choose the correct one
         UA_Endpoint *endpoint = NULL;
 
         for(size_t i = 0; i < channel->endpoints->count; ++i) {
-            if(UA_ByteString_equal(&clientAsymHeader.securityPolicyUri,
-                                   &channel->endpoints->endpoints[i].securityPolicy->policyUri)) {
+            UA_Endpoint *const endpointCandidate = &channel->endpoints->endpoints[i];
 
-                endpoint = &channel->endpoints->endpoints[i];
-                if(endpoint->securityPolicy->endpointContext.compareCertificateThumbprint(
-                    endpoint->securityPolicy,
-                    endpoint->securityContext,
-                    &clientAsymHeader.receiverCertificateThumbprint) == UA_STATUSCODE_GOOD) {
-                    // We found the correct endpoint (except for security mode)
-                    // The endpoint needs to be changed by the client / server to match
-                    // the security mode. The server does this in the securechannel manager
-                    break;
-                }
-                endpoint = NULL;
+            if(!UA_ByteString_equal(&clientAsymHeader.securityPolicyUri,
+                                    &endpointCandidate->securityPolicy->policyUri)) {
+                continue;
             }
+
+            if (endpointCandidate->securityPolicy->endpointContext.compareCertificateThumbprint(
+                endpointCandidate->securityPolicy,
+                endpointCandidate->securityContext,
+                &clientAsymHeader.receiverCertificateThumbprint) != UA_STATUSCODE_GOOD) {
+                continue;
+            }
+
+            // We found the correct endpoint (except for security mode)
+            // The endpoint needs to be changed by the client / server to match
+            // the security mode. The server does this in the securechannel manager
+            endpoint = endpointCandidate;
+            break;
         }
 
         if(endpoint == NULL) {

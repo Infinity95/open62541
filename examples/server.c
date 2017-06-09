@@ -54,7 +54,7 @@ static UA_ByteString loadPrivateKey(void) {
 }
 
 static UA_ByteString loadTrustList(void) {
-    return loadFile("H:/Programming/open62541/build/bin/examples/uaexpert.der");
+    return loadFile("H:/Programming/open62541/build/bin/examples/opcuactt.der");
 }
 
 static UA_ByteString loadCertificate(void) {
