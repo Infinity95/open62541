@@ -3,13 +3,13 @@
 * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include <stdio.h>
+#include <assert.h>
 #include "ua_securitypolicy_basic128rsa15.h"
 #include "ua_types.h"
 #include "ua_types_generated_handling.h"
 #include "mbedtls\aes.h"
 #include "mbedtls\md.h"
 #include "mbedtls\md_internal.h"
-#include "ua_util.h"
 #include "mbedtls\ctr_drbg.h"
 #include "mbedtls\x509.h"
 #include "mbedtls\x509_crt.h"
@@ -20,12 +20,15 @@
 #define UA_STRING_STATIC_NULL {0, NULL}
 
 #define UA_SECURITYPOLICY_BASIC128RSA15_RSAPADDING_LEN 11
+#define UA_SECURITYPOLICY_BASIC128RSA15_SYM_SIGNATURE_SIZE 20
 
-///////////////////////////////
-// EndpointContext functions //
-///////////////////////////////
+/////////////////////////////
+// PolicyContext functions //
+/////////////////////////////
 
 typedef struct {
+    const UA_SecurityPolicy *securityPolicy;
+
     mbedtls_ctr_drbg_context drbgContext;
     mbedtls_entropy_context entropyContext;
 
@@ -33,23 +36,97 @@ typedef struct {
     mbedtls_x509_crt certificateTrustList;
     mbedtls_pk_context localPrivateKey;
 
-    UA_ByteString serverCert;
-    UA_ByteString serverCertThumbprint;
-} UA_SP_basic128rsa15_EndpointContextData;
+    UA_ByteString localCert;
+    UA_ByteString localCertThumbprint;
+} UA_SP_basic128rsa15_PolicyContextData;
 
 static UA_StatusCode
-endpointContext_init_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                      const void *const initData,
-                                      void **const pp_contextData) {
-    if(securityPolicy == NULL || pp_contextData == NULL)
+policyContext_setLocalPrivateKey_sp_basic128rsa15(const UA_ByteString* const privateKey,
+                                                  UA_SP_basic128rsa15_PolicyContextData *const contextData) {
+    if(privateKey == NULL || contextData == NULL)
+        return UA_STATUSCODE_BADINTERNALERROR;
+
+    int err = mbedtls_pk_parse_key(&contextData->localPrivateKey,
+                                   privateKey->data,
+                                   privateKey->length,
+                                   NULL,
+                                   0);
+    if(err) // TODO: more precise error handling?
+        return UA_STATUSCODE_BADINTERNALERROR;
+
+    return UA_STATUSCODE_GOOD;
+}
+
+UA_StatusCode
+policyContext_setLocalCertificate_sp_basic128rsa15(const UA_ByteString *certificate,
+                                                   UA_SP_basic128rsa15_PolicyContextData *const contextData) {
+    if(certificate == NULL || contextData == NULL)
+        return UA_STATUSCODE_BADINTERNALERROR;
+
+    UA_StatusCode retval = UA_STATUSCODE_GOOD;
+
+    retval = UA_ByteString_copy(certificate, &contextData->localCert);
+    if(retval != UA_STATUSCODE_GOOD)
+        return retval;
+
+    if(contextData->localCertThumbprint.length != contextData->securityPolicy->asymmetricModule.thumbprintLength) {
+        retval = UA_ByteString_allocBuffer(&contextData->localCertThumbprint,
+                                           contextData->securityPolicy->asymmetricModule.thumbprintLength);
+
+        if(retval != UA_STATUSCODE_GOOD)
+            return retval;
+    }
+
+    retval = contextData->securityPolicy->asymmetricModule.makeThumbprint(contextData->securityPolicy,
+                                                                          certificate,
+                                                                          &contextData->localCertThumbprint);
+
+    return retval;
+}
+
+static UA_StatusCode
+policyContext_setCertificateTrustList_sp_basic128rsa15(const UA_ByteString* const trustList,
+                                                       UA_SP_basic128rsa15_PolicyContextData *const contextData) {
+    if(trustList == NULL || contextData == NULL)
+        return UA_STATUSCODE_BADINTERNALERROR;
+
+    int err = mbedtls_x509_crt_parse(&contextData->certificateTrustList,
+                                     trustList->data,
+                                     trustList->length);
+    if(err) // TODO: more precise error handling?
+        return UA_STATUSCODE_BADINTERNALERROR;
+
+    return UA_STATUSCODE_GOOD;
+}
+
+static UA_StatusCode
+policyContext_setCertificateRevocationList_sp_basic128rsa15(const UA_ByteString *const revocationList,
+                                                            UA_SP_basic128rsa15_PolicyContextData *const contextData) {
+    if(revocationList == NULL, contextData == NULL)
+        return UA_STATUSCODE_BADINTERNALERROR;
+
+    int err = mbedtls_x509_crl_parse(&contextData->certificateRevocationList,
+                                     revocationList->data,
+                                     revocationList->length);
+    if(err) // TODO: more precise error handling?
+        return UA_STATUSCODE_BADINTERNALERROR;
+
+    return UA_STATUSCODE_GOOD;
+}
+
+static UA_StatusCode
+policyContext_newContext_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
+                                          const UA_Policy_SecurityContext_RequiredInitData *const initData,
+                                          const void *const optInitData,
+                                          void **const pp_contextData) {
+    if(securityPolicy == NULL || pp_contextData == NULL || initData == NULL)
         return UA_STATUSCODE_BADINTERNALERROR;
 
     const UA_SecurityPolicy_Basic128Rsa15_initData *policyInitData = NULL;
 
-    if(initData != NULL) {
-        policyInitData = (UA_SecurityPolicy_Basic128Rsa15_initData*)initData;
-    }
-    else {
+    if(optInitData != NULL) {
+        policyInitData = (UA_SecurityPolicy_Basic128Rsa15_initData*)optInitData;
+    } else {
         UA_SecurityPolicy_Basic128Rsa15_initData defaultInitData = {
             NULL,
             0
@@ -57,13 +134,15 @@ endpointContext_init_sp_basic128rsa15(const UA_SecurityPolicy *const securityPol
         policyInitData = &defaultInitData;
     }
 
-    *pp_contextData = UA_malloc(sizeof(UA_SP_basic128rsa15_EndpointContextData));
+    *pp_contextData = UA_malloc(sizeof(UA_SP_basic128rsa15_PolicyContextData));
 
     if(*pp_contextData == NULL)
         return UA_STATUSCODE_BADOUTOFMEMORY;
 
     // Initialize the PolicyContext data to sensible values
-    UA_SP_basic128rsa15_EndpointContextData* data = (UA_SP_basic128rsa15_EndpointContextData*)*pp_contextData;
+    UA_SP_basic128rsa15_PolicyContextData* data = (UA_SP_basic128rsa15_PolicyContextData*)*pp_contextData;
+
+    data->securityPolicy = securityPolicy;
 
     mbedtls_ctr_drbg_init(&data->drbgContext);
     mbedtls_entropy_init(&data->entropyContext);
@@ -84,11 +163,20 @@ endpointContext_init_sp_basic128rsa15(const UA_SecurityPolicy *const securityPol
                           policyInitData->ctrDrbg_personalizationDataLen);
 
     mbedtls_x509_crl_init(&data->certificateRevocationList);
-    mbedtls_x509_crt_init(&data->certificateTrustList);
-    mbedtls_pk_init(&data->localPrivateKey);
+    if(initData->certificateRevocationList != NULL)
+        policyContext_setCertificateRevocationList_sp_basic128rsa15(initData->certificateRevocationList,
+                                                                    data);
 
-    UA_ByteString_init(&data->serverCert);
-    UA_ByteString_init(&data->serverCertThumbprint);
+    mbedtls_x509_crt_init(&data->certificateTrustList);
+    if(initData->certificateTrustList != NULL)
+        policyContext_setCertificateTrustList_sp_basic128rsa15(initData->certificateTrustList, data);
+
+    mbedtls_pk_init(&data->localPrivateKey);
+    policyContext_setLocalPrivateKey_sp_basic128rsa15(initData->localPrivateKey, data);
+
+    UA_ByteString_init(&data->localCert);
+    UA_ByteString_init(&data->localCertThumbprint);
+    policyContext_setLocalCertificate_sp_basic128rsa15(initData->localCertificate, data);
 
     UA_LOG_DEBUG(securityPolicy->logger, UA_LOGCATEGORY_SECURITYPOLICY,
                  "Initialized PolicyContext for sp_basic128rsa15");
@@ -97,13 +185,12 @@ endpointContext_init_sp_basic128rsa15(const UA_SecurityPolicy *const securityPol
 }
 
 static UA_StatusCode
-endpointContext_deleteMembers_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                               void *const securityContext) {
+policyContext_deleteContext_sp_basic128rsa15(void *const securityContext) {
     if(securityContext == NULL)
         return UA_STATUSCODE_BADINTERNALERROR;
 
     // delete all allocated members in the data block
-    UA_SP_basic128rsa15_EndpointContextData *const data = (UA_SP_basic128rsa15_EndpointContextData*)securityContext;
+    UA_SP_basic128rsa15_PolicyContextData *const data = (UA_SP_basic128rsa15_PolicyContextData*)securityContext;
 
     mbedtls_ctr_drbg_free(&data->drbgContext);
     mbedtls_entropy_free(&data->entropyContext);
@@ -112,143 +199,38 @@ endpointContext_deleteMembers_sp_basic128rsa15(const UA_SecurityPolicy *const se
     mbedtls_x509_crt_free(&data->certificateTrustList);
     mbedtls_pk_free(&data->localPrivateKey);
 
-    UA_ByteString_deleteMembers(&data->serverCert);
-    UA_ByteString_deleteMembers(&data->serverCertThumbprint);
+    UA_ByteString_deleteMembers(&data->localCert);
+    UA_ByteString_deleteMembers(&data->localCertThumbprint);
+
+    UA_LOG_DEBUG(data->securityPolicy->logger, UA_LOGCATEGORY_SECURITYPOLICY,
+                 "Deleted members of EndpointContext for sp_basic128rsa15");
 
     UA_free(securityContext);
 
-    UA_LOG_DEBUG(securityPolicy->logger, UA_LOGCATEGORY_SECURITYPOLICY,
-                 "Deleted members of EndpointContext for sp_basic128rsa15");
-
     return UA_STATUSCODE_GOOD;
-}
-
-static UA_StatusCode
-endpointContext_setLocalPrivateKey_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                                    const UA_ByteString* const privateKey,
-                                                    void *const endpointContext) {
-    if(securityPolicy == NULL || privateKey == NULL || endpointContext == NULL)
-        return UA_STATUSCODE_BADINTERNALERROR;
-
-    UA_SP_basic128rsa15_EndpointContextData *const contextData =
-        (UA_SP_basic128rsa15_EndpointContextData*)endpointContext;
-
-    int err = mbedtls_pk_parse_key(&contextData->localPrivateKey,
-                                   privateKey->data,
-                                   privateKey->length,
-                                   NULL,
-                                   0);
-    if(err) // TODO: more precise error handling?
-        return UA_STATUSCODE_BADINTERNALERROR;
-
-    return UA_STATUSCODE_GOOD;
-}
-
-UA_StatusCode
-endpointContext_setServerCertificate_sp_basic128rsa15(const UA_SecurityPolicy *securityPolicy,
-                                                      const UA_ByteString *certificate,
-                                                      void *endpointContext) {
-    if(securityPolicy == NULL || certificate == NULL || endpointContext == NULL)
-        return UA_STATUSCODE_BADINTERNALERROR;
-
-    UA_StatusCode retval = UA_STATUSCODE_GOOD;
-
-    UA_SP_basic128rsa15_EndpointContextData *const contextData =
-        (UA_SP_basic128rsa15_EndpointContextData*)endpointContext;
-
-    retval = UA_ByteString_copy(certificate, &contextData->serverCert);
-    if(retval != UA_STATUSCODE_GOOD)
-        return retval;
-
-    if(contextData->serverCertThumbprint.length != securityPolicy->asymmetricModule.thumbprintLength) {
-        retval = UA_ByteString_allocBuffer(&contextData->serverCertThumbprint,
-                                           securityPolicy->asymmetricModule.thumbprintLength);
-
-        if(retval != UA_STATUSCODE_GOOD)
-            return retval;
-    }
-
-    retval = securityPolicy->asymmetricModule.makeThumbprint(securityPolicy,
-                                                             certificate,
-                                                             &contextData->serverCertThumbprint);
-
-    return retval;
 }
 
 const UA_ByteString *
-endpointContext_getServerCertificate_sp_basic128rsa15(const UA_SecurityPolicy *securityPolicy,
-                                                      const void *endpointContext) {
-    if(securityPolicy == NULL || endpointContext == NULL)
+policyContext_getLocalCertificate_sp_basic128rsa15(const void *policyContext) {
+    if(policyContext == NULL)
         return NULL;
 
-    UA_SP_basic128rsa15_EndpointContextData *const contextData =
-        (UA_SP_basic128rsa15_EndpointContextData*)endpointContext;
+    UA_SP_basic128rsa15_PolicyContextData *const contextData =
+        (UA_SP_basic128rsa15_PolicyContextData*)policyContext;
 
-    return &contextData->serverCert;
-}
-
-static UA_StatusCode
-endpointContext_setCertificateTrustList_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                                         const UA_ByteString* const trustList,
-                                                         void *const endpointContext) {
-    if(securityPolicy == NULL || trustList == NULL || endpointContext == NULL)
-        return UA_STATUSCODE_BADINTERNALERROR;
-
-    UA_SP_basic128rsa15_EndpointContextData *const contextData =
-        (UA_SP_basic128rsa15_EndpointContextData*)endpointContext;
-
-    int err = mbedtls_x509_crt_parse(&contextData->certificateTrustList,
-                                     trustList->data,
-                                     trustList->length);
-    if(err) // TODO: more precise error handling?
-        return UA_STATUSCODE_BADINTERNALERROR;
-
-    return UA_STATUSCODE_GOOD;
-}
-
-static UA_StatusCode
-endpointContext_setCertificateRevocationList_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                                              const UA_ByteString *const revocationList,
-                                                              void *const endpointContext) {
-    if(securityPolicy == NULL || revocationList == NULL, endpointContext == NULL)
-        return UA_STATUSCODE_BADINTERNALERROR;
-
-    UA_SP_basic128rsa15_EndpointContextData *const contextData =
-        (UA_SP_basic128rsa15_EndpointContextData*)endpointContext;
-
-    int err = mbedtls_x509_crl_parse(&contextData->certificateRevocationList,
-                                     revocationList->data,
-                                     revocationList->length);
-    if(err) // TODO: more precise error handling?
-        return UA_STATUSCODE_BADINTERNALERROR;
-
-    return UA_STATUSCODE_GOOD;
-}
-
-static size_t
-endpointContext_getLocalAsymSignatureSize_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                                           const void *const endpointContext) {
-    if(securityPolicy == NULL || endpointContext == NULL)
-        return 0;
-
-    UA_SP_basic128rsa15_EndpointContextData *const contextData =
-        (UA_SP_basic128rsa15_EndpointContextData*)endpointContext;
-
-    mbedtls_rsa_context *const rsaContext = mbedtls_pk_rsa(contextData->localPrivateKey);
-    return rsaContext->len;
+    return &contextData->localCert;
 }
 
 UA_StatusCode
-endpointContext_compareCertificateThumbprint_sp_basic128rsa15(const UA_SecurityPolicy *securityPolicy,
-                             const void *endpointContext,
-                             const UA_ByteString *certificateThumbprint) {
-    if(securityPolicy == NULL || endpointContext == NULL || certificateThumbprint == NULL)
+policyContext_compareCertificateThumbprint_sp_basic128rsa15(const void *policyContext,
+                                                            const UA_ByteString *certificateThumbprint) {
+    if(policyContext == NULL || certificateThumbprint == NULL)
         return UA_STATUSCODE_BADINTERNALERROR;
 
-    UA_SP_basic128rsa15_EndpointContextData *const contextData =
-        (UA_SP_basic128rsa15_EndpointContextData*)endpointContext;
+    UA_SP_basic128rsa15_PolicyContextData *const contextData =
+        (UA_SP_basic128rsa15_PolicyContextData*)policyContext;
 
-    if(UA_ByteString_equal(certificateThumbprint, &contextData->serverCertThumbprint))
+    if(UA_ByteString_equal(certificateThumbprint, &contextData->localCertThumbprint))
         return UA_STATUSCODE_GOOD;
 
     return UA_STATUSCODE_BADCERTIFICATEINVALID;
@@ -263,6 +245,8 @@ endpointContext_compareCertificateThumbprint_sp_basic128rsa15(const UA_SecurityP
 //////////////////////////////
 
 typedef struct {
+    UA_SP_basic128rsa15_PolicyContextData *policyContext;
+
     UA_ByteString localSymSigningKey;
     UA_ByteString localSymEncryptingKey;
     UA_ByteString localSymIv;
@@ -281,30 +265,27 @@ typedef struct {
  * \param channelContext the channel context that contains the already parsed certificate.
  */
 static UA_StatusCode
-verifyCertificate_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                   const void *const endpointContext,
-                                   const void *const channelContext) {
+verifyCertificate_sp_basic128rsa15(const void *const channelContext) {
 
-    if(securityPolicy == NULL || endpointContext == NULL || channelContext == NULL)
+    if(channelContext == NULL)
         return UA_STATUSCODE_BADINTERNALERROR;
 
-    UA_SP_basic128rsa15_EndpointContextData *const endpointContextData =
-        (UA_SP_basic128rsa15_EndpointContextData*)endpointContext;
     UA_SP_basic128rsa15_ChannelContextData *const channelContextData =
         (UA_SP_basic128rsa15_ChannelContextData*)channelContext;
+    UA_SP_basic128rsa15_PolicyContextData *const policyContextData = channelContextData->policyContext;
     int mbedErr = 0;
 
     mbedtls_x509_crt_profile crtProfile = {
         MBEDTLS_X509_ID_FLAG(MBEDTLS_MD_SHA1) | MBEDTLS_X509_ID_FLAG(MBEDTLS_MD_SHA256),
         0xFFFFFF,
         0x000000,
-        securityPolicy->asymmetricModule.minAsymmetricKeyLength * 8 // in bits
+        policyContextData->securityPolicy->asymmetricModule.minAsymmetricKeyLength * 8 // in bits
     }; // TODO: remove magic numbers
 
     int flags = 0;
     mbedErr |= mbedtls_x509_crt_verify_with_profile(&channelContextData->remoteCertificate,
-                                                    &endpointContextData->certificateTrustList,
-                                                    &endpointContextData->certificateRevocationList,
+                                                    &policyContextData->certificateTrustList,
+                                                    &policyContextData->certificateRevocationList,
                                                     &crtProfile,
                                                     NULL,
                                                     &flags,
@@ -317,10 +298,9 @@ verifyCertificate_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy
 }
 
 static UA_StatusCode
-parseRemoteCertificate_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                        const UA_ByteString *const remoteCertificate,
-                                        void *const contextData) {
-    if(securityPolicy == NULL || remoteCertificate == NULL || contextData == NULL) {
+parseRemoteCertificate_sp_basic128rsa15(void *const contextData,
+                                        const UA_ByteString *const remoteCertificate) {
+    if(remoteCertificate == NULL || contextData == NULL) {
         return UA_STATUSCODE_BADINTERNALERROR;
     }
 
@@ -342,26 +322,24 @@ parseRemoteCertificate_sp_basic128rsa15(const UA_SecurityPolicy *const securityP
 
     mbedtls_rsa_context *rsaContext = mbedtls_pk_rsa(data->remoteCertificate.pk);
 
-    if(rsaContext->len < securityPolicy->asymmetricModule.minAsymmetricKeyLength ||
-       rsaContext->len > securityPolicy->asymmetricModule.maxAsymmetricKeyLength)
+    if(rsaContext->len < data->policyContext->securityPolicy->asymmetricModule.minAsymmetricKeyLength ||
+       rsaContext->len > data->policyContext->securityPolicy->asymmetricModule.maxAsymmetricKeyLength)
         return UA_STATUSCODE_BADCERTIFICATEUSENOTALLOWED;
 
     return UA_STATUSCODE_GOOD;
 }
 
 static UA_StatusCode
-channelContext_deleteMembers_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                              void *const contextData);
+channelContext_deleteContext_sp_basic128rsa15(void *const contextData);
 
 static UA_StatusCode
-channelContext_init_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                     const void *const endpointContext,
-                                     const UA_ByteString *remoteCertificate,
-                                     void **const pp_contextData) {
+channelContext_newContext_sp_basic128rsa15(const void *const policyContext,
+                                           const UA_ByteString *remoteCertificate,
+                                           void **const pp_contextData) {
 
     UA_StatusCode retval = UA_STATUSCODE_GOOD;
 
-    if(securityPolicy == NULL || endpointContext == NULL ||
+    if(policyContext == NULL ||
        remoteCertificate == NULL || pp_contextData == NULL)
         return UA_STATUSCODE_BADINTERNALERROR;
 
@@ -371,6 +349,8 @@ channelContext_init_sp_basic128rsa15(const UA_SecurityPolicy *const securityPoli
 
     UA_SP_basic128rsa15_ChannelContextData* const contextData =
         (UA_SP_basic128rsa15_ChannelContextData*)*pp_contextData;
+
+    contextData->policyContext = (UA_SP_basic128rsa15_PolicyContextData*)policyContext;
 
     UA_ByteString_init(&contextData->localSymSigningKey);
     UA_ByteString_init(&contextData->localSymEncryptingKey);
@@ -383,22 +363,17 @@ channelContext_init_sp_basic128rsa15(const UA_SecurityPolicy *const securityPoli
     mbedtls_x509_crt_init(&contextData->remoteCertificate);
 
     // TODO: this can be optimized so that we dont allocate memory before parsing the certificate
-    retval |= parseRemoteCertificate_sp_basic128rsa15(securityPolicy,
-                                                      remoteCertificate,
-                                                      *pp_contextData);
+    retval |= parseRemoteCertificate_sp_basic128rsa15(*pp_contextData,
+                                                      remoteCertificate);
     if(retval != UA_STATUSCODE_GOOD) {
-        channelContext_deleteMembers_sp_basic128rsa15(securityPolicy,
-                                                      *pp_contextData);
+        channelContext_deleteContext_sp_basic128rsa15(*pp_contextData);
         *pp_contextData = NULL;
         return retval;
     }
 
-    retval |= verifyCertificate_sp_basic128rsa15(securityPolicy,
-                                                 endpointContext,
-                                                 *pp_contextData);
+    retval |= verifyCertificate_sp_basic128rsa15(*pp_contextData);
     if(retval != UA_STATUSCODE_GOOD) {
-        channelContext_deleteMembers_sp_basic128rsa15(securityPolicy,
-                                                      *pp_contextData);
+        channelContext_deleteContext_sp_basic128rsa15(*pp_contextData);
         *pp_contextData = NULL;
         return retval;
     }
@@ -407,9 +382,8 @@ channelContext_init_sp_basic128rsa15(const UA_SecurityPolicy *const securityPoli
 }
 
 static UA_StatusCode
-channelContext_deleteMembers_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                              void *const contextData) {
-    if(securityPolicy == NULL || contextData == NULL) {
+channelContext_deleteContext_sp_basic128rsa15(void *const contextData) {
+    if(contextData == NULL) {
         return UA_STATUSCODE_BADINTERNALERROR;
     }
 
@@ -433,10 +407,9 @@ channelContext_deleteMembers_sp_basic128rsa15(const UA_SecurityPolicy *const sec
 }
 
 static UA_StatusCode
-channelContext_setLocalSymEncryptingKey_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                                         const UA_ByteString *const key,
-                                                         void *const contextData) {
-    if(securityPolicy == NULL || key == NULL || contextData == NULL) {
+channelContext_setLocalSymEncryptingKey_sp_basic128rsa15(void *const contextData,
+                                                         const UA_ByteString *const key) {
+    if(key == NULL || contextData == NULL) {
         fprintf(stderr,
                 "Error while calling channelContext_setLocalEncryptingKey_sp_basic128rsa15."
                 "Null pointer passed.");
@@ -450,10 +423,9 @@ channelContext_setLocalSymEncryptingKey_sp_basic128rsa15(const UA_SecurityPolicy
 }
 
 static UA_StatusCode
-channelContext_setLocalSymSigningKey_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                                      const UA_ByteString *const key,
-                                                      void *const contextData) {
-    if(securityPolicy == NULL || key == NULL || contextData == NULL) {
+channelContext_setLocalSymSigningKey_sp_basic128rsa15(void *const contextData,
+                                                      const UA_ByteString *const key) {
+    if(key == NULL || contextData == NULL) {
         fprintf(stderr,
                 "Error while calling channelContext_setLocalSigningKey_sp_basic128rsa15."
                 "Null pointer passed.");
@@ -468,10 +440,9 @@ channelContext_setLocalSymSigningKey_sp_basic128rsa15(const UA_SecurityPolicy *c
 
 
 static UA_StatusCode
-channelContext_setLocalSymIv_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                              const UA_ByteString *const iv,
-                                              void *const contextData) {
-    if(securityPolicy == NULL || iv == NULL || contextData == NULL) {
+channelContext_setLocalSymIv_sp_basic128rsa15(void *const contextData,
+                                              const UA_ByteString *const iv) {
+    if(iv == NULL || contextData == NULL) {
         fprintf(stderr,
                 "Error while calling channelContext_setLocalIv_sp_basic128rsa15."
                 "Null pointer passed.");
@@ -485,10 +456,9 @@ channelContext_setLocalSymIv_sp_basic128rsa15(const UA_SecurityPolicy *const sec
 }
 
 static UA_StatusCode
-channelContext_setRemoteSymEncryptingKey_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                                          const UA_ByteString *const key,
-                                                          void *const contextData) {
-    if(securityPolicy == NULL || key == NULL || contextData == NULL) {
+channelContext_setRemoteSymEncryptingKey_sp_basic128rsa15(void *const contextData,
+                                                          const UA_ByteString *const key) {
+    if(key == NULL || contextData == NULL) {
         fprintf(stderr,
                 "Error while calling channelContext_setRemoteEncryptingKey_sp_basic128rsa15."
                 "Null pointer passed.");
@@ -502,10 +472,9 @@ channelContext_setRemoteSymEncryptingKey_sp_basic128rsa15(const UA_SecurityPolic
 }
 
 static UA_StatusCode
-channelContext_setRemoteSymSigningKey_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                                       const UA_ByteString *const key,
-                                                       void *const contextData) {
-    if(securityPolicy == NULL || key == NULL || contextData == NULL) {
+channelContext_setRemoteSymSigningKey_sp_basic128rsa15(void *const contextData,
+                                                       const UA_ByteString *const key) {
+    if(key == NULL || contextData == NULL) {
         fprintf(stderr,
                 "Error while calling channelContext_setRemoteSigningKey_sp_basic128rsa15."
                 "Null pointer passed.");
@@ -519,10 +488,9 @@ channelContext_setRemoteSymSigningKey_sp_basic128rsa15(const UA_SecurityPolicy *
 }
 
 static UA_StatusCode
-channelContext_setRemoteSymIv_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                               const UA_ByteString* const iv,
-                                               void *const contextData) {
-    if(securityPolicy == NULL || iv == NULL || contextData == NULL) {
+channelContext_setRemoteSymIv_sp_basic128rsa15(void *const contextData,
+                                               const UA_ByteString* const iv) {
+    if(iv == NULL || contextData == NULL) {
         fprintf(stderr,
                 "Error while calling channelContext_setRemoteIv_sp_basic128rsa15."
                 "Null pointer passed.");
@@ -536,11 +504,10 @@ channelContext_setRemoteSymIv_sp_basic128rsa15(const UA_SecurityPolicy *const se
 }
 
 static UA_StatusCode
-channelContext_compareCertificate_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                                   const void *const channelContext,
+channelContext_compareCertificate_sp_basic128rsa15(const void *const channelContext,
                                                    const UA_ByteString *const certificate) {
 
-    if(securityPolicy == NULL || certificate == NULL)
+    if(channelContext == NULL || certificate == NULL)
         return UA_STATUSCODE_BADINTERNALERROR;
 
     int mbedErr = 0;
@@ -564,19 +531,7 @@ channelContext_compareCertificate_sp_basic128rsa15(const UA_SecurityPolicy *cons
 }
 
 static size_t
-channelContext_getRemoteAsymSignatureSize_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                                           const void *const contextData) {
-    UA_SP_basic128rsa15_ChannelContextData *const data =
-        (UA_SP_basic128rsa15_ChannelContextData*)contextData;
-
-    mbedtls_rsa_context *const rsaContext = mbedtls_pk_rsa(data->remoteCertificate.pk);
-
-    return rsaContext->len;
-}
-
-static size_t
-channelContext_getRemoteAsymPlainTextBlockSize_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                                                const void *const contextData) {
+channelContext_getRemoteAsymPlainTextBlockSize_sp_basic128rsa15(const void *const contextData) {
     UA_SP_basic128rsa15_ChannelContextData *const data =
         (UA_SP_basic128rsa15_ChannelContextData*)contextData;
 
@@ -586,13 +541,11 @@ channelContext_getRemoteAsymPlainTextBlockSize_sp_basic128rsa15(const UA_Securit
 }
 
 static size_t
-channelContext_getRemoteAsymEncryptionBufferLengthOverhead_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                                                            const void *const contextData,
+channelContext_getRemoteAsymEncryptionBufferLengthOverhead_sp_basic128rsa15(const void *const contextData,
                                                                             const size_t maxEncryptionLength) {
     const size_t maxNumberOfBlocks =
         maxEncryptionLength /
-        channelContext_getRemoteAsymPlainTextBlockSize_sp_basic128rsa15(securityPolicy,
-                                                                        contextData);
+        channelContext_getRemoteAsymPlainTextBlockSize_sp_basic128rsa15(contextData);
     return maxNumberOfBlocks * UA_SECURITYPOLICY_BASIC128RSA15_RSAPADDING_LEN;
 }
 
@@ -611,7 +564,7 @@ sha1Hash(const UA_ByteString *const message,
     UA_StatusCode retval = UA_STATUSCODE_GOOD;
 
     const mbedtls_md_info_t *const mdInfo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA1);
-    UA_assert(hash->length == mdInfo->size);
+    assert(hash->length == mdInfo->size);
 
     mbedtls_md_context_t mdContext;
     mbedtls_md_init(&mdContext);
@@ -628,18 +581,18 @@ sha1Hash(const UA_ByteString *const message,
 
 static UA_StatusCode
 asym_verify_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                             const void *const context,
-                             const UA_ByteString* const message,
-                             const UA_ByteString* const signature) {
+                             const void *const channelContext,
+                             const UA_ByteString *const message,
+                             const UA_ByteString *const signature) {
 
-    if(securityPolicy == NULL || message == NULL || signature == NULL || context == NULL)
+    if(securityPolicy == NULL || message == NULL || signature == NULL || channelContext == NULL)
         return UA_STATUSCODE_BADINTERNALERROR;
 
     UA_StatusCode retval = UA_STATUSCODE_GOOD;
     int mbedErr = 0;
     const mbedtls_md_info_t *const mdInfo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA1);
     UA_SP_basic128rsa15_ChannelContextData *const contextData =
-        (UA_SP_basic128rsa15_ChannelContextData*)context;
+        (UA_SP_basic128rsa15_ChannelContextData*)channelContext;
 
     UA_ByteString hash;
     retval |= UA_ByteString_allocBuffer(&hash, mdInfo->size);
@@ -670,19 +623,20 @@ asym_verify_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
 
 static UA_StatusCode
 asym_sign_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                           const void *const context,
+                           const void *const channelContext,
                            const UA_ByteString* const message,
                            UA_ByteString* const signature) {
 
-    if(securityPolicy == NULL || message == NULL || context == NULL || signature == NULL)
+    if(securityPolicy == NULL || message == NULL || channelContext == NULL || signature == NULL)
         return UA_STATUSCODE_BADINTERNALERROR;
 
     UA_StatusCode retval = UA_STATUSCODE_GOOD;
     int mbedErr = 0;
 
     const mbedtls_md_info_t *const mdInfo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA1);
-    UA_SP_basic128rsa15_EndpointContextData *const contextData =
-        (UA_SP_basic128rsa15_EndpointContextData*)context;
+    UA_SP_basic128rsa15_ChannelContextData *const channelContextData =
+        (UA_SP_basic128rsa15_ChannelContextData*)channelContext;
+    UA_SP_basic128rsa15_PolicyContextData *const contextData = channelContextData->policyContext;
 
     UA_ByteString hash;
     retval |= UA_ByteString_allocBuffer(&hash, mdInfo->size);
@@ -714,28 +668,51 @@ asym_sign_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
     return UA_STATUSCODE_GOOD;
 }
 
+static size_t
+asym_getLocalSignatureSize_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
+                                            const void *const channelContext) {
+    if(securityPolicy == NULL || channelContext == NULL)
+        return 0;
+
+    UA_SP_basic128rsa15_ChannelContextData *const contextData =
+        (UA_SP_basic128rsa15_ChannelContextData*)channelContext;
+
+    mbedtls_rsa_context *const rsaContext = mbedtls_pk_rsa(contextData->policyContext->localPrivateKey);
+    return rsaContext->len;
+}
+
+static size_t
+asym_getRemoteSignatureSize_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
+                                             const void *const channelContext) {
+    if(securityPolicy == NULL || channelContext == NULL)
+        return 0;
+
+    UA_SP_basic128rsa15_ChannelContextData *const contextData =
+        (UA_SP_basic128rsa15_ChannelContextData*)channelContext;
+
+    mbedtls_rsa_context *const rsaContext = mbedtls_pk_rsa(contextData->remoteCertificate.pk);
+    return rsaContext->len;
+}
+
 static UA_StatusCode
 asym_encrypt_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                              const void *const endpointContext,
                               const void *const channelContext,
-                              const UA_ByteString *const data) {
+                              UA_ByteString *const data) {
     UA_StatusCode retval = UA_STATUSCODE_GOOD;
     int mbedErr = 0;
 
-    if(securityPolicy == NULL || endpointContext == NULL || channelContext == NULL || data == NULL)
+    if(securityPolicy == NULL || channelContext == NULL || data == NULL)
         return UA_STATUSCODE_BADINTERNALERROR;
 
     const size_t plainTextBlockSize =
-        securityPolicy->channelContext.getRemoteAsymPlainTextBlockSize(securityPolicy,
-                                                                       channelContext);
+        securityPolicy->channelContext.getRemoteAsymPlainTextBlockSize(channelContext);
 
     if(data->length % plainTextBlockSize != 0)
         return UA_STATUSCODE_BADINTERNALERROR;
 
     UA_SP_basic128rsa15_ChannelContextData *const channelContextData =
         (UA_SP_basic128rsa15_ChannelContextData*)channelContext;
-    UA_SP_basic128rsa15_EndpointContextData *const endpointContextData =
-        (UA_SP_basic128rsa15_EndpointContextData*)endpointContext;
+    UA_SP_basic128rsa15_PolicyContextData *const policyContextData = channelContextData->policyContext;
     mbedtls_rsa_context *const remoteRsaContext =
         mbedtls_pk_rsa(channelContextData->remoteCertificate.pk);
 
@@ -743,8 +720,7 @@ asym_encrypt_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
 
     UA_ByteString encrypted;
     const size_t bufferOverhead =
-        securityPolicy->channelContext.getRemoteAsymEncryptionBufferLengthOverhead(securityPolicy,
-                                                                                   channelContext,
+        securityPolicy->channelContext.getRemoteAsymEncryptionBufferLengthOverhead(channelContext,
                                                                                    data->length);
     retval |= UA_ByteString_allocBuffer(&encrypted, data->length + bufferOverhead);
     if(retval != UA_STATUSCODE_GOOD)
@@ -762,7 +738,7 @@ asym_encrypt_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
                                      &outLength,
                                      encrypted.length - offset,
                                      mbedtls_ctr_drbg_random,
-                                     &endpointContextData->drbgContext);
+                                     &policyContextData->drbgContext);
         if(mbedErr) {
             UA_ByteString_deleteMembers(&encrypted);
             return UA_STATUSCODE_BADINTERNALERROR;
@@ -781,17 +757,17 @@ asym_encrypt_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
 
 static UA_StatusCode
 asym_decrypt_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                              const void *const endpointContext,
+                              const void *const channelContext,
                               UA_ByteString *const data) {
     UA_StatusCode retval = UA_STATUSCODE_GOOD;
     int mbedErr = 0;
 
-    if(securityPolicy == NULL || endpointContext == NULL || data == NULL)
+    if(securityPolicy == NULL || channelContext == NULL || data == NULL)
         return UA_STATUSCODE_BADINTERNALERROR;
 
-    UA_SP_basic128rsa15_EndpointContextData *const contextData =
-        (UA_SP_basic128rsa15_EndpointContextData*)endpointContext;
-    mbedtls_rsa_context *const localPkRsaContext = mbedtls_pk_rsa(contextData->localPrivateKey);
+    UA_SP_basic128rsa15_ChannelContextData *const contextData =
+        (UA_SP_basic128rsa15_ChannelContextData*)channelContext;
+    mbedtls_rsa_context *const localPkRsaContext = mbedtls_pk_rsa(contextData->policyContext->localPrivateKey);
 
     if(data->length % localPkRsaContext->len != 0)
         return UA_STATUSCODE_BADINTERNALERROR;
@@ -806,7 +782,7 @@ asym_decrypt_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
     size_t offset = 0;
     size_t outLength = 0;
     while(lenDataToDecrypt >= localPkRsaContext->len) {
-        mbedErr = mbedtls_pk_decrypt(&contextData->localPrivateKey,
+        mbedErr = mbedtls_pk_decrypt(&contextData->policyContext->localPrivateKey,
                                      data->data + inOffset,
                                      localPkRsaContext->len,
                                      decrypted.data + offset,
@@ -824,7 +800,7 @@ asym_decrypt_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
         lenDataToDecrypt -= localPkRsaContext->len;
     }
 
-    UA_assert(lenDataToDecrypt == 0);
+    assert(lenDataToDecrypt == 0);
 
     memcpy(data->data, decrypted.data, offset);
     data->length = offset;
@@ -841,33 +817,6 @@ asym_makeThumbprint_sp_basic128rsa15(const UA_SecurityPolicy *const securityPoli
         return UA_STATUSCODE_BADINTERNALERROR;
 
     return sha1Hash(certificate, thumbprint);
-}
-
-static UA_UInt16
-asym_calculatePadding_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                       const void *const channelContext,
-                                       const void *const endpointContext,
-                                       const size_t bytesToWrite,
-                                       UA_Byte *const paddingSize,
-                                       UA_Byte *const extraPaddingSize) {
-
-    if(securityPolicy == NULL || channelContext == NULL || endpointContext == NULL ||
-       paddingSize == NULL || extraPaddingSize == NULL)
-        return 0;
-
-    UA_UInt16 plainTextBlockSize =
-        (UA_UInt16)securityPolicy->channelContext.getRemoteAsymPlainTextBlockSize(securityPolicy,
-                                                                                  channelContext);
-    size_t signatureSize =
-        securityPolicy->endpointContext.getLocalAsymSignatureSize(securityPolicy,
-                                                                  endpointContext);
-    UA_UInt16 padding =
-        plainTextBlockSize - ((bytesToWrite + signatureSize + 1) % plainTextBlockSize);
-
-    *paddingSize = (UA_Byte)padding;
-    *extraPaddingSize = (UA_Byte)(padding >> 8);
-
-    return padding;
 }
 
 /////////////////////////////////////
@@ -891,7 +840,7 @@ hmacSha1(const UA_ByteString* const key,
          const UA_ByteString* const in,
          UA_ByteString* const out) {
     const mbedtls_md_info_t *const mdInfo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA1);
-    UA_assert(out->length >= (size_t)mdInfo->size);
+    assert(out->length >= (size_t)mdInfo->size);
 
     int retval = 0;
 
@@ -916,22 +865,24 @@ hmacSha1(const UA_ByteString* const key,
 
 static UA_StatusCode
 sym_verify_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                            const void *const context,
+                            const void *const channelContext,
                             const UA_ByteString *const message,
                             const UA_ByteString *const signature) {
-    if(securityPolicy == NULL || context == NULL ||
+    if(securityPolicy == NULL || channelContext == NULL ||
        message == NULL || signature == NULL)
         return UA_STATUSCODE_BADINTERNALERROR;
 
 
-    if(signature->length != securityPolicy->symmetricModule.signingModule.signatureSize) {
+    if(signature->length !=
+       securityPolicy->symmetricModule.signingModule.getRemoteSignatureSize(securityPolicy,
+                                                                            channelContext)) {
         UA_LOG_ERROR(securityPolicy->logger, UA_LOGCATEGORY_SECURITYPOLICY,
                      "Signature size does not have the desired size defined by the security policy");
         return UA_STATUSCODE_BADSECURITYCHECKSFAILED;
     }
 
     UA_SP_basic128rsa15_ChannelContextData *const data =
-        (UA_SP_basic128rsa15_ChannelContextData*)context;
+        (UA_SP_basic128rsa15_ChannelContextData*)channelContext;
 
     UA_ByteString mac;
     UA_ByteString_allocBuffer(&mac, signature->length);
@@ -949,13 +900,25 @@ sym_verify_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
 
 static UA_StatusCode
 sym_sign_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                          const void *const context,
+                          const void *const channelContext,
                           const UA_ByteString *const message,
                           UA_ByteString *const signature) {
     UA_SP_basic128rsa15_ChannelContextData *const data =
-        (UA_SP_basic128rsa15_ChannelContextData*)context;
+        (UA_SP_basic128rsa15_ChannelContextData*)channelContext;
 
     return hmacSha1(&data->localSymSigningKey, message, signature);
+}
+
+static size_t
+sym_getLocalSignatureSize_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
+                                           const void *const channelContext) {
+    return UA_SECURITYPOLICY_BASIC128RSA15_SYM_SIGNATURE_SIZE;
+}
+
+static size_t
+sym_getRemoteSignatureSize_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
+                                            const void *const channelContext) {
+    return UA_SECURITYPOLICY_BASIC128RSA15_SYM_SIGNATURE_SIZE;
 }
 
 static UA_StatusCode
@@ -971,7 +934,7 @@ sym_encrypt_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
         (UA_SP_basic128rsa15_ChannelContextData*)channelContext;
     int mbedErr = 0;
 
-    UA_assert(contextData->localSymIv.length == securityPolicy->symmetricModule.encryptingBlockSize);
+    assert(contextData->localSymIv.length == securityPolicy->symmetricModule.encryptingBlockSize);
 
     if(data->length % contextData->localSymEncryptingKey.length != 0) {
         UA_LOG_ERROR(securityPolicy->logger, UA_LOGCATEGORY_SECURITYPOLICY,
@@ -1032,8 +995,8 @@ sym_decrypt_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
         (UA_SP_basic128rsa15_ChannelContextData*)channelContext;
     int mbedErr = 0;
 
-    UA_assert(contextData->remoteSymIv.length ==
-              securityPolicy->symmetricModule.encryptingBlockSize);
+    assert(contextData->remoteSymIv.length ==
+           securityPolicy->symmetricModule.encryptingBlockSize);
 
     if(data->length % securityPolicy->symmetricModule.encryptingBlockSize != 0) {
         UA_LOG_ERROR(securityPolicy->logger, UA_LOGCATEGORY_SECURITYPOLICY,
@@ -1151,8 +1114,7 @@ sym_generateKey_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
             UA_ByteString_deleteMembers(&A_and_seed);
             UA_ByteString_deleteMembers(&ANext_and_seed);
             return retval;
-        }
-        else {
+        } else {
             if(bufferAllocated) {
                 memcpy(out->data + offset, outSegment.data, out->length - offset);
                 UA_ByteString_deleteMembers(&outSegment);
@@ -1170,38 +1132,19 @@ sym_generateKey_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
 
 static UA_StatusCode
 sym_generateNonce_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                   const void *const endpointContext,
+                                   const void *const policyContext,
                                    UA_ByteString *const out) {
 
-    if(securityPolicy == NULL || endpointContext == NULL || out == NULL)
+    if(securityPolicy == NULL || policyContext == NULL || out == NULL)
         return UA_STATUSCODE_BADINTERNALERROR;
 
-    if(mbedtls_ctr_drbg_random(&((UA_SP_basic128rsa15_EndpointContextData*)endpointContext)->drbgContext,
+    if(mbedtls_ctr_drbg_random(&((UA_SP_basic128rsa15_PolicyContextData*)policyContext)->drbgContext,
                                out->data,
                                out->length)
        != 0)
         return UA_STATUSCODE_BADUNEXPECTEDERROR;
 
     return UA_STATUSCODE_GOOD;
-}
-
-static UA_UInt16
-sym_calculatePadding_sp_basic128rsa15(const UA_SecurityPolicy *const securityPolicy,
-                                      const size_t bytesToWrite,
-                                      UA_Byte *const paddingSize,
-                                      UA_Byte *const extraPaddingSize) {
-
-    if(securityPolicy == NULL || paddingSize == NULL || extraPaddingSize == NULL)
-        return 0;
-
-    UA_UInt16 padding = (UA_UInt16)(securityPolicy->symmetricModule.encryptingBlockSize -
-        ((bytesToWrite + securityPolicy->symmetricModule.signingModule.signatureSize + 1) %
-         securityPolicy->symmetricModule.encryptingBlockSize));
-
-    *paddingSize = (UA_Byte)padding;
-    *extraPaddingSize = (UA_Byte)(padding >> 8);
-
-    return padding;
 }
 
 ////////////////////////////////////
@@ -1214,75 +1157,75 @@ UA_EXPORT UA_SecurityPolicy UA_SecurityPolicy_Basic128Rsa15 = {
 
     /* Asymmetric module */
     { // .asymmetricModule
-        asym_encrypt_sp_basic128rsa15, // .encrypt
-        asym_decrypt_sp_basic128rsa15, // .decrypt
         asym_makeThumbprint_sp_basic128rsa15, // .makeThumbprint
-        asym_calculatePadding_sp_basic128rsa15, // .calculatePadding
 
         128, // .minAsymmetricKeyLength
         256, // .maxAsymmetricKeyLength
         20, // .thumbprintLength
 
-            /* Asymmetric signing module */
-        {
-            asym_verify_sp_basic128rsa15, // .verify
-            asym_sign_sp_basic128rsa15, // .sign
-            0, // .signatureSize // size_t signatureSize; in bytes .... Not applicable since dependant on rsa key length
-            UA_STRING_STATIC("http://www.w3.org/2000/09/xmldsig#rsa-sha1\0") // .signatureAlgorithmUri
-        }
-    },
-
-    /* Symmetric module */
-    { // .symmetricModule
-        sym_encrypt_sp_basic128rsa15, // .encrypt
-        sym_decrypt_sp_basic128rsa15, // .decrypt
-        sym_generateKey_sp_basic128rsa15, // .generateKey
-        sym_generateNonce_sp_basic128rsa15, // .generateNonce 
-        sym_calculatePadding_sp_basic128rsa15, // .calculatePadding
-
-                                      /* Symmetric signing module */
-        { // .signingModule
-            sym_verify_sp_basic128rsa15, // .verify
-            sym_sign_sp_basic128rsa15, // .sign
-            20, // .signatureSize // size_t signatureSize; in bytes
-            UA_STRING_STATIC("http://www.w3.org/2000/09/xmldsig#hmac-sha1\0") // .signatureAlgorithmUri
+        { // .encryptingModule
+            asym_encrypt_sp_basic128rsa15, // .encrypt
+            asym_decrypt_sp_basic128rsa15 // .decrypt
         },
 
-    16, // .signingKeyLength
-    16, // .encryptingKeyLength
-    16 // .encryptingBlockSize
+    /* Asymmetric signing module */
+    {
+        asym_verify_sp_basic128rsa15, // .verify
+        asym_sign_sp_basic128rsa15, // .sign
+        asym_getLocalSignatureSize_sp_basic128rsa15, // .getLocalSignatureSize
+        asym_getRemoteSignatureSize_sp_basic128rsa15, // .getRemoteSignatureSize
+        UA_STRING_STATIC("http://www.w3.org/2000/09/xmldsig#rsa-sha1\0") // .signatureAlgorithmUri
+    }
+},
+
+/* Symmetric module */
+{ // .symmetricModule
+    sym_generateKey_sp_basic128rsa15, // .generateKey
+    sym_generateNonce_sp_basic128rsa15, // .generateNonce 
+
+    { // .encryptingModule
+        sym_encrypt_sp_basic128rsa15, // .encrypt
+        sym_decrypt_sp_basic128rsa15 // .decrypt
     },
 
-    { // .endpointContext
-        endpointContext_init_sp_basic128rsa15, // .init
-        endpointContext_deleteMembers_sp_basic128rsa15, // .deleteMembers
-        endpointContext_setLocalPrivateKey_sp_basic128rsa15, // .setLocalPrivateKey
-        endpointContext_setServerCertificate_sp_basic128rsa15,
-        endpointContext_getServerCertificate_sp_basic128rsa15,
-        endpointContext_setCertificateTrustList_sp_basic128rsa15, // .setCertificateTrustList
-        endpointContext_setCertificateRevocationList_sp_basic128rsa15, // .setCertificateRevocationList
-        endpointContext_getLocalAsymSignatureSize_sp_basic128rsa15, // .getLocalAsymSignatureSize
-        endpointContext_compareCertificateThumbprint_sp_basic128rsa15
+    /* Symmetric signing module */
+    { // .signingModule
+        sym_verify_sp_basic128rsa15, // .verify
+        sym_sign_sp_basic128rsa15, // .sign
+        sym_getLocalSignatureSize_sp_basic128rsa15, // .getLocalSignatureSize
+        sym_getRemoteSignatureSize_sp_basic128rsa15, // .getRemoteSignatureSize
+        UA_STRING_STATIC("http://www.w3.org/2000/09/xmldsig#hmac-sha1\0") // .signatureAlgorithmUri
     },
 
-    { // .channelContext
-        channelContext_init_sp_basic128rsa15,  // .init
-        channelContext_deleteMembers_sp_basic128rsa15, // .deleteMembers
+16, // .signingKeyLength
+16, // .encryptingKeyLength
+16 // .encryptingBlockSize
+},
 
-        channelContext_setLocalSymEncryptingKey_sp_basic128rsa15, // .setLocalSymEncryptingKey
-        channelContext_setLocalSymSigningKey_sp_basic128rsa15, // .setLocalSymSigningKey
-        channelContext_setLocalSymIv_sp_basic128rsa15, // .setLocalSymIv
+{ // .policyContext
+    policyContext_newContext_sp_basic128rsa15, // .newContext
+    policyContext_deleteContext_sp_basic128rsa15, // .deleteMembers
+    policyContext_getLocalCertificate_sp_basic128rsa15,
+    policyContext_compareCertificateThumbprint_sp_basic128rsa15
+},
 
-        channelContext_setRemoteSymEncryptingKey_sp_basic128rsa15, // .setRemoteSymEncryptingKey
-        channelContext_setRemoteSymSigningKey_sp_basic128rsa15, // .setRemoteSymSigningKey
-        channelContext_setRemoteSymIv_sp_basic128rsa15, // .setRemoteSymIv
+{ // .channelContext
+    channelContext_newContext_sp_basic128rsa15,  // .newContext
+    channelContext_deleteContext_sp_basic128rsa15, // .deleteContext
 
-        channelContext_compareCertificate_sp_basic128rsa15, // .compareCertificate
+    channelContext_setLocalSymEncryptingKey_sp_basic128rsa15, // .setLocalSymEncryptingKey
+    channelContext_setLocalSymSigningKey_sp_basic128rsa15, // .setLocalSymSigningKey
+    channelContext_setLocalSymIv_sp_basic128rsa15, // .setLocalSymIv
 
-        channelContext_getRemoteAsymSignatureSize_sp_basic128rsa15, // .getRemoteAsymSignatureSize
-        channelContext_getRemoteAsymPlainTextBlockSize_sp_basic128rsa15, // .getRemoteAsymPlainTextBlockSize
-        channelContext_getRemoteAsymEncryptionBufferLengthOverhead_sp_basic128rsa15 // .getRemoteAsymEncryptionBufferLengthOverhead
-    },
+    channelContext_setRemoteSymEncryptingKey_sp_basic128rsa15, // .setRemoteSymEncryptingKey
+    channelContext_setRemoteSymSigningKey_sp_basic128rsa15, // .setRemoteSymSigningKey
+    channelContext_setRemoteSymIv_sp_basic128rsa15, // .setRemoteSymIv
 
-    NULL // .logger
+    channelContext_compareCertificate_sp_basic128rsa15, // .compareCertificate
+
+    channelContext_getRemoteAsymPlainTextBlockSize_sp_basic128rsa15, // .getRemoteAsymPlainTextBlockSize
+    channelContext_getRemoteAsymEncryptionBufferLengthOverhead_sp_basic128rsa15 // .getRemoteAsymEncryptionBufferLengthOverhead
+},
+
+NULL // .logger
 };
