@@ -12,7 +12,9 @@
 #include "ua_client_highlevel.h"
 #include "ua_config_standard.h"
 #include "ua_network_tcp.h"
+
 #include "check.h"
+#include "testing_clock.h"
 
 UA_Server *server;
 UA_ServerConfig *server_conf;
@@ -46,7 +48,7 @@ static void teardown(void) {
     UA_Boolean_delete(running);
     UA_Server_delete(server);
     nl.deleteMembers(&nl);
-    UA_ServerConfig_standard_deleteMembers(server_conf);
+    UA_ServerConfig_standard_delete(server_conf);
 }
 
 UA_Boolean notificationReceived;
@@ -69,6 +71,8 @@ START_TEST(Client_subscription) {
     retval = UA_Client_Subscriptions_addMonitoredItem(client, subId, UA_NODEID_NUMERIC(0, 2259),
                                                       UA_ATTRIBUTEID_VALUE, monitoredItemHandler, NULL, &monId);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
+
+    UA_sleep((UA_UInt32)UA_SubscriptionSettings_standard.requestedPublishingInterval + 1);
 
     notificationReceived = false;
     retval = UA_Client_Subscriptions_manuallySendPublishRequest(client);

@@ -12,7 +12,6 @@ extern "C" {
 #include "ua_util.h"
 #include "ua_server.h"
 #include "ua_timer.h"
-#include "ua_server_external_ns.h"
 #include "ua_connection_internal.h"
 #include "ua_session_manager.h"
 #include "ua_securechannel_manager.h"
@@ -56,38 +55,10 @@ extern "C" {
 # define UA_ASSERT_RCU_UNLOCKED()
 #endif
 
-#ifdef UA_ENABLE_EXTERNAL_NAMESPACES
-/* Mapping of namespace-id and url to an external nodestore. For namespaces that
- * have no mapping defined, the internal nodestore is used by default. */
-typedef struct UA_ExternalNamespace {
-    UA_UInt16 index;
-    UA_String url;
-    UA_ExternalNodeStore externalNodeStore;
-} UA_ExternalNamespace;
-#endif
-
 #ifdef UA_ENABLE_MULTITHREADING
-typedef struct {
-    UA_Server *server;
-    pthread_t thr;
-    UA_UInt32 counter;
-    volatile UA_Boolean running;
-    char padding[64 - sizeof(void*) - sizeof(pthread_t) -
-                 sizeof(UA_UInt32) - sizeof(UA_Boolean)]; // separate cache lines
-} UA_Worker;
-
-struct MainLoopJob {
-    struct cds_lfs_node node;
-    UA_Job job;
-};
-
-void
-UA_Server_dispatchJob(UA_Server *server, const UA_Job *job);
-
+struct UA_Worker;
+typedef struct UA_Worker UA_Worker;
 #endif
-
-void
-UA_Server_processJob(UA_Server *server, UA_Job *job);
 
 #if defined(UA_ENABLE_METHODCALLS) && defined(UA_ENABLE_SUBSCRIPTIONS)
 /* Internally used context to a session 'context' of the current mehtod call */
@@ -126,7 +97,6 @@ typedef struct serverOnNetwork_hash_entry {
 struct UA_Server {
     /* Meta */
     UA_DateTime startTime;
-    UA_Endpoints endpoints;
 
     /* Security */
     UA_SecureChannelManager secureChannelManager;
@@ -139,7 +109,7 @@ struct UA_Server {
     /* Discovery */
     LIST_HEAD(registeredServer_list, registeredServer_list_entry) registeredServers; // doubly-linked list of registered servers
     size_t registeredServersSize;
-    struct PeriodicServerRegisterJob *periodicServerRegisterJob;
+    struct PeriodicServerRegisterCallback *periodicServerRegisterCallback;
     UA_Server_registerServerCallback registerServerCallback;
     void* registerServerCallbackData;
 # ifdef UA_ENABLE_DISCOVERY_MULTICAST
@@ -167,30 +137,24 @@ struct UA_Server {
     size_t namespacesSize;
     UA_String *namespaces;
 
-#ifdef UA_ENABLE_EXTERNAL_NAMESPACES
-    size_t externalNamespacesSize;
-    UA_ExternalNamespace *externalNamespaces;
-#endif
+    /* Callbacks with a repetition interval */
+    UA_Timer timer;
 
-    /* Jobs with a repetition interval */
-    UA_RepeatedJobsList repeatedJobs;
+    /* Delayed callbacks */
+    SLIST_HEAD(DelayedCallbacksList, UA_DelayedCallback) delayedCallbacks;
 
-#ifndef UA_ENABLE_MULTITHREADING
-    SLIST_HEAD(DelayedJobsList, UA_DelayedJob) delayedCallbacks;
-#else
+    /* Worker threads */
+#ifdef UA_ENABLE_MULTITHREADING
     /* Dispatch queue head for the worker threads (the tail should not be in the same cache line) */
     struct cds_wfcq_head dispatchQueue_head;
     UA_Worker *workers; /* there are nThread workers in a running server */
-    struct cds_lfs_stack mainLoopJobs; /* Work that shall be executed only in the main loop and not
-                                          by worker threads */
-    struct DelayedJobs *delayedJobs;
     pthread_cond_t dispatchQueue_condition; /* so the workers don't spin if the queue is empty */
     pthread_mutex_t dispatchQueue_mutex; /* mutex for access to condition variable */
     struct cds_wfcq_tail dispatchQueue_tail; /* Dispatch queue tail for the worker threads */
 #endif
 
     /* Config is the last element so that MSVC allows the usernamePasswordLogins
-       field with zero-sized array */
+     * field with zero-sized array */
     UA_ServerConfig config;
 };
 
@@ -208,15 +172,17 @@ typedef UA_StatusCode (*UA_EditNodeCallback)(UA_Server*, UA_Session*, UA_Node*, 
 UA_StatusCode UA_Server_editNode(UA_Server *server, UA_Session *session, const UA_NodeId *nodeId,
                                  UA_EditNodeCallback callback, const void *data);
 
-/********************/
-/* Event Processing */
-/********************/
+/*************/
+/* Callbacks */
+/*************/
 
-void UA_Server_processBinaryMessage(UA_Server *server, UA_Connection *connection,
-                                    const UA_ByteString *message);
+/* Delayed callbacks are executed when all previously dispatched callbacks are
+ * finished */
+UA_StatusCode
+UA_Server_delayedCallback(UA_Server *server, UA_ServerCallback callback, void *data);
 
-UA_StatusCode UA_Server_delayedCallback(UA_Server *server, UA_ServerCallback callback, void *data);
-UA_StatusCode UA_Server_delayedFree(UA_Server *server, void *data);
+void
+UA_Server_workerCallback(UA_Server *server, UA_ServerCallback callback, void *data);
 
 /*********************/
 /* Utility Functions */

@@ -42,23 +42,7 @@ const UA_EXPORT UA_ConnectionConfig UA_ConnectionConfig_standard =
 #define VERSION(MAJOR, MINOR, PATCH, LABEL) \
     STRINGIFY(MAJOR) "." STRINGIFY(MINOR) "." STRINGIFY(PATCH) LABEL
 
-/* Access Control. The following definitions are defined as "extern" in
-   ua_accesscontrol_default.h */
-#define ENABLEANONYMOUSLOGIN true
-#define ENABLEUSERNAMEPASSWORDLOGIN true
-const UA_Boolean enableAnonymousLogin = ENABLEANONYMOUSLOGIN;
-const UA_Boolean enableUsernamePasswordLogin = ENABLEUSERNAMEPASSWORDLOGIN;
-const size_t usernamePasswordsSize = 2;
-
-UA_UsernamePasswordLogin UsernamePasswordLogin[2] =
-{
-    {UA_STRING_STATIC("user1"), UA_STRING_STATIC("password")},
-    {UA_STRING_STATIC("user2"), UA_STRING_STATIC("password1")}
-};
-const UA_UsernamePasswordLogin* usernamePasswords = UsernamePasswordLogin;
-
-const UA_EXPORT UA_ServerConfig UA_ServerConfig_standard =
-{
+const UA_EXPORT UA_ServerConfig UA_ServerConfig_standard = {
     1, /* .nThreads */
     UA_Log_Stdout, /* .logger */
 
@@ -109,12 +93,12 @@ const UA_EXPORT UA_ServerConfig UA_ServerConfig_standard =
     NULL,
 
     /* Access Control */
-    {ENABLEANONYMOUSLOGIN, ENABLEUSERNAMEPASSWORDLOGIN,
-        activateSession_default, closeSession_default,
-        getUserRightsMask_default, getUserAccessLevel_default,
-        getUserExecutable_default, getUserExecutableOnObject_default,
-        allowAddNode_default, allowAddReference_default,
-        allowDeleteNode_default, allowDeleteReference_default},
+    {true, true,
+     activateSession_default, closeSession_default,
+     getUserRightsMask_default, getUserAccessLevel_default,
+     getUserExecutable_default, getUserExecutableOnObject_default,
+     allowAddNode_default, allowAddReference_default,
+     allowDeleteNode_default, allowDeleteReference_default},
 
     /* Limits for SecureChannels */
     40, /* .maxSecureChannels */
@@ -242,7 +226,7 @@ static UA_StatusCode
 createSecurityPolicyNoneEndpoint(UA_ServerConfig *const conf,
                                  const UA_ByteString *const cert,
                                  size_t slot) {
-    UA_Endpoint *endpoint_sp_none = &conf->endpoints[slot];
+    UA_Endpoint *endpoint_sp_none = &conf->endpoints.endpoints[slot];
 
     UA_EndpointDescription_init(&endpoint_sp_none->endpointDescription);
 
@@ -267,9 +251,9 @@ UA_EXPORT UA_ServerConfig *UA_ServerConfig_standard_parametrized_new(UA_UInt16 p
     conf->networkLayers = (UA_ServerNetworkLayer*)UA_malloc(sizeof(UA_ServerNetworkLayer) * conf->networkLayersSize);
     conf->networkLayers[0] = UA_ServerNetworkLayerTCP(UA_ConnectionConfig_standard, 16664);
 
-    conf->endpointsSize = 1;
-    conf->endpoints = (UA_Endpoint*)UA_malloc(sizeof(UA_Endpoint) * conf->endpointsSize);
-    if(conf->endpoints == NULL) {
+    conf->endpoints.count = 1;
+    conf->endpoints.endpoints = (UA_Endpoint*)UA_malloc(sizeof(UA_Endpoint) * conf->endpoints.count);
+    if(conf->endpoints.endpoints == NULL) {
         UA_free(conf);
         return NULL;
     }
@@ -277,11 +261,11 @@ UA_EXPORT UA_ServerConfig *UA_ServerConfig_standard_parametrized_new(UA_UInt16 p
     createSecurityPolicyNoneEndpoint(conf, certificate, 0);
 
     // Initialize policy contexts
-    for(size_t i = 0; i < conf->endpointsSize; ++i) {
-        UA_SecurityPolicy *const policy = conf->endpoints[i].securityPolicy;
+    for(size_t i = 0; i < conf->endpoints.count; ++i) {
+        UA_SecurityPolicy *const policy = conf->endpoints.endpoints[i].securityPolicy;
         policy->logger = conf->logger;
 
-        policy->endpointContext.init(policy, NULL, &conf->endpoints[i].securityContext);
+        policy->policyContext.newContext(policy, NULL, NULL, &conf->endpoints.endpoints[i].securityContext);
     }
 
     return conf;
@@ -291,24 +275,24 @@ UA_EXPORT UA_ServerConfig *UA_ServerConfig_standard_new(void) {
     return UA_ServerConfig_standard_parametrized_new(4840, NULL);
 }
 
-UA_EXPORT void UA_ServerConfig_standard_deleteMembers(UA_ServerConfig *config) {
+UA_EXPORT void UA_ServerConfig_standard_delete(UA_ServerConfig *config) {
 
     if(config == NULL)
         return;
 
-    for(size_t i = 0; i < config->endpointsSize; ++i) {
-        UA_SecurityPolicy *const policy = config->endpoints[i].securityPolicy;
+    for(size_t i = 0; i < config->endpoints.count; ++i) {
+        UA_SecurityPolicy *const policy = config->endpoints.endpoints[i].securityPolicy;
 
-        policy->endpointContext.deleteMembers(policy, config->endpoints[i].securityContext);
+        policy->policyContext.deleteContext(config->endpoints.endpoints[i].securityContext);
 
-        UA_EndpointDescription_deleteMembers(&config->endpoints[i].endpointDescription);
+        UA_EndpointDescription_deleteMembers(&config->endpoints.endpoints[i].endpointDescription);
     }
 
     for(size_t i = 0; i < config->networkLayersSize; ++i) {
         config->networkLayers[i].deleteMembers(&config->networkLayers[i]);
     }
 
-    UA_free(config->endpoints);
+    UA_free(config->endpoints.endpoints);
     UA_free(config->networkLayers);
 
     UA_free(config);
@@ -319,7 +303,7 @@ createSecurityPolicyBasic128Rsa15Endpoint(UA_ServerConfig *const conf,
                                           const UA_ByteString *const cert,
                                           UA_MessageSecurityMode securityMode,
                                           size_t slot) {
-    UA_Endpoint *endpoint_sp_none = &conf->endpoints[slot];
+    UA_Endpoint *endpoint_sp_none = &conf->endpoints.endpoints[slot];
 
     UA_EndpointDescription_init(&endpoint_sp_none->endpointDescription);
 
@@ -348,9 +332,9 @@ UA_ServerConfig_standard_basic128rsa15_new(UA_UInt16 portNumber,
         (UA_ServerNetworkLayer*)UA_malloc(sizeof(UA_ServerNetworkLayer) * conf->networkLayersSize);
     conf->networkLayers[0] = UA_ServerNetworkLayerTCP(UA_ConnectionConfig_standard, 16664);
 
-    conf->endpointsSize = 3;
-    conf->endpoints = (UA_Endpoint*)UA_malloc(sizeof(UA_Endpoint) * conf->endpointsSize);
-    if(conf->endpoints == NULL) {
+    conf->endpoints.count = 3;
+    conf->endpoints.endpoints = (UA_Endpoint*)UA_malloc(sizeof(UA_Endpoint) * conf->endpoints.count);
+    if(conf->endpoints.endpoints == NULL) {
         UA_free(conf);
         return NULL;
     }
@@ -360,31 +344,18 @@ UA_ServerConfig_standard_basic128rsa15_new(UA_UInt16 portNumber,
     createSecurityPolicyBasic128Rsa15Endpoint(conf, certificate, UA_MESSAGESECURITYMODE_SIGNANDENCRYPT, 2);
 
     // Initialize policy contexts
-    for(size_t i = 0; i < conf->endpointsSize; ++i) {
-        UA_SecurityPolicy *const policy = conf->endpoints[i].securityPolicy;
+    for(size_t i = 0; i < conf->endpoints.count; ++i) {
+        UA_SecurityPolicy *const policy = conf->endpoints.endpoints[i].securityPolicy;
         policy->logger = conf->logger;
 
-        policy->endpointContext.init(policy, NULL, &conf->endpoints[i].securityContext);
+        UA_Policy_SecurityContext_RequiredInitData initData;
 
-        void *endpointContext = conf->endpoints[i].securityContext;
+        initData.certificateRevocationList = revocationList;
+        initData.certificateTrustList = trustList;
+        initData.localCertificate = certificate;
+        initData.localPrivateKey = privateKey;
 
-        if(trustList != NULL)
-            policy->endpointContext.setCertificateTrustList(policy,
-                                                            trustList,
-                                                            endpointContext);
-
-        if(revocationList != NULL)
-        policy->endpointContext.setCertificateRevocationList(policy,
-                                                             revocationList,
-                                                             endpointContext);
-
-        policy->endpointContext.setLocalPrivateKey(policy,
-                                                   privateKey,
-                                                   endpointContext);
-
-        policy->endpointContext.setServerCertificate(policy,
-                                                     certificate,
-                                                     endpointContext);
+        policy->policyContext.newContext(policy, &initData, NULL, &conf->endpoints.endpoints[i].securityContext);
     }
 
     return conf;

@@ -13,8 +13,9 @@ extern "C" {
 #include "ua_client_highlevel.h"
 #include "ua_types.h"
 
-extern UA_EXPORT const UA_ServerConfig UA_ServerConfig_standard;
-extern UA_EXPORT const UA_ClientConfig UA_ClientConfig_standard;
+extern const UA_EXPORT UA_ConnectionConfig UA_ConnectionConfig_standard;
+extern const UA_EXPORT UA_ServerConfig UA_ServerConfig_standard;
+extern const UA_EXPORT UA_ClientConfig UA_ClientConfig_standard;
 
 /**
  * \brief Creates a new server config with one endpoint.
@@ -39,7 +40,7 @@ UA_ServerConfig_standard_basic128rsa15_new(UA_UInt16 portNumber,
 UA_EXPORT UA_ServerConfig*
 UA_ServerConfig_standard_new(void);
 
-UA_EXPORT void UA_ServerConfig_standard_deleteMembers(UA_ServerConfig *config);
+UA_EXPORT void UA_ServerConfig_standard_delete(UA_ServerConfig *config);
 
 #ifdef __cplusplus
 }

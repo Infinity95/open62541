@@ -45,7 +45,7 @@ static UA_ByteString loadFile(const char *const path) {
 }
 
 static UA_ByteString loadPrivateKey(void) {
-    UA_ByteString privateKey = loadFile("H:/Programming/open62541/build/bin/examples/my_key.pem");
+    UA_ByteString privateKey = loadFile("my_key.pem");
 
     // The string needs to be null terminated, so we replace the last byte (which should be \n) with \0
     privateKey.data[privateKey.length - 1] = '\0';
@@ -54,11 +54,11 @@ static UA_ByteString loadPrivateKey(void) {
 }
 
 static UA_ByteString loadTrustList(void) {
-    return loadFile("H:/Programming/open62541/build/bin/examples/opcuactt.der");
+    return loadFile("uaexpert.der");
 }
 
 static UA_ByteString loadCertificate(void) {
-    return loadFile("H:/Programming/open62541/build/bin/examples/server_cert.der");
+    return loadFile("server_cert.der");
 }
 
 static void stopHandler(int sign) {
@@ -142,8 +142,8 @@ int main(int argc, char** argv) {
 
     UA_Server *server = UA_Server_new(*config);
 
-    if(server == NULL) {
-        UA_ServerConfig_standard_deleteMembers(config);
+    if (server == NULL) {
+        UA_ServerConfig_standard_delete(config);
         return -1;
     }
 
@@ -430,6 +430,6 @@ int main(int argc, char** argv) {
 
     UA_Server_delete(server);
 
-    UA_ServerConfig_standard_deleteMembers(config);
+    UA_ServerConfig_standard_delete(config);
     return (int)retval;
 }

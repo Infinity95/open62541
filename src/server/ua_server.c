@@ -56,52 +56,6 @@ UA_UInt16 UA_Server_addNamespace(UA_Server *server, const char* name) {
     return addNamespace(server, nameString);
 }
 
-#ifdef UA_ENABLE_EXTERNAL_NAMESPACES
-
-static void
-UA_ExternalNamespace_init(UA_ExternalNamespace *ens) {
-    ens->index = 0;
-    UA_String_init(&ens->url);
-}
-
-static void
-UA_ExternalNamespace_deleteMembers(UA_ExternalNamespace *ens) {
-    UA_String_deleteMembers(&ens->url);
-    ens->externalNodeStore.destroy(ens->externalNodeStore.ensHandle);
-}
-
-static void
-UA_Server_deleteExternalNamespaces(UA_Server *server) {
-    for(UA_UInt32 i = 0; i < server->externalNamespacesSize; ++i)
-        UA_ExternalNamespace_deleteMembers(&server->externalNamespaces[i]);
-    if(server->externalNamespacesSize > 0) {
-        UA_free(server->externalNamespaces);
-        server->externalNamespaces = NULL;
-        server->externalNamespacesSize = 0;
-    }
-}
-
-UA_StatusCode
-UA_Server_addExternalNamespace(UA_Server *server, const UA_String *url,
-                               UA_ExternalNodeStore *nodeStore,
-                               UA_UInt16 *assignedNamespaceIndex) {
-    if(!nodeStore)
-        return UA_STATUSCODE_BADARGUMENTSMISSING;
-
-    size_t size = server->externalNamespacesSize;
-    server->externalNamespaces =
-        UA_realloc(server->externalNamespaces, sizeof(UA_ExternalNamespace) * (size + 1));
-    server->externalNamespaces[size].externalNodeStore = *nodeStore;
-    server->externalNamespaces[size].index = (UA_UInt16)server->namespacesSize;
-    *assignedNamespaceIndex = (UA_UInt16)server->namespacesSize;
-    UA_String_copy(url, &server->externalNamespaces[size].url);
-    ++server->externalNamespacesSize;
-    UA_Server_addNamespace(server, urlString);
-    return UA_STATUSCODE_GOOD;
-}
-
-#endif /* UA_ENABLE_EXTERNAL_NAMESPACES*/
-
 UA_StatusCode
 UA_Server_forEachChildNodeCall(UA_Server *server, UA_NodeId parentNodeId,
                                UA_NodeIteratorCallback callback, void *handle) {
@@ -142,25 +96,13 @@ UA_Server_forEachChildNodeCall(UA_Server *server, UA_NodeId parentNodeId,
 
 /* The server needs to be stopped before it can be deleted */
 void UA_Server_delete(UA_Server *server) {
-    // Delete the timed work
-    UA_RepeatedJobsList_deleteMembers(&server->repeatedJobs);
-
-    // Delete all internal data
+    /* Delete all internal data */
     UA_SecureChannelManager_deleteMembers(&server->secureChannelManager);
     UA_SessionManager_deleteMembers(&server->sessionManager);
     UA_RCU_LOCK();
     UA_NodeStore_delete(server->nodestore);
     UA_RCU_UNLOCK();
-#ifdef UA_ENABLE_EXTERNAL_NAMESPACES
-    UA_Server_deleteExternalNamespaces(server);
-#endif
     UA_Array_delete(server->namespaces, server->namespacesSize, &UA_TYPES[UA_TYPES_STRING]);
-    
-    for(size_t i = 0; i < server->endpoints.count; ++i) {
-        UA_EndpointDescription_deleteMembers(&server->endpoints.endpoints[i].endpointDescription);
-    }
-    UA_free(server->endpoints.endpoints);
-    server->endpoints.count = 0;
 
 #ifdef UA_ENABLE_DISCOVERY
     registeredServer_list_entry *rs, *rs_tmp;
@@ -169,8 +111,8 @@ void UA_Server_delete(UA_Server *server) {
         UA_RegisteredServer_deleteMembers(&rs->registeredServer);
         UA_free(rs);
     }
-    if(server->periodicServerRegisterJob)
-        UA_free(server->periodicServerRegisterJob);
+    if(server->periodicServerRegisterCallback)
+        UA_free(server->periodicServerRegisterCallback);
 
 # ifdef UA_ENABLE_DISCOVERY_MULTICAST
     if(server->config.applicationDescription.applicationType == UA_APPLICATIONTYPE_DISCOVERYSERVER)
@@ -201,11 +143,17 @@ void UA_Server_delete(UA_Server *server) {
     pthread_cond_destroy(&server->dispatchQueue_condition);
     pthread_mutex_destroy(&server->dispatchQueue_mutex);
 #endif
+
+    /* Delete the timed work */
+    UA_Timer_deleteMembers(&server->timer);
+
+    /* Delete the server itself */
     UA_free(server);
 }
 
 /* Recurring cleanup. Removing unused and timed-out channels and sessions */
-static void UA_Server_cleanup(UA_Server *server, void *_) {
+static void
+UA_Server_cleanup(UA_Server *server, void *_) {
     UA_DateTime nowMonotonic = UA_DateTime_nowMonotonic();
     UA_SessionManager_cleanupTimedOut(&server->sessionManager, nowMonotonic);
     UA_SecureChannelManager_cleanupTimedOut(&server->secureChannelManager, nowMonotonic);
@@ -214,27 +162,13 @@ static void UA_Server_cleanup(UA_Server *server, void *_) {
 #endif
 }
 
-/* Create endpoints w/o endpointurl from the config. It is added from the networklayers at startup */
-static void
-addEndpointDefinitions(UA_Server* server) {
-    server->endpoints.endpoints = (UA_Endpoint*) UA_malloc(sizeof(UA_Endpoint) * server->config.endpointsSize);
-    server->endpoints.count = server->config.endpointsSize;
-
-    for(size_t i = 0; i < server->config.endpointsSize; ++i) {
-        server->endpoints.endpoints[i].securityPolicy = server->config.endpoints[i].securityPolicy;
-        server->endpoints.endpoints[i].securityContext = server->config.endpoints[i].securityContext;
-        UA_EndpointDescription_copy(&server->config.endpoints[i].endpointDescription,
-                                    &server->endpoints.endpoints[i].endpointDescription);
-    }
-}
-
 UA_Server *
 UA_Server_new(const UA_ServerConfig config) {
     UA_Server *server = (UA_Server *)UA_calloc(1, sizeof(UA_Server));
     if(!server)
         return NULL;
 
-    if(config.endpointsSize == 0) {
+    if(config.endpoints.count == 0) {
         UA_LOG_FATAL(config.logger,
                      UA_LOGCATEGORY_SERVER,
                      "There has to be at least one endpoint.");
@@ -251,14 +185,8 @@ UA_Server_new(const UA_ServerConfig config) {
     UA_random_seed((UA_UInt64)UA_DateTime_now());
 #endif
 
-    /* Initialize the handling of repeated jobs */
-#ifdef UA_ENABLE_MULTITHREADING
-    UA_RepeatedJobsList_init(&server->repeatedJobs,
-                             (UA_RepeatedJobsListProcessCallback)UA_Server_dispatchJob, server);
-#else
-    UA_RepeatedJobsList_init(&server->repeatedJobs,
-                             (UA_RepeatedJobsListProcessCallback)UA_Server_processJob, server);
-#endif
+    /* Initialize the handling of repeated callbacks */
+    UA_Timer_init(&server->timer);
 
     /* Initialized the linked list for delayed callbacks */
 #ifndef UA_ENABLE_MULTITHREADING
@@ -269,7 +197,6 @@ UA_Server_new(const UA_ServerConfig config) {
 #ifdef UA_ENABLE_MULTITHREADING
     rcu_init();
     cds_wfcq_init(&server->dispatchQueue_head, &server->dispatchQueue_tail);
-    cds_lfs_init(&server->mainLoopJobs);
 #endif
 
     /* Create Namespaces 0 and 1 */
@@ -278,25 +205,19 @@ UA_Server_new(const UA_ServerConfig config) {
     UA_String_copy(&server->config.applicationDescription.applicationUri, &server->namespaces[1]);
     server->namespacesSize = 2;
 
-    /* Create Endpoint Definitions */
-    addEndpointDefinitions(server);
-
     /* Initialized SecureChannel and Session managers */
     UA_SecureChannelManager_init(&server->secureChannelManager, server);
     UA_SessionManager_init(&server->sessionManager, server);
 
-    /* Add a regular job for cleanup and maintenance */
-    UA_Job cleanup;
-    cleanup.type = UA_JOBTYPE_METHODCALL;
-    cleanup.job.methodCall.data = NULL;
-    cleanup.job.methodCall.method = UA_Server_cleanup;
-    UA_Server_addRepeatedJob(server, cleanup, 10000, NULL);
+    /* Add a regular callback for cleanup and maintenance */
+    UA_Server_addRepeatedCallback(server, (UA_ServerCallback)UA_Server_cleanup, NULL,
+                                  10000, NULL);
 
     /* Initialized discovery database */
 #ifdef UA_ENABLE_DISCOVERY
     LIST_INIT(&server->registeredServers);
     server->registeredServersSize = 0;
-    server->periodicServerRegisterJob = NULL;
+    server->periodicServerRegisterCallback = NULL;
     server->registerServerCallback = NULL;
     server->registerServerCallbackData = NULL;
 #endif
@@ -335,12 +256,20 @@ UA_Server_new(const UA_ServerConfig config) {
 /*****************/
 
 UA_StatusCode
-UA_Server_addRepeatedJob(UA_Server *server, UA_Job job,
-                         UA_UInt32 interval, UA_Guid *jobId) {
-    return UA_RepeatedJobsList_addRepeatedJob(&server->repeatedJobs, job, interval, jobId);
+UA_Server_addRepeatedCallback(UA_Server *server, UA_ServerCallback callback,
+                              void *data, UA_UInt32 interval,
+                              UA_UInt64 *callbackId) {
+    return UA_Timer_addRepeatedCallback(&server->timer, (UA_TimerCallback)callback,
+                                        data, interval, callbackId);
 }
 
 UA_StatusCode
-UA_Server_removeRepeatedJob(UA_Server *server, UA_Guid jobId) {
-    return UA_RepeatedJobsList_removeRepeatedJob(&server->repeatedJobs, jobId);
+UA_Server_changeRepeatedCallbackInterval(UA_Server *server, UA_UInt64 callbackId,
+                                         UA_UInt32 interval) {
+    return UA_Timer_changeRepeatedCallbackInterval(&server->timer, callbackId, interval);
+}
+
+UA_StatusCode
+UA_Server_removeRepeatedCallback(UA_Server *server, UA_UInt64 callbackId) {
+    return UA_Timer_removeRepeatedCallback(&server->timer, callbackId);
 }
