@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 #include "ua_types.h"
-#include "ua_log.h"
+#include "ua_plugin_log.h"
 #include "ua_types_generated.h"
 
 extern const UA_ByteString UA_SECURITY_POLICY_NONE_URI;
@@ -24,8 +24,8 @@ typedef struct UA_SecurityPolicy UA_SecurityPolicy;
 struct UA_Channel_SecurityContext;
 typedef struct UA_Channel_SecurityContext UA_Channel_SecurityContext;
 
-struct UA_Endpoint_SecurityContext;
-typedef struct UA_Endpoint_SecurityContext UA_Endpoint_SecurityContext;
+struct UA_Policy_SecurityContext;
+typedef struct UA_Policy_SecurityContext UA_Policy_SecurityContext;
 /////////////////////////////////
 // End of forward declarations //
 /////////////////////////////////
@@ -37,30 +37,56 @@ typedef struct UA_Endpoint_SecurityContext UA_Endpoint_SecurityContext;
 typedef struct
 {
     /**
-     * Verifies the signature of the message using the provided certificate.
+     * Verifies the signature of the message using the provided keys in the context.
      *
-     * \param message the message to verify.
-     * \param context the context that contains the key to verify the supplied message with.
+     * \param securityPolicy the securityPolicy the function is invoked on.
+     * \param channelContext the channelContext that contains the key to verify the supplied message with.
+     * \param message the message to which the signature is supposed to belong.
+     * \param signature the signature of the message, that should be verified.
      */
     UA_StatusCode (*const verify)(const UA_SecurityPolicy *securityPolicy,
-                                  const void *context,
+                                  const void *channelContext,
                                   const UA_ByteString *message,
                                   const UA_ByteString *signature);
 
     /**
-     * Signs the given message using this policys signing algorithm and the provided certificate.
+     * Signs the given message using this policys signing
+     * algorithm and the provided keys in the context.
      *
+     * \param securityPolicy the securityPolicy the function is invoked on.
+     * \param channelContext the channelContext that contains the key to sign the supplied message with.
      * \param message the message to sign.
-     * \param context the context that contains the key to sign the supplied message with.
-     * \param signature an output buffer to which the signed message is written.
+     * \param signature an output buffer to which the signature is written. The buffer needs
+     *                  to be allocated by the caller. The necessary size can be acquired with
+     *                  the signatureSize attribute of this module.
      */
     UA_StatusCode (*const sign)(const UA_SecurityPolicy *securityPolicy,
-                                const void *context,
+                                const void *channelContext,
                                 const UA_ByteString *message,
                                 UA_ByteString *signature);
 
+    /**
+     * \brief Gets the signature size that depends on the local private key.
+     *
+     * \param securityPolicy the securityPolicy the function is invoked on.
+     * \param channelContext the channelContext that contains the certificate/key.
+     * \return the size of the local signature. Returns 0 if no local certificate was set.
+     */
+    size_t (*const getLocalSignatureSize)(const UA_SecurityPolicy *securityPolicy,
+                                          const void *channelContext);
+
+    /**
+     * \brief Gets the signature size that depends on the remote public key.
+     *
+     * \param securityPolicy the securityPolicy the function is invoked on.
+     * \param channelContext the context to retrieve data from.
+     * \return the size of the remote asymmetric signature. Returns 0 if no remote certificate
+     *                     was set previousely.
+     */
+    size_t (*const getRemoteSignatureSize)(const UA_SecurityPolicy *securityPolicy,
+                                           const void *channelContext);
+
         /* The signature size in bytes */
-    const UA_UInt32 signatureSize;
     const UA_String signatureAlgorithmUri;
 } UA_SecurityPolicySigningModule;
 
@@ -69,26 +95,31 @@ typedef struct
     /**
      * \brief Encrypt the given data in place using an asymmetric algorithm and keys.
      *
-     * \param policyContext the policyContext which contains information about entropy generation.
+     * \param securityPolicy the securityPolicy the function is invoked on.
      * \param channelContext the channelContext which contains information about the keys to encrypt data.
      * \param data the data that is encrypted. The encrypted data will overwrite the data that was supplied.
      */
-    UA_StatusCode (*const encrypt)(const UA_SecurityPolicy *securityPolicy,
-                                   const void *endpointContext,
-                                   const void *channelContext,
-                                   const UA_ByteString *data);
+    UA_StatusCode(*const encrypt)(const UA_SecurityPolicy *securityPolicy,
+                                  const void *channelContext,
+                                  UA_ByteString *data);
     /**
-     * \brief Decrypts the given cyphertext using an asymmetric algorithm and key.
+     * \brief Decrypts the given ciphertext in place using an asymmetric algorithm and key.
      *
-     * \param securityContext the SecurityContext which contains information about the keys needed to decrypt the message.
+     * \param securityPolicy the securityPolicy the function is invoked on.
+     * \param channelContext the channelContext which contains information about the keys needed to decrypt the message.
      * \param data the data to decrypt. The decryption is done in place.
      */
-    UA_StatusCode (*const decrypt)(const UA_SecurityPolicy *securityPolicy,
-                                   const void *endpointContext,
-                                   UA_ByteString *data);
+    UA_StatusCode(*const decrypt)(const UA_SecurityPolicy *securityPolicy,
+                                  const void *channelContext,
+                                  UA_ByteString *data);
+} UA_SecurityPolicyEncryptingModule;
+
+typedef struct
+{
     /**
-     * Generates a thumprint for the specified certificate using a SHA1 digest
+     * \brief Generates a thumprint for the specified certificate.
      *
+     * \param securityPolicy the securityPolicy the function is invoked on.
      * \param certificate the certificate to make a thumbprint of.
      * \param thumbprint an output buffer for the resulting thumbprint. Always
                          has the length specified in the thumprintLenght in the asymmetricModule.
@@ -97,60 +128,23 @@ typedef struct
                                           const UA_ByteString *certificate,
                                           UA_ByteString *thumbprint);
 
-    /**
-     * \brief Calculates the padding size for a message with the specified amount of bytes.
-     *
-     * \param securityPolicy the securityPolicy the function is invoked on.
-     * \param channelContext the channel context that is used to obtain the plaintext block size.
-     *                       Has to have a remote certificate set.
-     * \param bytesToWrite the size of the payload plus the sequence header, since both need to be encoded
-     * \param paddingSize out parameter. Will contain the paddingSize byte.
-     * \param extraPaddingSize out parameter. Will contain the extraPaddingSize. If no extra padding is needed, this is 0.
-     * \return the total padding size consiting of high and low byte.
-     */
-    UA_UInt16 (*const calculatePadding)(const UA_SecurityPolicy *securityPolicy,
-                                        const void *channelContext,
-                                        const void *endpointContext,
-                                        size_t bytesToWrite,
-                                        UA_Byte *paddingSize,
-                                        UA_Byte *extraPaddingSize);
-
     const size_t minAsymmetricKeyLength;
     const size_t maxAsymmetricKeyLength;
     const size_t thumbprintLength;
 
+    const UA_SecurityPolicyEncryptingModule encryptingModule;
     const UA_SecurityPolicySigningModule signingModule;
 } UA_SecurityPolicyAsymmetricModule;
 
 typedef struct
 {
     /**
-     * \brief Encrypts the given plaintext using a symmetric algorithm and key.
-     *
-     * \param securityContext the SecurityContext to work on.
-     * \param data the data to encrypt. The data will be encrypted in place.
-     *             The implementation may allocate additional memory though.
-     */
-    UA_StatusCode (*const encrypt)(const UA_SecurityPolicy *securityPolicy,
-                                   const void *channelContext,
-                                   UA_ByteString *data);
-
-    /**
-     * \brief Decrypts the given ciphertext using a symmetric algorithm and key.
-     *
-     * \param securityContext the SecurityContext which contains information about the keys needed to decrypt the message.
-     * \param data the data to decrypt. The decryption is done in place.
-     */
-    UA_StatusCode (*const decrypt)(const UA_SecurityPolicy *securityPolicy,
-                                   const void *channelContext,
-                                   UA_ByteString *data);
-
-    /**
      * \brief Pseudo random function that is used to generate the symmetric keys.
      *
      * For information on what parameters this function receives in what situation,
      * refer to the OPC UA specification 1.03 Part6 Table 33
      *
+     * \param securityPolicy the securityPolicy the function is invoked on.
      * \param secret
      * \param seed
      * \param out an output to write the data to. The length defines the maximum
@@ -165,28 +159,17 @@ typedef struct
      * 
      * Generates a nonce.
      * 
-     * \param securityPolicy the securityPolicy this function is invoked on. Example: myPolicy->generateNonce(myPolicy, &outBuff);
+     * \param securityPolicy the securityPolicy this function is invoked on.
+     *                       Example: myPolicy->generateNonce(myPolicy, &outBuff);
+     * \param policyContext the policyContext that contains entropy generation data.
      * \param out pointer to a buffer to store the nonce in. Needs to be allocated by the caller.
      *            The buffer is filled with random data.
      */
     UA_StatusCode (*const generateNonce)(const UA_SecurityPolicy *securityPolicy,
-                                         const void *endpointContext,
+                                         const void *policyContext,
                                          UA_ByteString *out);
 
-    /**
-     * \brief Calculates the padding size for a message with the specified amount of bytes.
-     *
-     * \param securityPolicy the securityPolicy the function is invoked on.
-     * \param bytesToWrite the size of the payload plus the sequence header, since both need to be encoded
-     * \param paddingSize out parameter. Will contain the paddingSize byte.
-     * \param extraPaddingSize out parameter. Will contain the extraPaddingSize. If no extra padding is needed, this is 0.
-     * \return the total padding size consisting of high and low bytes.
-     */
-    UA_UInt16 (*const calculatePadding)(const UA_SecurityPolicy *securityPolicy,
-                                        size_t bytesToWrite,
-                                        UA_Byte *paddingSize,
-                                        UA_Byte *extraPaddingSize);
-
+    const UA_SecurityPolicyEncryptingModule encryptingModule;
     const UA_SecurityPolicySigningModule signingModule;
 
     const size_t signingKeyLength;
@@ -194,194 +177,164 @@ typedef struct
     const size_t encryptingBlockSize;
 } UA_SecurityPolicySymmetricModule;
 
-struct UA_Endpoint_SecurityContext {
-    UA_StatusCode (*const init)(const UA_SecurityPolicy *securityPolicy,
-                                const void *initData,
-                                void **pp_contextData);
+/**
+ * This struct defines initialization Data that is potentially needed by every security policy.
+ * Some of these, like the revocation list for example, may be omitted (empty ByteString).
+ */
+typedef struct
+{
+    const UA_ByteString *localPrivateKey;
+    const UA_ByteString *localCertificate;
+    const UA_ByteString *certificateTrustList;
+    const UA_ByteString *certificateRevocationList;
+} UA_Policy_SecurityContext_RequiredInitData;
 
-    UA_StatusCode (*const deleteMembers)(const UA_SecurityPolicy *securityPolicy,
-                                         void *endpointContext);
+struct UA_Policy_SecurityContext {
+    /**
+     * \brief Creates a new endpoint context with the supplied initialization data.
+     *
+     * \param securityPolicy the securityPolicy this function is invoked on.
+     * \param initData the required initialization data for the endpoint context.
+     * \param optInitData the optional initialization data for the endpoint context. May be NULL.
+     * \param pp_contextData a pointer to a variable, where the pointer to the context will be stored.
+     */
+    UA_StatusCode (*const newContext)(const UA_SecurityPolicy *securityPolicy,
+                                      const UA_Policy_SecurityContext_RequiredInitData *initData,
+                                      const void *optInitData,
+                                      void **pp_contextData);
 
-    UA_StatusCode (*const setLocalPrivateKey)(const UA_SecurityPolicy *securityPolicy,
-                                              const UA_ByteString *privateKey,
-                                              void *endpointContext);
-
-    UA_StatusCode (*const setServerCertificate)(const UA_SecurityPolicy *securityPolicy,
-                                                const UA_ByteString *certificate,
-                                                void *endpointContext);
-
-    const UA_ByteString *(*const getServerCertificate)(const UA_SecurityPolicy *securityPolicy,
-                                                       const void *endpointContext);
-
-    UA_StatusCode (*const setCertificateTrustList)(const UA_SecurityPolicy *securityPolicy,
-                                                   const UA_ByteString *trustList,
-                                                   void *endpointContext);
-
-    UA_StatusCode (*const setCertificateRevocationList)(const UA_SecurityPolicy *securityPolicy,
-                                                        const UA_ByteString *revocationList,
-                                                        void *endpointContext);
+    UA_StatusCode (*const deleteContext)(void *policyContext);
 
     /**
-    * Gets the signature size that depends on the local private key.
-    * This will return 0 as long as no remote certificate was set.
-    */
-    size_t (*const getLocalAsymSignatureSize)(const UA_SecurityPolicy *securityPolicy,
-                                              const void *endpointContext);
+     * \brief Gets the local certificate stored in the policyContext.
+     *
+     * \param policyContext the policyContext that contains the certificate.
+     * \return a pointer to the certificate. It must not be modified.
+     */
+    const UA_ByteString *(*const getLocalCertificate)(const void *policyContext);
 
     /**
      * \brief Compares the supplied certificate with the certificate in the endpoit context.
      *
-     * \param securityPolicy contains the function pointers associated with the policy.
-     * \param endpointContext the endpoint context data that contains the certificate to compare to.
+     * \param policyContext the policyContext data that contains the certificate to compare to.
      * \param certificateThumbprint the certificate thumbprint to compare to the one stored in the context.
      * \return if the thumbprints match UA_STATUSCODE_GOOD is returned. If they don't match
-     *         or an errror occured an error code is returned.
+     *         or an error occured an error code is returned.
      */
-    UA_StatusCode (*const compareCertificateThumbprint)(const UA_SecurityPolicy *securityPolicy,
-                                                        const void *endpointContext,
+    UA_StatusCode (*const compareCertificateThumbprint)(const void *policyContext,
                                                         const UA_ByteString *certificateThumbprint);
 };
 
 struct UA_Channel_SecurityContext {
     /**
-     * \brief This method initializes a new context data object.
-     * The caller needs to call deleteMembers on the recieved object to free allocated memory.
+     * \brief This method creates a new context data object.
+     *
+     * The caller needs to call delete on the recieved object to free allocated memory.
      *
      * Memory is only allocated if the function succeeds so there is no need to manually free
-     * the memory pointed to by *pp_contextData or to call deleteMembers.
+     * the memory pointed to by *pp_channelContext or to call delete in case of failure.
      *
-     * \param securityPolicy contains the function pointers associated with the policy.
+     * \param policyContext the policy context of the endpoint that is connected to. It will be
+     *                      stored in the channelContext for further access by the policy.
      * \param remoteCertificate the remote certificate contains the remote asymmetric key.
      *                          The certificate will be verified and then stored in the context
      *                          so that its details may be accessed.
-     * \param contextData the initialized contextData that is passed to functions that work
+     * \param pp_channelContext the initialized channelContext that is passed to functions that work
      *                    on a context.
      */
-    UA_StatusCode (*const init)(const UA_SecurityPolicy *securityPolicy,
-                                const void *endpointContext,
-                                const UA_ByteString *remoteCertificate,
-                                void **pp_contextData);
+    UA_StatusCode (*const newContext)(const void *policyContext,
+                                      const UA_ByteString *remoteCertificate,
+                                      void **pp_channelContext);
 
     /**
-     * \brief Deletes the members of the security context.
+     * \brief Deletes the the security context.
      *
-     * \param securityPolicy contains the function pointers associated with the policy.
-     * \param contextData the context to delete the members of.
+     * \param channelContext the context to delete the members of.
      */
-    UA_StatusCode (*const deleteMembers)(const UA_SecurityPolicy *securityPolicy,
-                                         void *contextData);
+    UA_StatusCode (*const deleteContext)(void *channelContext);
 
     /**
      * \brief Sets the local encrypting key in the supplied context.
      *
-     * \param securityPolicy contains the function pointers associated with the policy.
+     * \param channelContext the context to work on.
      * \param key the local encrypting key to store in the context.
-     * \param contextData the context to work on.
      */
-    UA_StatusCode (*const setLocalSymEncryptingKey)(const UA_SecurityPolicy *securityPolicy,
-                                                    const UA_ByteString *key,
-                                                    void *contextData);
+    UA_StatusCode (*const setLocalSymEncryptingKey)(void *channelContext,
+                                                    const UA_ByteString *key);
 
     /**
      * \brief Sets the local signing key in the supplied context.
      *
-     * \param securityPolicy contains the function pointers associated with the policy.
+     * \param channelContext the context to work on.
      * \param key the local signing key to store in the context.
-     * \param contextData the context to work on.
      */
-    UA_StatusCode (*const setLocalSymSigningKey)(const UA_SecurityPolicy *securityPolicy,
-                                                 const UA_ByteString *key,
-                                                 void *contextData);
+    UA_StatusCode (*const setLocalSymSigningKey)(void *channelContext,
+                                                 const UA_ByteString *key);
 
     /**
      * \brief Sets the local initialization vector in the supplied context.
      *
-     * \param securityPolicy contains the function pointers associated with the policy.
+     * \param channelContext the context to work on.
      * \param iv the local initialization vector to store in the context.
-     * \param contextData the context to work on.
      */
-    UA_StatusCode (*const setLocalSymIv)(const UA_SecurityPolicy *securityPolicy,
-                                         const UA_ByteString *iv,
-                                         void *contextData);
+    UA_StatusCode (*const setLocalSymIv)(void *channelContext,
+                                         const UA_ByteString *iv);
     /**
      * \brief Sets the remote encrypting key in the supplied context.
      *
-     * \param securityPolicy contains the function pointers associated with the policy.
+     * \param channelContext the context to work on.
      * \param key the remote encrypting key to store in the context.
-     * \param contextData the context to work on.
      */
-    UA_StatusCode (*const setRemoteSymEncryptingKey)(const UA_SecurityPolicy *securityPolicy,
-                                                     const UA_ByteString *key,
-                                                     void *contextData);
+    UA_StatusCode (*const setRemoteSymEncryptingKey)(void *channelContext,
+                                                     const UA_ByteString *key);
 
     /**
      * \brief Sets the remote signing key in the supplied context.
      *
-     * \param securityPolicy contains the function pointers associated with the policy.
+     * \param channelContext the context to work on.
      * \param key the remote signing key to store in the context.
-     * \param contextData the context to work on.
      */
-    UA_StatusCode (*const setRemoteSymSigningKey)(const UA_SecurityPolicy *securityPolicy,
-                                                  const UA_ByteString *key,
-                                                  void *contextData);
+    UA_StatusCode (*const setRemoteSymSigningKey)(void *channelContext,
+                                                  const UA_ByteString *key);
 
     /**
      * \brief Sets the remote initialization vector in the supplied context.
      *
-     * \param securityPolicy contains the function pointers associated with the policy.
+     * \param channelContext the context to work on.
      * \param iv the remote initialization vector to store in the context.
-     * \param contextData the context to work on.
      */
-    UA_StatusCode (*const setRemoteSymIv)(const UA_SecurityPolicy *securityPolicy,
-                                          const UA_ByteString *iv,
-                                          void *contextData);
+    UA_StatusCode (*const setRemoteSymIv)(void *channelContext,
+                                          const UA_ByteString *iv);
 
     /**
      * \brief Compares the supplied certificate with the certificate in the channel context.
      *
-     * \param securityPolicy contains the function pointers associated with the policy.
      * \param channelContext the channel context data that contains the certificate to compare to.
      * \param certificate the certificate to compare to the one stored in the context.
      * \return if the certificates match UA_STATUSCODE_GOOD is returned. If they don't match
      *         or an errror occured an error code is returned.
      */
-    UA_StatusCode (*const compareCertificate)(const UA_SecurityPolicy *securityPolicy,
-                                              const void *channelContext,
+    UA_StatusCode (*const compareCertificate)(const void *channelContext,
                                               const UA_ByteString *certificate);
-
-    /**
-     * \brief Gets the signature size that depends on the remote public key.
-     *
-     * \param securityPolicy contains the function pointers associated with the policy.
-     * \param contextData the context to retrieve data from.
-     * \return the size of the remote asymmetric signature. Returns 0 if no remote certificate
-     *                     was set previousely.
-     */
-    size_t (*const getRemoteAsymSignatureSize)(const UA_SecurityPolicy *securityPolicy,
-                                               const void *contextData);
 
     /**
      * \brief Gets the plaintext block size that depends on the remote public key.
      *
-     * \param securityPolicy contains the function pointers associated with the policy.
-     * \param contextData the context to retrieve data from.
+     * \param channelContext the context to retrieve data from.
      * \return the size of the plain text block size when encrypting with the remote public key.
      *         Returns 0 as long as no remote certificate was set previousely.
      */
-    size_t (*const getRemoteAsymPlainTextBlockSize)(const UA_SecurityPolicy *securityPolicy,
-                                                    const void *contextData);
+    size_t (*const getRemoteAsymPlainTextBlockSize)(const void *channelContext);
 
     /**
      * Gets the number of bytes that are needed by the encryption function in addition to the length of the plaintext message.
      * This is needed, since most rsa encryption methods have their own padding mechanism included. This makes the encrypted
      * message larger than the plainText, so we need to have enough room in the buffer for the overhead.
      *
-     * \param securityPolicy contains the function pointers associated with the policy.
-     * \param contextData the retrieve data from.
+     * \param channelContext the retrieve data from.
      * \param maxEncryptionLength the maximum number of bytes that the data to encrypt can be.
      */
-    size_t (*const getRemoteAsymEncryptionBufferLengthOverhead)(const UA_SecurityPolicy *securityPolicy,
-                                                                const void *contextData,
+    size_t (*const getRemoteAsymEncryptionBufferLengthOverhead)(const void *channelContext,
                                                                 size_t maxEncryptionLength);
 };
 
@@ -396,7 +349,7 @@ struct UA_SecurityPolicy {
     const UA_SecurityPolicyAsymmetricModule asymmetricModule;
     const UA_SecurityPolicySymmetricModule symmetricModule;
 
-    const UA_Endpoint_SecurityContext endpointContext;
+    const UA_Policy_SecurityContext policyContext;
     const UA_Channel_SecurityContext channelContext;
 
     UA_Logger logger;
