@@ -45,16 +45,17 @@ static UA_ByteString loadFile(const char *const path) {
 }
 
 static UA_ByteString loadPrivateKey(void) {
-    UA_ByteString privateKey = loadFile("my_key.pem");
+    UA_ByteString privateKey = loadFile("server_key.pem");
 
     // The string needs to be null terminated, so we replace the last byte (which should be \n) with \0
-    privateKey.data[privateKey.length - 1] = '\0';
+    if(privateKey.length != 0)
+        privateKey.data[privateKey.length - 1] = '\0';
 
     return privateKey;
 }
 
 static UA_ByteString loadTrustList(void) {
-    return loadFile("uaexpert.der");
+    return loadFile("opcuactt.der");
 }
 
 static UA_ByteString loadCertificate(void) {
