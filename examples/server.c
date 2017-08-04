@@ -30,7 +30,7 @@ static UA_ByteString loadFile(const char *const path) {
 
     fseek(fp, 0, SEEK_END);
     fileContents.length = (size_t)ftell(fp);
-    fileContents.data = (UA_Byte*)malloc(fileContents.length * sizeof(UA_Byte));
+    fileContents.data = (UA_Byte*)UA_malloc(fileContents.length * sizeof(UA_Byte));
     if(!fileContents.data) {
         fclose(fp);
         return fileContents;
@@ -98,7 +98,7 @@ helloWorld(void *methodHandle, const UA_NodeId *objectId,
     UA_String hello = UA_STRING("Hello ");
     UA_String greet;
     greet.length = hello.length + name->length;
-    greet.data = (UA_Byte*)malloc(greet.length);
+    greet.data = (UA_Byte*)UA_malloc(greet.length);
     memcpy(greet.data, hello.data, hello.length);
     memcpy(greet.data + hello.length, name->data, name->length);
     UA_Variant_setScalarCopy(output, &greet, &UA_TYPES[UA_TYPES_STRING]);
