@@ -34,8 +34,8 @@ UA_EXPORT UA_ServerConfig*
 UA_ServerConfig_standard_basic128rsa15_new(UA_UInt16 portNumber,
                                            const UA_ByteString *certificate,
                                            const UA_ByteString *privateKey,
-                                           const UA_ByteString *trustList,
-                                           const UA_ByteString *revocationList);
+                                           const UA_CertificateList *trustList,
+                                           const UA_CertificateList *revocationList);
 
 UA_EXPORT UA_ServerConfig*
 UA_ServerConfig_standard_new(void);
