@@ -54,8 +54,30 @@ static UA_ByteString loadPrivateKey(void) {
     return privateKey;
 }
 
-static UA_ByteString loadTrustList(void) {
-    return loadFile("opcuactt.der");
+static UA_CertificateList *loadTrustList(void) {
+    UA_ByteString cert = loadFile("uaexpert.der");
+    UA_CertificateList *trustlist = UA_CertificateList_new(&cert);
+    UA_ByteString_deleteMembers(&cert);
+
+    /*
+    cert = loadFile("expired.der");
+    UA_CertificateList_prepend(&trustlist, &cert);
+    UA_ByteString_deleteMembers(&cert);
+
+
+    cert = loadFile("opcuactt_incorrectsign.der");
+    UA_CertificateList_prepend(&trustlist, &cert);
+    UA_ByteString_deleteMembers(&cert);
+
+    cert = loadFile("notyetvalid.der");
+    UA_CertificateList_prepend(&trustlist, &cert);
+    UA_ByteString_deleteMembers(&cert);
+
+    cert = loadFile("opcuactt_incorrectip.der");
+    UA_CertificateList_prepend(&trustlist, &cert);
+    UA_ByteString_deleteMembers(&cert);*/
+
+    return trustlist;
 }
 
 static UA_ByteString loadCertificate(void) {
@@ -130,13 +152,13 @@ int main(int argc, char** argv) {
 
     /* load certificate and stuff */
     UA_ByteString cert = loadCertificate();
-    UA_ByteString trustList = loadTrustList();
+    UA_CertificateList *trustList = loadTrustList();
     UA_ByteString privateKey = loadPrivateKey();
 
     UA_ServerConfig *config = UA_ServerConfig_standard_basic128rsa15_new(16664,
                                                                          &cert,
                                                                          &privateKey,
-                                                                         &trustList,
+                                                                         trustList,
                                                                          NULL);
     if(config == NULL)
         return -1;
@@ -426,7 +448,7 @@ int main(int argc, char** argv) {
 
     /* deallocate certificate's memory */
     UA_ByteString_deleteMembers(&privateKey);
-    UA_ByteString_deleteMembers(&trustList);
+    UA_CertificateList_delete(trustList);
     UA_ByteString_deleteMembers(&cert);
 
     UA_Server_delete(server);

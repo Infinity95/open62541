@@ -85,31 +85,37 @@ policyContext_setLocalCertificate_sp_basic128rsa15(const UA_ByteString *certific
 }
 
 static UA_StatusCode
-policyContext_setCertificateTrustList_sp_basic128rsa15(const UA_ByteString* const trustList,
+policyContext_setCertificateTrustList_sp_basic128rsa15(const UA_CertificateList* const trustList,
                                                        UA_SP_basic128rsa15_PolicyContextData *const contextData) {
     if(trustList == NULL || contextData == NULL)
         return UA_STATUSCODE_BADINTERNALERROR;
 
-    int err = mbedtls_x509_crt_parse(&contextData->certificateTrustList,
-                                     trustList->data,
-                                     trustList->length);
-    if(err) // TODO: more precise error handling?
-        return UA_STATUSCODE_BADINTERNALERROR;
+    for(const UA_CertificateList *cert = trustList; cert != NULL; cert = cert->next) {
+        int err = mbedtls_x509_crt_parse_der(&contextData->certificateTrustList,
+                                             cert->certificate->data,
+                                             cert->certificate->length);
+        // TODO: Do we want to keep parsing and only warn the user?
+        if(err) // TODO: more precise error handling?
+            return UA_STATUSCODE_BADINTERNALERROR;
+    }
 
     return UA_STATUSCODE_GOOD;
 }
 
 static UA_StatusCode
-policyContext_setCertificateRevocationList_sp_basic128rsa15(const UA_ByteString *const revocationList,
+policyContext_setCertificateRevocationList_sp_basic128rsa15(const UA_CertificateList *const revocationList,
                                                             UA_SP_basic128rsa15_PolicyContextData *const contextData) {
     if(revocationList == NULL, contextData == NULL)
         return UA_STATUSCODE_BADINTERNALERROR;
 
-    int err = mbedtls_x509_crl_parse(&contextData->certificateRevocationList,
-                                     revocationList->data,
-                                     revocationList->length);
-    if(err) // TODO: more precise error handling?
-        return UA_STATUSCODE_BADINTERNALERROR;
+    for(const UA_CertificateList *cert = revocationList; cert != NULL; cert = cert->next) {
+        int err = mbedtls_x509_crl_parse_der(&contextData->certificateRevocationList,
+                                             cert->certificate->data,
+                                             cert->certificate->length);
+        // TODO: Do we want to keep parsing and only warn the user?
+        if(err) // TODO: more precise error handling?
+            return UA_STATUSCODE_BADINTERNALERROR;
+    }
 
     return UA_STATUSCODE_GOOD;
 }
@@ -291,8 +297,28 @@ verifyCertificate_sp_basic128rsa15(const void *const channelContext) {
                                                     &flags,
                                                     NULL,
                                                     NULL);
-    if(mbedErr)
-        return UA_STATUSCODE_BADSECURITYCHECKSFAILED;
+
+    // TODO: Extend verification
+    if(mbedErr) {
+        UA_StatusCode retval = UA_STATUSCODE_BADSECURITYCHECKSFAILED;
+
+        switch(flags) {
+        case MBEDTLS_X509_BADCERT_FUTURE:
+        case MBEDTLS_X509_BADCERT_EXPIRED:
+            retval = UA_STATUSCODE_BADCERTIFICATETIMEINVALID;
+            break;
+        case MBEDTLS_X509_BADCERT_REVOKED:
+            retval = UA_STATUSCODE_BADCERTIFICATEREVOKED;
+            break;
+        case MBEDTLS_X509_BADCERT_NOT_TRUSTED:
+            retval = UA_STATUSCODE_BADCERTIFICATEUNTRUSTED;
+            break;
+        default: retval = UA_STATUSCODE_BADSECURITYCHECKSFAILED;
+            break;
+        }
+
+        return retval;
+    }
 
     return UA_STATUSCODE_GOOD;
 }
@@ -313,9 +339,13 @@ parseRemoteCertificate_sp_basic128rsa15(void *const contextData,
     if(mbedErr)
         return UA_STATUSCODE_BADSECURITYCHECKSFAILED;
 
+    retval = verifyCertificate_sp_basic128rsa15(contextData);
+    if(retval != UA_STATUSCODE_GOOD)
+        return retval;
+
     mbedErr |= mbedtls_x509_time_is_future(&data->remoteCertificate.valid_from);
     if(mbedErr)
-        return UA_STATUSCODE_BADCERTIFICATEISSUERTIMEINVALID;
+        return UA_STATUSCODE_BADCERTIFICATETIMEINVALID;
     mbedErr |= mbedtls_x509_time_is_past(&data->remoteCertificate.valid_to);
     if(mbedErr)
         return UA_STATUSCODE_BADCERTIFICATETIMEINVALID;
@@ -365,13 +395,6 @@ channelContext_newContext_sp_basic128rsa15(const void *const policyContext,
     // TODO: this can be optimized so that we dont allocate memory before parsing the certificate
     retval |= parseRemoteCertificate_sp_basic128rsa15(*pp_contextData,
                                                       remoteCertificate);
-    if(retval != UA_STATUSCODE_GOOD) {
-        channelContext_deleteContext_sp_basic128rsa15(*pp_contextData);
-        *pp_contextData = NULL;
-        return retval;
-    }
-
-    retval |= verifyCertificate_sp_basic128rsa15(*pp_contextData);
     if(retval != UA_STATUSCODE_GOOD) {
         channelContext_deleteContext_sp_basic128rsa15(*pp_contextData);
         *pp_contextData = NULL;
