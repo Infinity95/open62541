@@ -55,7 +55,7 @@ static UA_ByteString loadPrivateKey(void) {
 }
 
 static UA_CertificateList *loadTrustList(void) {
-    UA_ByteString cert = loadFile("uaexpert.der");
+    UA_ByteString cert = loadFile("opcuactt.der");
     UA_CertificateList *trustlist = UA_CertificateList_new(&cert);
     UA_ByteString_deleteMembers(&cert);
 
