@@ -7,14 +7,14 @@
 #include "ua_securitypolicy_basic128rsa15.h"
 #include "ua_types.h"
 #include "ua_types_generated_handling.h"
-#include "mbedtls\aes.h"
-#include "mbedtls\md.h"
-#include "mbedtls\md_internal.h"
-#include "mbedtls\ctr_drbg.h"
-#include "mbedtls\x509.h"
-#include "mbedtls\x509_crt.h"
-#include "mbedtls\entropy.h"
-#include "mbedtls\error.h"
+#include "mbedtls/aes.h"
+#include "mbedtls/md.h"
+#include "mbedtls/md_internal.h"
+#include "mbedtls/ctr_drbg.h"
+#include "mbedtls/x509.h"
+#include "mbedtls/x509_crt.h"
+#include "mbedtls/entropy.h"
+#include "mbedtls/error.h"
 
 #define UA_STRING_STATIC(s) {sizeof(s)-1, (UA_Byte*)s}
 #define UA_STRING_STATIC_NULL {0, NULL}
@@ -91,9 +91,9 @@ policyContext_setCertificateTrustList_sp_basic128rsa15(const UA_CertificateList*
         return UA_STATUSCODE_BADINTERNALERROR;
 
     for(const UA_CertificateList *cert = trustList; cert != NULL; cert = cert->next) {
-        int err = mbedtls_x509_crt_parse_der(&contextData->certificateTrustList,
-                                             cert->certificate->data,
-                                             cert->certificate->length);
+        int err = mbedtls_x509_crt_parse(&contextData->certificateTrustList,
+                                         cert->certificate->data,
+                                         cert->certificate->length);
         // TODO: Do we want to keep parsing and only warn the user?
         if(err) // TODO: more precise error handling?
             return UA_STATUSCODE_BADINTERNALERROR;
