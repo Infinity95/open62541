@@ -167,7 +167,7 @@ void Service_CreateSession(UA_Server *server, UA_SecureChannel *channel,
 static void
 Service_ActivateSession_checkSignature(const UA_Server *const server,
                                        const UA_SecureChannel *const channel,
-                                       const UA_Session *const session,
+                                       UA_Session *const session,
                                        const UA_ActivateSessionRequest *const request,
                                        UA_ActivateSessionResponse *const response) {
     if(channel->securityMode == UA_MESSAGESECURITYMODE_SIGN ||
@@ -204,6 +204,7 @@ Service_ActivateSession_checkSignature(const UA_Server *const server,
         }
 
         retval |= UA_SecureChannel_generateNonce(channel, 32, &response->serverNonce);
+        retval |= UA_ByteString_copy(&response->serverNonce, &session->serverNonce);
         if(retval != UA_STATUSCODE_GOOD) {
             response->responseHeader.serviceResult = retval;
             UA_LOG_DEBUG_SESSION(server->config.logger, session,
