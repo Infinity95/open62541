@@ -22,15 +22,18 @@ extern "C" {
 
 #include "mdnsd/libmdnsd/mdnsd.h"
 
-void mdns_record_received(const struct resource *r, void *data);
+void
+mdns_record_received(const struct resource *r, void *data);
 
-void mdns_create_txt(UA_Server *server, const char *fullServiceDomain,
-                     const char *path, const UA_String *capabilites,
-                     const size_t *capabilitiesSize,
-                     void (*conflict)(char *host, int type, void *arg));
+void
+mdns_create_txt(UA_Server *server, const char *fullServiceDomain,
+                const char *path, const UA_String *capabilites,
+                const size_t *capabilitiesSize,
+                void (*conflict)(char *host, int type, void *arg));
 
-void mdns_set_address_record(UA_Server *server, const char *fullServiceDomain,
-                             const char *localDomain);
+void
+mdns_set_address_record(UA_Server *server, const char *fullServiceDomain,
+                        const char *localDomain);
 
 mdns_record_t *
 mdns_find_record(mdns_daemon_t *mdnsDaemon, unsigned short type,

@@ -28,7 +28,7 @@ typedef struct {
     UA_TimerCallbackList repeatedCallbacks;
 
     /* Changes to the repeated callbacks in a multi-producer single-consumer queue */
-    UA_TimerCallbackEntry * volatile changes_head;
+    UA_TimerCallbackEntry *volatile changes_head;
     UA_TimerCallbackEntry *changes_tail;
     UA_TimerCallbackEntry *changes_stub;
 
@@ -36,7 +36,8 @@ typedef struct {
 } UA_Timer;
 
 /* Initialize the Timer. Not thread-safe. */
-void UA_Timer_init(UA_Timer *t);
+void
+UA_Timer_init(UA_Timer *t);
 
 /* Add a repated callback. Thread-safe, can be used in parallel and in parallel
  * with UA_Timer_process. */
@@ -70,7 +71,8 @@ UA_Timer_process(UA_Timer *t, UA_DateTime nowMonotonic,
                  void *application);
 
 /* Remove all repeated callbacks. Not thread-safe. */
-void UA_Timer_deleteMembers(UA_Timer *t);
+void
+UA_Timer_deleteMembers(UA_Timer *t);
 
 #ifdef __cplusplus
 } // extern "C"

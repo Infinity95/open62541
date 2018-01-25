@@ -43,6 +43,7 @@ const char *logCategoryNames[7] = {"network", "channel", "session", "server",
 #ifdef __clang__
 __attribute__((__format__(__printf__, 3 , 0)))
 #endif
+
 void
 UA_Log_Stdout(UA_LogLevel level, UA_LogCategory category,
               const char *msg, va_list args) {

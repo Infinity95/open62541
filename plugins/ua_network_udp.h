@@ -13,10 +13,16 @@ extern "C" {
 
 /* Create the UDP networklayer and listen to the specified port */
 UA_ServerNetworkLayer UA_EXPORT
-UA_ServerNetworkLayerUDP(UA_ConnectionConfig conf, UA_UInt16 port);
+UA_ServerNetworkLayerUDP(UA_ConnectionConfig
+conf,
+UA_UInt16 port
+);
 
 UA_Connection UA_EXPORT
-UA_ClientConnectionUDP(UA_ConnectionConfig conf, const char *endpointUrl, UA_Logger logger);
+UA_ClientConnectionUDP(UA_ConnectionConfig
+conf,
+const char *endpointUrl, UA_Logger
+logger);
 
 #ifdef __cplusplus
 } // extern "C"

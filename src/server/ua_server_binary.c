@@ -31,7 +31,7 @@ void UA_debug_dumpCompleteChunk(UA_Server *const server, UA_Connection *const co
 /* Helper Functions */
 /********************/
 
- /* This is not an ERR message, the connection is not closed afterwards */
+/* This is not an ERR message, the connection is not closed afterwards */
 static UA_StatusCode
 sendServiceFault(UA_SecureChannel *channel, const UA_ByteString *msg,
                  size_t offset, const UA_DataType *responseType,
@@ -42,7 +42,7 @@ sendServiceFault(UA_SecureChannel *channel, const UA_ByteString *msg,
         return retval;
     void *response = UA_alloca(responseType->memSize);
     UA_init(response, responseType);
-    UA_ResponseHeader *responseHeader = (UA_ResponseHeader*)response;
+    UA_ResponseHeader *responseHeader = (UA_ResponseHeader *)response;
     responseHeader->requestHandle = requestHeader.requestHandle;
     responseHeader->timestamp = UA_DateTime_now();
     responseHeader->serviceResult = error;
@@ -68,180 +68,149 @@ getServicePointers(UA_UInt32 requestTypeId, const UA_DataType **requestType,
                    const UA_DataType **responseType, UA_Service *service,
                    UA_Boolean *requiresSession, UA_ServiceType *serviceType) {
     switch(requestTypeId) {
-    case UA_NS0ID_GETENDPOINTSREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_GetEndpoints;
+    case UA_NS0ID_GETENDPOINTSREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_GetEndpoints;
         *requestType = &UA_TYPES[UA_TYPES_GETENDPOINTSREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_GETENDPOINTSRESPONSE];
         *requiresSession = false;
         break;
-    case UA_NS0ID_FINDSERVERSREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_FindServers;
+    case UA_NS0ID_FINDSERVERSREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_FindServers;
         *requestType = &UA_TYPES[UA_TYPES_FINDSERVERSREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_FINDSERVERSRESPONSE];
         *requiresSession = false;
         break;
 #ifdef UA_ENABLE_DISCOVERY
 # ifdef UA_ENABLE_DISCOVERY_MULTICAST
-    case UA_NS0ID_FINDSERVERSONNETWORKREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_FindServersOnNetwork;
+    case UA_NS0ID_FINDSERVERSONNETWORKREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_FindServersOnNetwork;
         *requestType = &UA_TYPES[UA_TYPES_FINDSERVERSONNETWORKREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_FINDSERVERSONNETWORKRESPONSE];
         *requiresSession = false;
         break;
 # endif
-    case UA_NS0ID_REGISTERSERVERREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_RegisterServer;
+    case UA_NS0ID_REGISTERSERVERREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_RegisterServer;
         *requestType = &UA_TYPES[UA_TYPES_REGISTERSERVERREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_REGISTERSERVERRESPONSE];
         *requiresSession = false;
         break;
-    case UA_NS0ID_REGISTERSERVER2REQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_RegisterServer2;
+    case UA_NS0ID_REGISTERSERVER2REQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_RegisterServer2;
         *requestType = &UA_TYPES[UA_TYPES_REGISTERSERVER2REQUEST];
         *responseType = &UA_TYPES[UA_TYPES_REGISTERSERVER2RESPONSE];
         *requiresSession = false;
         break;
 #endif
-    case UA_NS0ID_CREATESESSIONREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_CreateSession;
+    case UA_NS0ID_CREATESESSIONREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_CreateSession;
         *requestType = &UA_TYPES[UA_TYPES_CREATESESSIONREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_CREATESESSIONRESPONSE];
         *requiresSession = false;
         *serviceType = UA_SERVICETYPE_CUSTOM;
         break;
-    case UA_NS0ID_ACTIVATESESSIONREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_ActivateSession;
+    case UA_NS0ID_ACTIVATESESSIONREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_ActivateSession;
         *requestType = &UA_TYPES[UA_TYPES_ACTIVATESESSIONREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_ACTIVATESESSIONRESPONSE];
         *serviceType = UA_SERVICETYPE_CUSTOM;
         break;
-    case UA_NS0ID_CLOSESESSIONREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_CloseSession;
+    case UA_NS0ID_CLOSESESSIONREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_CloseSession;
         *requestType = &UA_TYPES[UA_TYPES_CLOSESESSIONREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_CLOSESESSIONRESPONSE];
         break;
-    case UA_NS0ID_READREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_Read;
+    case UA_NS0ID_READREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_Read;
         *requestType = &UA_TYPES[UA_TYPES_READREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_READRESPONSE];
         *serviceType = UA_SERVICETYPE_INSITU;
         break;
-    case UA_NS0ID_WRITEREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_Write;
+    case UA_NS0ID_WRITEREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_Write;
         *requestType = &UA_TYPES[UA_TYPES_WRITEREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_WRITERESPONSE];
         break;
-    case UA_NS0ID_BROWSEREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_Browse;
+    case UA_NS0ID_BROWSEREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_Browse;
         *requestType = &UA_TYPES[UA_TYPES_BROWSEREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_BROWSERESPONSE];
         break;
-    case UA_NS0ID_BROWSENEXTREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_BrowseNext;
+    case UA_NS0ID_BROWSENEXTREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_BrowseNext;
         *requestType = &UA_TYPES[UA_TYPES_BROWSENEXTREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_BROWSENEXTRESPONSE];
         break;
-    case UA_NS0ID_REGISTERNODESREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_RegisterNodes;
+    case UA_NS0ID_REGISTERNODESREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_RegisterNodes;
         *requestType = &UA_TYPES[UA_TYPES_REGISTERNODESREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_REGISTERNODESRESPONSE];
         break;
-    case UA_NS0ID_UNREGISTERNODESREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_UnregisterNodes;
+    case UA_NS0ID_UNREGISTERNODESREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_UnregisterNodes;
         *requestType = &UA_TYPES[UA_TYPES_UNREGISTERNODESREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_UNREGISTERNODESRESPONSE];
         break;
-    case UA_NS0ID_TRANSLATEBROWSEPATHSTONODEIDSREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_TranslateBrowsePathsToNodeIds;
+    case UA_NS0ID_TRANSLATEBROWSEPATHSTONODEIDSREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_TranslateBrowsePathsToNodeIds;
         *requestType = &UA_TYPES[UA_TYPES_TRANSLATEBROWSEPATHSTONODEIDSREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_TRANSLATEBROWSEPATHSTONODEIDSRESPONSE];
         break;
 
 #ifdef UA_ENABLE_SUBSCRIPTIONS
-    case UA_NS0ID_CREATESUBSCRIPTIONREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_CreateSubscription;
+    case UA_NS0ID_CREATESUBSCRIPTIONREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_CreateSubscription;
         *requestType = &UA_TYPES[UA_TYPES_CREATESUBSCRIPTIONREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_CREATESUBSCRIPTIONRESPONSE];
         break;
-    case UA_NS0ID_PUBLISHREQUEST_ENCODING_DEFAULTBINARY:
-        *requestType = &UA_TYPES[UA_TYPES_PUBLISHREQUEST];
+    case UA_NS0ID_PUBLISHREQUEST_ENCODING_DEFAULTBINARY:*requestType = &UA_TYPES[UA_TYPES_PUBLISHREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_PUBLISHRESPONSE];
         break;
-    case UA_NS0ID_REPUBLISHREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_Republish;
+    case UA_NS0ID_REPUBLISHREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_Republish;
         *requestType = &UA_TYPES[UA_TYPES_REPUBLISHREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_REPUBLISHRESPONSE];
         break;
-    case UA_NS0ID_MODIFYSUBSCRIPTIONREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_ModifySubscription;
+    case UA_NS0ID_MODIFYSUBSCRIPTIONREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_ModifySubscription;
         *requestType = &UA_TYPES[UA_TYPES_MODIFYSUBSCRIPTIONREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_MODIFYSUBSCRIPTIONRESPONSE];
         break;
-    case UA_NS0ID_SETPUBLISHINGMODEREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_SetPublishingMode;
+    case UA_NS0ID_SETPUBLISHINGMODEREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_SetPublishingMode;
         *requestType = &UA_TYPES[UA_TYPES_SETPUBLISHINGMODEREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_SETPUBLISHINGMODERESPONSE];
         break;
-    case UA_NS0ID_DELETESUBSCRIPTIONSREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_DeleteSubscriptions;
+    case UA_NS0ID_DELETESUBSCRIPTIONSREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_DeleteSubscriptions;
         *requestType = &UA_TYPES[UA_TYPES_DELETESUBSCRIPTIONSREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_DELETESUBSCRIPTIONSRESPONSE];
         break;
-    case UA_NS0ID_CREATEMONITOREDITEMSREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_CreateMonitoredItems;
+    case UA_NS0ID_CREATEMONITOREDITEMSREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_CreateMonitoredItems;
         *requestType = &UA_TYPES[UA_TYPES_CREATEMONITOREDITEMSREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_CREATEMONITOREDITEMSRESPONSE];
         break;
-    case UA_NS0ID_DELETEMONITOREDITEMSREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_DeleteMonitoredItems;
+    case UA_NS0ID_DELETEMONITOREDITEMSREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_DeleteMonitoredItems;
         *requestType = &UA_TYPES[UA_TYPES_DELETEMONITOREDITEMSREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_DELETEMONITOREDITEMSRESPONSE];
         break;
-    case UA_NS0ID_MODIFYMONITOREDITEMSREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_ModifyMonitoredItems;
+    case UA_NS0ID_MODIFYMONITOREDITEMSREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_ModifyMonitoredItems;
         *requestType = &UA_TYPES[UA_TYPES_MODIFYMONITOREDITEMSREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_MODIFYMONITOREDITEMSRESPONSE];
         break;
-    case UA_NS0ID_SETMONITORINGMODEREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_SetMonitoringMode;
+    case UA_NS0ID_SETMONITORINGMODEREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_SetMonitoringMode;
         *requestType = &UA_TYPES[UA_TYPES_SETMONITORINGMODEREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_SETMONITORINGMODERESPONSE];
         break;
 #endif
 
 #ifdef UA_ENABLE_METHODCALLS
-    case UA_NS0ID_CALLREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_Call;
+    case UA_NS0ID_CALLREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_Call;
         *requestType = &UA_TYPES[UA_TYPES_CALLREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_CALLRESPONSE];
         break;
 #endif
 
 #ifdef UA_ENABLE_NODEMANAGEMENT
-    case UA_NS0ID_ADDNODESREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_AddNodes;
+    case UA_NS0ID_ADDNODESREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_AddNodes;
         *requestType = &UA_TYPES[UA_TYPES_ADDNODESREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_ADDNODESRESPONSE];
         break;
-    case UA_NS0ID_ADDREFERENCESREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_AddReferences;
+    case UA_NS0ID_ADDREFERENCESREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_AddReferences;
         *requestType = &UA_TYPES[UA_TYPES_ADDREFERENCESREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_ADDREFERENCESRESPONSE];
         break;
-    case UA_NS0ID_DELETENODESREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_DeleteNodes;
+    case UA_NS0ID_DELETENODESREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_DeleteNodes;
         *requestType = &UA_TYPES[UA_TYPES_DELETENODESREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_DELETENODESRESPONSE];
         break;
-    case UA_NS0ID_DELETEREFERENCESREQUEST_ENCODING_DEFAULTBINARY:
-        *service = (UA_Service)Service_DeleteReferences;
+    case UA_NS0ID_DELETEREFERENCESREQUEST_ENCODING_DEFAULTBINARY:*service = (UA_Service)Service_DeleteReferences;
         *requestType = &UA_TYPES[UA_TYPES_DELETEREFERENCESREQUEST];
         *responseType = &UA_TYPES[UA_TYPES_DELETEREFERENCESRESPONSE];
         break;
 #endif
 
-    default:
-        break;
+    default:break;
     }
 }
 
@@ -273,7 +242,7 @@ processHEL(UA_Server *server, UA_Connection *connection,
     if(connection->remoteConf.recvBufferSize == 0) {
         UA_LOG_INFO(server->config.logger, UA_LOGCATEGORY_NETWORK,
                     "Connection %i | Remote end indicated a receive buffer size of 0. "
-                    "Not able to send any messages.",
+                        "Not able to send any messages.",
                     connection->sockfd);
         return UA_STATUSCODE_BADINTERNALERROR;
     }
@@ -349,7 +318,7 @@ processOPN(UA_Server *server, UA_SecureChannel *channel,
     UA_OpenSecureChannelRequest_deleteMembers(&openSecureChannelRequest);
     if(openScResponse.responseHeader.serviceResult != UA_STATUSCODE_GOOD) {
         UA_LOG_INFO_CHANNEL(server->config.logger, channel, "Could not open a SecureChannel. "
-                            "Closing the connection.");
+            "Closing the connection.");
         UA_SecureChannelManager_close(&server->secureChannelManager,
                                       channel->securityToken.channelId);
         return openScResponse.responseHeader.serviceResult;
@@ -412,7 +381,7 @@ processMSG(UA_Server *server, UA_SecureChannel *channel,
 
     /* Decode the request */
     void *request = UA_alloca(requestType->memSize);
-    UA_RequestHeader *requestHeader = (UA_RequestHeader*)request;
+    UA_RequestHeader *requestHeader = (UA_RequestHeader *)request;
     retval = UA_decodeBinary(msg, &offset, request, requestType,
                              server->config.customDataTypesSize,
                              server->config.customDataTypes);
@@ -430,25 +399,25 @@ processMSG(UA_Server *server, UA_SecureChannel *channel,
     /* CreateSession doesn't need a session */
     if(requestType == &UA_TYPES[UA_TYPES_CREATESESSIONREQUEST]) {
         Service_CreateSession(server, channel,
-            (const UA_CreateSessionRequest *)request,
+                              (const UA_CreateSessionRequest *)request,
                               (UA_CreateSessionResponse *)response);
-        #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
         // store the authentication token and session ID so we can help fuzzing by setting
         // these values in the next request automatically
         UA_CreateSessionResponse *res = (UA_CreateSessionResponse *)response;
         UA_NodeId_copy(&res->authenticationToken, &unsafe_fuzz_authenticationToken);
-        #endif
+#endif
         goto send_response;
     }
 
-    #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
     // set the authenticationToken from the create session request to help fuzzing cover more lines
     if(!UA_NodeId_isNull(&unsafe_fuzz_authenticationToken))
         UA_NodeId_copy(&unsafe_fuzz_authenticationToken, &requestHeader->authenticationToken);
-    #endif
+#endif
 
     /* Find the matching session */
-    session = (UA_Session*)UA_SecureChannel_getSession(channel, &requestHeader->authenticationToken);
+    session = (UA_Session *)UA_SecureChannel_getSession(channel, &requestHeader->authenticationToken);
     if(!session && !UA_NodeId_isNull(&requestHeader->authenticationToken))
         session = UA_SessionManager_getSessionByToken(&server->sessionManager,
                                                       &requestHeader->authenticationToken);
@@ -463,8 +432,8 @@ processMSG(UA_Server *server, UA_SecureChannel *channel,
                                     requestId, UA_STATUSCODE_BADSESSIONIDINVALID);
         }
         Service_ActivateSession(server, channel, session,
-            (const UA_ActivateSessionRequest*)request,
-                                (UA_ActivateSessionResponse*)response);
+                                (const UA_ActivateSessionRequest *)request,
+                                (UA_ActivateSessionResponse *)response);
         goto send_response;
     }
 
@@ -502,7 +471,7 @@ processMSG(UA_Server *server, UA_SecureChannel *channel,
     if(session != &anonymousSession && session->header.channel != channel) {
         UA_LOG_WARNING_CHANNEL(server->config.logger, channel,
                                "Client tries to use a Session that is not "
-                               "bound to this SecureChannel");
+                                   "bound to this SecureChannel");
         UA_deleteMembers(request, requestType);
         return sendServiceFault(channel, msg, requestPos, responseType,
                                 requestId, UA_STATUSCODE_BADSESSIONNOTACTIVATED);
@@ -515,17 +484,17 @@ processMSG(UA_Server *server, UA_SecureChannel *channel,
     /* The publish request is not answered immediately */
     if(requestType == &UA_TYPES[UA_TYPES_PUBLISHREQUEST]) {
         Service_Publish(server, session,
-            (const UA_PublishRequest*)request, requestId);
+                        (const UA_PublishRequest *)request, requestId);
         UA_deleteMembers(request, requestType);
         return UA_STATUSCODE_GOOD;
     }
 #endif
 
-    send_response:
+send_response:
 
     /* Prepare the ResponseHeader */
-    ((UA_ResponseHeader*)response)->requestHandle = requestHeader->requestHandle;
-    ((UA_ResponseHeader*)response)->timestamp = UA_DateTime_now();
+    ((UA_ResponseHeader *)response)->requestHandle = requestHeader->requestHandle;
+    ((UA_ResponseHeader *)response)->timestamp = UA_DateTime_now();
 
     /* Start the message */
     UA_NodeId typeId = UA_NODEID_NUMERIC(0, responseType->binaryEncodingId);
@@ -547,13 +516,12 @@ processMSG(UA_Server *server, UA_SecureChannel *channel,
         /* Was processed before...*/
         retval = UA_MessageContext_encode(&mc, response, responseType);
         break;
-    case UA_SERVICETYPE_INSITU: 
+    case UA_SERVICETYPE_INSITU:
         retval = ((UA_InSituService)service)
-            (server, session, &mc, request, (UA_ResponseHeader*)response);
+            (server, session, &mc, request, (UA_ResponseHeader *)response);
         break;
     case UA_SERVICETYPE_NORMAL:
-    default:
-        service(server, session, request, response);
+    default:service(server, session, request, response);
         retval = UA_MessageContext_encode(&mc, response, responseType);
         break;
     }
@@ -566,11 +534,11 @@ processMSG(UA_Server *server, UA_SecureChannel *channel,
 
     retval = UA_MessageContext_finish(&mc);
 
- cleanup:
+cleanup:
     if(retval != UA_STATUSCODE_GOOD)
         UA_LOG_INFO_CHANNEL(server->config.logger, channel,
                             "Could not send the message over the SecureChannel "
-                            "with StatusCode %s", UA_StatusCode_name(retval));
+                                "with StatusCode %s", UA_StatusCode_name(retval));
     /* Clean up */
     UA_deleteMembers(request, requestType);
     UA_deleteMembers(response, responseType);
@@ -582,24 +550,20 @@ static UA_StatusCode
 processSecureChannelMessage(void *application, UA_SecureChannel *channel,
                             UA_MessageType messagetype, UA_UInt32 requestId,
                             const UA_ByteString *message) {
-    UA_Server *server = (UA_Server*)application;
+    UA_Server *server = (UA_Server *)application;
     UA_StatusCode retval = UA_STATUSCODE_GOOD;
     switch(messagetype) {
-    case UA_MESSAGETYPE_OPN:
-        UA_LOG_TRACE_CHANNEL(server->config.logger, channel,
-                             "Process an OPN on an open channel");
+    case UA_MESSAGETYPE_OPN:UA_LOG_TRACE_CHANNEL(server->config.logger, channel,
+                                                 "Process an OPN on an open channel");
         retval = processOPN(server, channel, requestId, message);
         break;
-    case UA_MESSAGETYPE_MSG:
-        UA_LOG_TRACE_CHANNEL(server->config.logger, channel, "Process a MSG");
+    case UA_MESSAGETYPE_MSG:UA_LOG_TRACE_CHANNEL(server->config.logger, channel, "Process a MSG");
         retval = processMSG(server, channel, requestId, message);
         break;
-    case UA_MESSAGETYPE_CLO:
-        UA_LOG_TRACE_CHANNEL(server->config.logger, channel, "Process a CLO");
+    case UA_MESSAGETYPE_CLO:UA_LOG_TRACE_CHANNEL(server->config.logger, channel, "Process a CLO");
         Service_CloseSecureChannel(server, channel);
         break;
-    default:
-        UA_LOG_TRACE_CHANNEL(server->config.logger, channel, "Invalid message type");
+    default:UA_LOG_TRACE_CHANNEL(server->config.logger, channel, "Invalid message type");
         retval = UA_STATUSCODE_BADTCPMESSAGETYPEINVALID;
         break;
     }
@@ -609,7 +573,7 @@ processSecureChannelMessage(void *application, UA_SecureChannel *channel,
 static UA_StatusCode
 createSecureChannel(void *application, UA_Connection *connection,
                     UA_AsymmetricAlgorithmSecurityHeader *asymHeader) {
-    UA_Server *server = (UA_Server*)application;
+    UA_Server *server = (UA_Server *)application;
 
     /* Iterate over available endpoints and choose the correct one */
     UA_Endpoint *endpoint = NULL;
@@ -646,7 +610,7 @@ processCompleteChunkWithoutChannel(UA_Server *server, UA_Connection *connection,
     /* Process chunk without a channel; must be OPN */
     UA_LOG_TRACE(server->config.logger, UA_LOGCATEGORY_NETWORK,
                  "Connection %i | No channel attached to the connection. "
-                 "Process the chunk directly", connection->sockfd);
+                     "Process the chunk directly", connection->sockfd);
     size_t offset = 0;
     UA_TcpMessageHeader tcpMessageHeader;
     UA_StatusCode retval =
@@ -656,11 +620,9 @@ processCompleteChunkWithoutChannel(UA_Server *server, UA_Connection *connection,
 
     // Only HEL and OPN messages possible without a channel (on the server side)
     switch(tcpMessageHeader.messageTypeAndChunkType & 0x00ffffff) {
-    case UA_MESSAGETYPE_HEL:
-        retval = processHEL(server, connection, message, &offset);
+    case UA_MESSAGETYPE_HEL:retval = processHEL(server, connection, message, &offset);
         break;
-    case UA_MESSAGETYPE_OPN:
-    {
+    case UA_MESSAGETYPE_OPN: {
         UA_LOG_TRACE(server->config.logger, UA_LOGCATEGORY_NETWORK,
                      "Connection %i | Process OPN message", connection->sockfd);
 
@@ -696,7 +658,7 @@ processCompleteChunkWithoutChannel(UA_Server *server, UA_Connection *connection,
     default:
         UA_LOG_TRACE(server->config.logger, UA_LOGCATEGORY_NETWORK,
                      "Connection %i | Expected OPN or HEL message on a connection "
-                     "without a SecureChannel", connection->sockfd);
+                         "without a SecureChannel", connection->sockfd);
         retval = UA_STATUSCODE_BADTCPMESSAGETYPEINVALID;
         break;
     }
@@ -707,7 +669,7 @@ static UA_StatusCode
 processCompleteChunk(void *const application,
                      UA_Connection *const connection,
                      UA_ByteString *const chunk) {
-    UA_Server *const server = (UA_Server*)application;
+    UA_Server *const server = (UA_Server *)application;
 #ifdef UA_DEBUG_DUMP_PKGS_FILE
     UA_debug_dumpCompleteChunk(server, connection, chunk);
 #endif
@@ -732,7 +694,7 @@ processBinaryMessage(UA_Server *server, UA_Connection *connection,
     if(retval != UA_STATUSCODE_GOOD) {
         UA_LOG_INFO(server->config.logger, UA_LOGCATEGORY_NETWORK,
                     "Connection %i | Processing the message failed with "
-                    "error %s", connection->sockfd, UA_StatusCode_name(retval));
+                        "error %s", connection->sockfd, UA_StatusCode_name(retval));
         /* Send an ERR message and close the connection */
         UA_TcpErrorMessage error;
         error.error = retval;

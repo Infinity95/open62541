@@ -32,8 +32,11 @@ typedef struct UA_Server UA_Server;
  * Server Lifecycle
  * ---------------- */
 
-UA_Server UA_EXPORT * UA_Server_new(const UA_ServerConfig *config);
-void UA_EXPORT UA_Server_delete(UA_Server *server);
+UA_Server UA_EXPORT *
+UA_Server_new(const UA_ServerConfig *config);
+
+void UA_EXPORT
+UA_Server_delete(UA_Server *server);
 
 /* Runs the main loop of the server. In each iteration, this calls into the
  * networklayers to see if messages have arrived.
@@ -125,7 +128,7 @@ UA_Server_removeRepeatedCallback(UA_Server *server, UA_UInt64 callbackId);
 UA_DataValue UA_EXPORT
 UA_Server_read(UA_Server *server, const UA_ReadValueId *item,
                UA_TimestampsToReturn timestamps);
-    
+
 /* Don't use this function. There are typed versions for every supported
  * attribute. */
 UA_StatusCode UA_EXPORT
@@ -399,7 +402,8 @@ static UA_INLINE UA_StatusCode
 UA_Server_writeExecutable(UA_Server *server, const UA_NodeId nodeId,
                           const UA_Boolean executable) {
     return __UA_Server_write(server, &nodeId, UA_ATTRIBUTEID_EXECUTABLE,
-                             &UA_TYPES[UA_TYPES_BOOLEAN], &executable); }
+                             &UA_TYPES[UA_TYPES_BOOLEAN], &executable);
+}
 
 /**
  * Browsing
@@ -418,12 +422,14 @@ UA_Server_translateBrowsePathToNodeIds(UA_Server *server,
 
 #ifndef HAVE_NODEITER_CALLBACK
 #define HAVE_NODEITER_CALLBACK
+
 /* Iterate over all nodes referenced by parentNodeId by calling the callback
  * function for each child node (in ifdef because GCC/CLANG handle include order
  * differently) */
 typedef UA_StatusCode
 (*UA_NodeIteratorCallback)(UA_NodeId childId, UA_Boolean isInverse,
                            UA_NodeId referenceTypeId, void *handle);
+
 #endif
 
 UA_StatusCode UA_EXPORT
@@ -448,8 +454,8 @@ UA_Server_forEachChildNodeCall(UA_Server *server, UA_NodeId parentNodeId,
  *        'opc.tcp://localhost:4840' will be used
  * @param semaphoreFilePath optional parameter pointing to semaphore file. */
 UA_StatusCode UA_EXPORT
-UA_Server_register_discovery(UA_Server *server, const char* discoveryServerUrl,
-                             const char* semaphoreFilePath);
+UA_Server_register_discovery(UA_Server *server, const char *discoveryServerUrl,
+                             const char *semaphoreFilePath);
 
 /* Unregister the given server instance from the discovery server.
  * This should only be called when the server is shutting down.
@@ -457,37 +463,37 @@ UA_Server_register_discovery(UA_Server *server, const char* discoveryServerUrl,
  * @param discoveryServerUrl if set to NULL, the default value
  *        'opc.tcp://localhost:4840' will be used */
 UA_StatusCode UA_EXPORT
-UA_Server_unregister_discovery(UA_Server *server, const char* discoveryServerUrl);
+UA_Server_unregister_discovery(UA_Server *server, const char *discoveryServerUrl);
 
- /* Adds a periodic callback to register the server with the LDS (local discovery server)
-  * periodically. The interval between each register call is given as second parameter.
-  * It should be 10 minutes by default (= 10*60*1000).
-  *
-  * The delayFirstRegisterMs parameter indicates the delay for the first register call.
-  * If it is 0, the first register call will be after intervalMs milliseconds,
-  * otherwise the server's first register will be after delayFirstRegisterMs.
-  *
-  * When you manually unregister the server, you also need to cancel the
-  * periodic callback, otherwise it will be automatically be registered again.
-  *
-  * If you call this method multiple times for the same discoveryServerUrl, the older
-  * periodic callback will be removed.
-  *
-  * @param server
-  * @param discoveryServerUrl if set to NULL, the default value
-  *        'opc.tcp://localhost:4840' will be used
-  * @param intervalMs
-  * @param delayFirstRegisterMs
-  * @param periodicCallbackId */
+/* Adds a periodic callback to register the server with the LDS (local discovery server)
+ * periodically. The interval between each register call is given as second parameter.
+ * It should be 10 minutes by default (= 10*60*1000).
+ *
+ * The delayFirstRegisterMs parameter indicates the delay for the first register call.
+ * If it is 0, the first register call will be after intervalMs milliseconds,
+ * otherwise the server's first register will be after delayFirstRegisterMs.
+ *
+ * When you manually unregister the server, you also need to cancel the
+ * periodic callback, otherwise it will be automatically be registered again.
+ *
+ * If you call this method multiple times for the same discoveryServerUrl, the older
+ * periodic callback will be removed.
+ *
+ * @param server
+ * @param discoveryServerUrl if set to NULL, the default value
+ *        'opc.tcp://localhost:4840' will be used
+ * @param intervalMs
+ * @param delayFirstRegisterMs
+ * @param periodicCallbackId */
 UA_StatusCode UA_EXPORT
-UA_Server_addPeriodicServerRegisterCallback(UA_Server *server, const char* discoveryServerUrl,
+UA_Server_addPeriodicServerRegisterCallback(UA_Server *server, const char *discoveryServerUrl,
                                             UA_UInt32 intervalMs,
                                             UA_UInt32 delayFirstRegisterMs,
                                             UA_UInt64 *periodicCallbackId);
 
 /* Callback for RegisterServer. Data is passed from the register call */
 typedef void (*UA_Server_registerServerCallback)(const UA_RegisteredServer *registeredServer,
-                                                 void* data);
+                                                 void *data);
 
 /* Set the callback which is called if another server registeres or unregisters
  * with this instance. If called multiple times, previous data will be
@@ -499,7 +505,7 @@ typedef void (*UA_Server_registerServerCallback)(const UA_RegisteredServer *regi
  * @return UA_STATUSCODE_SUCCESS on success */
 void UA_EXPORT
 UA_Server_setRegisterServerCallback(UA_Server *server, UA_Server_registerServerCallback cb,
-                                    void* data);
+                                    void *data);
 
 #ifdef UA_ENABLE_DISCOVERY_MULTICAST
 
@@ -512,7 +518,7 @@ UA_Server_setRegisterServerCallback(UA_Server *server, UA_Server_registerServerC
  *        record with the path and caps data */
 typedef void (*UA_Server_serverOnNetworkCallback)(const UA_ServerOnNetwork *serverOnNetwork,
                                                   UA_Boolean isServerAnnounce,
-                                                  UA_Boolean isTxtReceived, void* data);
+                                                  UA_Boolean isTxtReceived, void *data);
 
 /* Set the callback which is called if another server is found through mDNS or
  * deleted. It will be called for any mDNS message from the remote server, thus
@@ -528,7 +534,7 @@ typedef void (*UA_Server_serverOnNetworkCallback)(const UA_ServerOnNetwork *serv
 void UA_EXPORT
 UA_Server_setServerOnNetworkCallback(UA_Server *server,
                                      UA_Server_serverOnNetworkCallback cb,
-                                     void* data);
+                                     void *data);
 
 #endif /* UA_ENABLE_DISCOVERY_MULTICAST */
 
@@ -763,6 +769,7 @@ UA_StatusCode UA_EXPORT
 UA_Server_setMethodNode_callback(UA_Server *server,
                                  const UA_NodeId methodNodeId,
                                  UA_MethodCallback methodCallback);
+
 UA_CallMethodResult UA_EXPORT
 UA_Server_call(UA_Server *server, const UA_CallMethodRequest *request);
 
@@ -832,7 +839,7 @@ UA_Server_addVariableNode(UA_Server *server, const UA_NodeId requestedNewNodeId,
                           void *nodeContext, UA_NodeId *outNewNodeId) {
     return __UA_Server_addNode(server, UA_NODECLASS_VARIABLE, &requestedNewNodeId,
                                &parentNodeId, &referenceTypeId, browseName,
-                               &typeDefinition, (const UA_NodeAttributes*)&attr,
+                               &typeDefinition, (const UA_NodeAttributes *)&attr,
                                &UA_TYPES[UA_TYPES_VARIABLEATTRIBUTES],
                                nodeContext, outNewNodeId);
 }
@@ -849,7 +856,7 @@ UA_Server_addVariableTypeNode(UA_Server *server,
     return __UA_Server_addNode(server, UA_NODECLASS_VARIABLETYPE,
                                &requestedNewNodeId, &parentNodeId, &referenceTypeId,
                                browseName, &typeDefinition,
-                               (const UA_NodeAttributes*)&attr,
+                               (const UA_NodeAttributes *)&attr,
                                &UA_TYPES[UA_TYPES_VARIABLETYPEATTRIBUTES],
                                nodeContext, outNewNodeId);
 }
@@ -864,7 +871,7 @@ UA_Server_addObjectNode(UA_Server *server, const UA_NodeId requestedNewNodeId,
                         void *nodeContext, UA_NodeId *outNewNodeId) {
     return __UA_Server_addNode(server, UA_NODECLASS_OBJECT, &requestedNewNodeId,
                                &parentNodeId, &referenceTypeId, browseName,
-                               &typeDefinition, (const UA_NodeAttributes*)&attr,
+                               &typeDefinition, (const UA_NodeAttributes *)&attr,
                                &UA_TYPES[UA_TYPES_OBJECTATTRIBUTES],
                                nodeContext, outNewNodeId);
 }
@@ -878,7 +885,7 @@ UA_Server_addObjectTypeNode(UA_Server *server, const UA_NodeId requestedNewNodeI
                             void *nodeContext, UA_NodeId *outNewNodeId) {
     return __UA_Server_addNode(server, UA_NODECLASS_OBJECTTYPE, &requestedNewNodeId,
                                &parentNodeId, &referenceTypeId, browseName,
-                               &UA_NODEID_NULL, (const UA_NodeAttributes*)&attr,
+                               &UA_NODEID_NULL, (const UA_NodeAttributes *)&attr,
                                &UA_TYPES[UA_TYPES_OBJECTTYPEATTRIBUTES],
                                nodeContext, outNewNodeId);
 }
@@ -892,7 +899,7 @@ UA_Server_addViewNode(UA_Server *server, const UA_NodeId requestedNewNodeId,
                       void *nodeContext, UA_NodeId *outNewNodeId) {
     return __UA_Server_addNode(server, UA_NODECLASS_VIEW, &requestedNewNodeId,
                                &parentNodeId, &referenceTypeId, browseName,
-                               &UA_NODEID_NULL, (const UA_NodeAttributes*)&attr,
+                               &UA_NODEID_NULL, (const UA_NodeAttributes *)&attr,
                                &UA_TYPES[UA_TYPES_VIEWATTRIBUTES],
                                nodeContext, outNewNodeId);
 }
@@ -908,7 +915,7 @@ UA_Server_addReferenceTypeNode(UA_Server *server,
     return __UA_Server_addNode(server, UA_NODECLASS_REFERENCETYPE,
                                &requestedNewNodeId, &parentNodeId, &referenceTypeId,
                                browseName, &UA_NODEID_NULL,
-                               (const UA_NodeAttributes*)&attr,
+                               (const UA_NodeAttributes *)&attr,
                                &UA_TYPES[UA_TYPES_REFERENCETYPEATTRIBUTES],
                                nodeContext, outNewNodeId);
 }
@@ -923,7 +930,7 @@ UA_Server_addDataTypeNode(UA_Server *server,
                           void *nodeContext, UA_NodeId *outNewNodeId) {
     return __UA_Server_addNode(server, UA_NODECLASS_DATATYPE, &requestedNewNodeId,
                                &parentNodeId, &referenceTypeId, browseName,
-                               &UA_NODEID_NULL, (const UA_NodeAttributes*)&attr,
+                               &UA_NODEID_NULL, (const UA_NodeAttributes *)&attr,
                                &UA_TYPES[UA_TYPES_DATATYPEATTRIBUTES],
                                nodeContext, outNewNodeId);
 }
@@ -945,8 +952,8 @@ UA_Server_addMethodNode(UA_Server *server, const UA_NodeId requestedNewNodeId,
                         const UA_NodeId referenceTypeId,
                         const UA_QualifiedName browseName,
                         const UA_MethodAttributes attr, UA_MethodCallback method,
-                        size_t inputArgumentsSize, const UA_Argument* inputArguments, 
-                        size_t outputArgumentsSize, const UA_Argument* outputArguments,
+                        size_t inputArgumentsSize, const UA_Argument *inputArguments,
+                        size_t outputArgumentsSize, const UA_Argument *outputArguments,
                         void *nodeContext, UA_NodeId *outNewNodeId);
 
 
@@ -1006,7 +1013,8 @@ UA_Server_deleteReference(UA_Server *server, const UA_NodeId sourceNodeId,
  * Utility Functions
  * ----------------- */
 /* Add a new namespace to the server. Returns the index of the new namespace */
-UA_UInt16 UA_EXPORT UA_Server_addNamespace(UA_Server *server, const char* name);
+UA_UInt16 UA_EXPORT
+UA_Server_addNamespace(UA_Server *server, const char *name);
 
 /**
  * Deprecated Server API
@@ -1041,13 +1049,13 @@ UA_Server_addRepeatedJob(UA_Server *server, UA_Job job,
                          UA_UInt32 interval, UA_Guid *jobId) {
     return UA_Server_addRepeatedCallback(server, job.job.methodCall.method,
                                          job.job.methodCall.data, interval,
-                                         (UA_UInt64*)(uintptr_t)jobId);
+                                         (UA_UInt64 *)(uintptr_t)jobId);
 }
 
 UA_DEPRECATED static UA_INLINE UA_StatusCode
 UA_Server_removeRepeatedJob(UA_Server *server, UA_Guid jobId) {
     return UA_Server_removeRepeatedCallback(server,
-                                            *(UA_UInt64*)(uintptr_t)&jobId);
+                                            *(UA_UInt64 *)(uintptr_t)&jobId);
 }
 
 #ifdef __cplusplus

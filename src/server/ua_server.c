@@ -13,7 +13,8 @@
 /* Namespace Handling */
 /**********************/
 
-UA_UInt16 addNamespace(UA_Server *server, const UA_String name) {
+UA_UInt16
+addNamespace(UA_Server *server, const UA_String name) {
     /* Check if the namespace already exists in the server's namespace array */
     for(UA_UInt16 i = 0; i < server->namespacesSize; ++i) {
         if(UA_String_equal(&name, &server->namespaces[i]))
@@ -21,8 +22,8 @@ UA_UInt16 addNamespace(UA_Server *server, const UA_String name) {
     }
 
     /* Make the array bigger */
-    UA_String *newNS = (UA_String*)UA_realloc(server->namespaces,
-                                              sizeof(UA_String) * (server->namespacesSize + 1));
+    UA_String *newNS = (UA_String *)UA_realloc(server->namespaces,
+                                               sizeof(UA_String) * (server->namespacesSize + 1));
     if(!newNS)
         return 0;
     server->namespaces = newNS;
@@ -37,11 +38,12 @@ UA_UInt16 addNamespace(UA_Server *server, const UA_String name) {
     return (UA_UInt16)(server->namespacesSize - 1);
 }
 
-UA_UInt16 UA_Server_addNamespace(UA_Server *server, const char* name) {
+UA_UInt16
+UA_Server_addNamespace(UA_Server *server, const char *name) {
     /* Override const attribute to get string (dirty hack) */
     UA_String nameString;
     nameString.length = strlen(name);
-    nameString.data = (UA_Byte*)(uintptr_t)name;
+    nameString.data = (UA_Byte *)(uintptr_t)name;
     return addNamespace(server, nameString);
 }
 
@@ -70,7 +72,7 @@ UA_Server_forEachChildNodeCall(UA_Server *server, UA_NodeId parentNodeId,
     UA_StatusCode retval = UA_STATUSCODE_GOOD;
     for(size_t i = parentCopy->referencesSize; i > 0; --i) {
         UA_NodeReferenceKind *ref = &parentCopy->references[i - 1];
-        for(size_t j = 0; j<ref->targetIdsSize; j++)
+        for(size_t j = 0; j < ref->targetIdsSize; j++)
             retval |= callback(ref->targetIds[j].nodeId, ref->isInverse,
                                ref->referenceTypeId, handle);
     }
@@ -86,7 +88,8 @@ UA_Server_forEachChildNodeCall(UA_Server *server, UA_NodeId parentNodeId,
 /********************/
 
 /* The server needs to be stopped before it can be deleted */
-void UA_Server_delete(UA_Server *server) {
+void
+UA_Server_delete(UA_Server *server) {
     /* Delete all internal data */
     UA_SecureChannelManager_deleteMembers(&server->secureChannelManager);
     UA_SessionManager_deleteMembers(&server->sessionManager);
@@ -120,9 +123,9 @@ void UA_Server_delete(UA_Server *server) {
     }
 
     for(size_t i = 0; i < SERVER_ON_NETWORK_HASH_PRIME; i++) {
-        serverOnNetwork_hash_entry* currHash = server->serverOnNetworkHash[i];
+        serverOnNetwork_hash_entry *currHash = server->serverOnNetworkHash[i];
         while(currHash) {
-            serverOnNetwork_hash_entry* nextHash = currHash->next;
+            serverOnNetwork_hash_entry *nextHash = currHash->next;
             UA_free(currHash);
             currHash = nextHash;
         }
@@ -241,7 +244,7 @@ UA_Server_new(const UA_ServerConfig *config) {
     server->serverOnNetworkRecordIdCounter = 0;
     server->serverOnNetworkRecordIdLastReset = UA_DateTime_now();
     memset(server->serverOnNetworkHash, 0,
-           sizeof(struct serverOnNetwork_hash_entry*) * SERVER_ON_NETWORK_HASH_PRIME);
+           sizeof(struct serverOnNetwork_hash_entry *) * SERVER_ON_NETWORK_HASH_PRIME);
 
     server->serverOnNetworkCallback = NULL;
     server->serverOnNetworkCallbackData = NULL;
@@ -252,7 +255,7 @@ UA_Server_new(const UA_ServerConfig *config) {
     if(retVal != UA_STATUSCODE_GOOD) {
         UA_LOG_ERROR(config->logger, UA_LOGCATEGORY_SERVER,
                      "Initialization of Namespace 0 failed with %s. "
-                     "See previous outputs for any error messages.",
+                         "See previous outputs for any error messages.",
                      UA_StatusCode_name(retVal));
         UA_Server_delete(server);
         return NULL;

@@ -450,7 +450,7 @@ UA_Client_addVariableNode(UA_Client *client, const UA_NodeId requestedNewNodeId,
                           UA_NodeId *outNewNodeId) {
     return __UA_Client_addNode(client, UA_NODECLASS_VARIABLE, requestedNewNodeId,
                                parentNodeId, referenceTypeId, browseName,
-                               typeDefinition, (const UA_NodeAttributes*)&attr,
+                               typeDefinition, (const UA_NodeAttributes *)&attr,
                                &UA_TYPES[UA_TYPES_VARIABLEATTRIBUTES],
                                outNewNodeId);
 }
@@ -466,7 +466,7 @@ UA_Client_addVariableTypeNode(UA_Client *client,
     return __UA_Client_addNode(client, UA_NODECLASS_VARIABLETYPE,
                                requestedNewNodeId,
                                parentNodeId, referenceTypeId, browseName,
-                               UA_NODEID_NULL, (const UA_NodeAttributes*)&attr,
+                               UA_NODEID_NULL, (const UA_NodeAttributes *)&attr,
                                &UA_TYPES[UA_TYPES_VARIABLETYPEATTRIBUTES],
                                outNewNodeId);
 }
@@ -480,7 +480,7 @@ UA_Client_addObjectNode(UA_Client *client, const UA_NodeId requestedNewNodeId,
                         const UA_ObjectAttributes attr, UA_NodeId *outNewNodeId) {
     return __UA_Client_addNode(client, UA_NODECLASS_OBJECT, requestedNewNodeId,
                                parentNodeId, referenceTypeId, browseName,
-                               typeDefinition, (const UA_NodeAttributes*)&attr,
+                               typeDefinition, (const UA_NodeAttributes *)&attr,
                                &UA_TYPES[UA_TYPES_OBJECTATTRIBUTES], outNewNodeId);
 }
 
@@ -493,7 +493,7 @@ UA_Client_addObjectTypeNode(UA_Client *client, const UA_NodeId requestedNewNodeI
                             UA_NodeId *outNewNodeId) {
     return __UA_Client_addNode(client, UA_NODECLASS_OBJECTTYPE, requestedNewNodeId,
                                parentNodeId, referenceTypeId, browseName,
-                               UA_NODEID_NULL, (const UA_NodeAttributes*)&attr,
+                               UA_NODEID_NULL, (const UA_NodeAttributes *)&attr,
                                &UA_TYPES[UA_TYPES_OBJECTTYPEATTRIBUTES],
                                outNewNodeId);
 }
@@ -507,7 +507,7 @@ UA_Client_addViewNode(UA_Client *client, const UA_NodeId requestedNewNodeId,
                       UA_NodeId *outNewNodeId) {
     return __UA_Client_addNode(client, UA_NODECLASS_VIEW, requestedNewNodeId,
                                parentNodeId, referenceTypeId, browseName,
-                               UA_NODEID_NULL, (const UA_NodeAttributes*)&attr,
+                               UA_NODEID_NULL, (const UA_NodeAttributes *)&attr,
                                &UA_TYPES[UA_TYPES_VIEWATTRIBUTES], outNewNodeId);
 }
 
@@ -522,7 +522,7 @@ UA_Client_addReferenceTypeNode(UA_Client *client,
     return __UA_Client_addNode(client, UA_NODECLASS_REFERENCETYPE,
                                requestedNewNodeId,
                                parentNodeId, referenceTypeId, browseName,
-                               UA_NODEID_NULL, (const UA_NodeAttributes*)&attr,
+                               UA_NODEID_NULL, (const UA_NodeAttributes *)&attr,
                                &UA_TYPES[UA_TYPES_REFERENCETYPEATTRIBUTES],
                                outNewNodeId);
 }
@@ -536,7 +536,7 @@ UA_Client_addDataTypeNode(UA_Client *client, const UA_NodeId requestedNewNodeId,
                           UA_NodeId *outNewNodeId) {
     return __UA_Client_addNode(client, UA_NODECLASS_DATATYPE, requestedNewNodeId,
                                parentNodeId, referenceTypeId, browseName,
-                               UA_NODEID_NULL, (const UA_NodeAttributes*)&attr,
+                               UA_NODEID_NULL, (const UA_NodeAttributes *)&attr,
                                &UA_TYPES[UA_TYPES_DATATYPEATTRIBUTES],
                                outNewNodeId);
 }
@@ -550,7 +550,7 @@ UA_Client_addMethodNode(UA_Client *client, const UA_NodeId requestedNewNodeId,
                         UA_NodeId *outNewNodeId) {
     return __UA_Client_addNode(client, UA_NODECLASS_METHOD, requestedNewNodeId,
                                parentNodeId, referenceTypeId, browseName,
-                               UA_NODEID_NULL, (const UA_NodeAttributes*)&attr,
+                               UA_NODEID_NULL, (const UA_NodeAttributes *)&attr,
                                &UA_TYPES[UA_TYPES_METHODATTRIBUTES], outNewNodeId);
 }
 
@@ -640,6 +640,7 @@ UA_StatusCode UA_EXPORT
 UA_Client_Subscriptions_removeMonitoredItems(UA_Client *client, UA_UInt32 subscriptionId,
                                              UA_UInt32 *monitoredItemId, size_t itemsSize,
                                              UA_StatusCode *itemResults);
+
 #endif
 
 /**
@@ -668,7 +669,7 @@ typedef UA_StatusCode (*UA_NodeIteratorCallback)(UA_NodeId childId,
 
 UA_StatusCode UA_EXPORT
 UA_Client_forEachChildNodeCall(UA_Client *client, UA_NodeId parentNodeId,
-                               UA_NodeIteratorCallback callback, void *handle) ;
+                               UA_NodeIteratorCallback callback, void *handle);
 
 #ifdef __cplusplus
 } // extern "C"

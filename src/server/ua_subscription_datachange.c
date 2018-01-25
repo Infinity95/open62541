@@ -14,7 +14,7 @@ UA_MonitoredItem *
 UA_MonitoredItem_new(void) {
     /* Allocate the memory */
     UA_MonitoredItem *newItem =
-        (UA_MonitoredItem*)UA_calloc(1, sizeof(UA_MonitoredItem));
+        (UA_MonitoredItem *)UA_calloc(1, sizeof(UA_MonitoredItem));
     if(!newItem)
         return NULL;
 
@@ -154,7 +154,7 @@ sampleCallbackWithValue(UA_Server *server, UA_Subscription *sub,
     if(!newQueueItem) {
         UA_LOG_WARNING_SESSION(server->config.logger, sub->session,
                                "Subscription %u | MonitoredItem %i | "
-                               "Item for the publishing queue could not be allocated",
+                                   "Item for the publishing queue could not be allocated",
                                sub->subscriptionId, monitoredItem->itemId);
         return false;
     }
@@ -165,7 +165,7 @@ sampleCallbackWithValue(UA_Server *server, UA_Subscription *sub,
         if(UA_ByteString_copy(valueEncoding, &cbs) != UA_STATUSCODE_GOOD) {
             UA_LOG_WARNING_SESSION(server->config.logger, sub->session,
                                    "Subscription %u | MonitoredItem %i | "
-                                   "ByteString to compare values could not be created",
+                                       "ByteString to compare values could not be created",
                                    sub->subscriptionId, monitoredItem->itemId);
             UA_free(newQueueItem);
             return false;
@@ -180,7 +180,7 @@ sampleCallbackWithValue(UA_Server *server, UA_Subscription *sub,
         if(retval != UA_STATUSCODE_GOOD) {
             UA_LOG_WARNING_SESSION(server->config.logger, sub->session,
                                    "Subscription %u | MonitoredItem %i | "
-                                   "Item for the publishing queue could not be prepared",
+                                       "Item for the publishing queue could not be prepared",
                                    sub->subscriptionId, monitoredItem->itemId);
             UA_free(newQueueItem);
             return false;
@@ -214,7 +214,7 @@ UA_MoniteredItem_SampleCallback(UA_Server *server,
     if(monitoredItem->monitoredItemType != UA_MONITOREDITEMTYPE_CHANGENOTIFY) {
         UA_LOG_DEBUG_SESSION(server->config.logger, sub->session,
                              "Subscription %u | MonitoredItem %i | "
-                             "Not a data change notification",
+                                 "Not a data change notification",
                              sub->subscriptionId, monitoredItem->itemId);
         return;
     }

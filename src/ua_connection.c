@@ -10,7 +10,8 @@
 #include "ua_transport_generated_encoding_binary.h"
 #include "ua_securechannel.h"
 
-void UA_Connection_deleteMembers(UA_Connection *connection) {
+void
+UA_Connection_deleteMembers(UA_Connection *connection) {
     UA_ByteString_deleteMembers(&connection->incompleteMessage);
 }
 
@@ -19,13 +20,11 @@ void UA_Connection_deleteMembers(UA_Connection *connection) {
 static void
 hideErrors(UA_TcpErrorMessage *const error) {
     switch(error->error) {
-    case UA_STATUSCODE_BADCERTIFICATEUNTRUSTED:
-        error->error = UA_STATUSCODE_BADSECURITYCHECKSFAILED;
+    case UA_STATUSCODE_BADCERTIFICATEUNTRUSTED:error->error = UA_STATUSCODE_BADSECURITYCHECKSFAILED;
         error->reason = UA_STRING_NULL;
         break;
         // TODO: Check if these are all cases that need to be covered.
-    default:
-        break;
+    default:break;
     }
 }
 
@@ -57,7 +56,7 @@ static UA_StatusCode
 prependIncompleteChunk(UA_Connection *connection, UA_ByteString *message) {
     /* Allocate the new message buffer */
     size_t length = connection->incompleteMessage.length + message->length;
-    UA_Byte *data = (UA_Byte*)UA_realloc(connection->incompleteMessage.data, length);
+    UA_Byte *data = (UA_Byte *)UA_realloc(connection->incompleteMessage.data, length);
     if(!data) {
         UA_ByteString_deleteMembers(&connection->incompleteMessage);
         return UA_STATUSCODE_BADOUTOFMEMORY;
@@ -97,7 +96,7 @@ processChunk(UA_Connection *connection, void *application,
 
     /* Check the message type */
     UA_MessageType msgtype = (UA_MessageType)((UA_UInt32)pos[0] + ((UA_UInt32)pos[1] << 8) +
-        ((UA_UInt32)pos[2] << 16));
+                                              ((UA_UInt32)pos[2] << 16));
     if(msgtype != UA_MESSAGETYPE_MSG && msgtype != UA_MESSAGETYPE_ERR &&
        msgtype != UA_MESSAGETYPE_OPN && msgtype != UA_MESSAGETYPE_HEL &&
        msgtype != UA_MESSAGETYPE_ACK && msgtype != UA_MESSAGETYPE_CLO) {
@@ -112,7 +111,7 @@ processChunk(UA_Connection *connection, void *application,
     }
 
     UA_UInt32 chunk_length = 0;
-    UA_ByteString temp = { 8, (UA_Byte*)(uintptr_t)pos }; /* At least 8 byte left */
+    UA_ByteString temp = {8, (UA_Byte *)(uintptr_t)pos}; /* At least 8 byte left */
     size_t temp_offset = 4;
     /* Decoding the UInt32 cannot fail */
     UA_UInt32_decodeBinary(&temp, &temp_offset, &chunk_length);
@@ -178,7 +177,7 @@ static UA_StatusCode
 completeChunkTrampoline(void *application, UA_Connection *connection,
                         UA_ByteString *chunk) {
     struct completeChunkTrampolineData *data =
-        (struct completeChunkTrampolineData*)application;
+        (struct completeChunkTrampolineData *)application;
     data->called = true;
     return data->processCallback(data->application, connection, chunk);
 }
@@ -225,17 +224,18 @@ UA_Connection_receiveChunksBlocking(UA_Connection *connection, void *application
     return retval;
 }
 
-void UA_Connection_detachSecureChannel(UA_Connection *connection) {
+void
+UA_Connection_detachSecureChannel(UA_Connection *connection) {
     UA_SecureChannel *channel = connection->channel;
     if(channel)
         /* only replace when the channel points to this connection */
-        UA_atomic_cmpxchg((void**)&channel->connection, connection, NULL);
-    UA_atomic_xchg((void**)&connection->channel, NULL);
+        UA_atomic_cmpxchg((void **)&channel->connection, connection, NULL);
+    UA_atomic_xchg((void **)&connection->channel, NULL);
 }
 
 // TODO: Return an error code
 void
 UA_Connection_attachSecureChannel(UA_Connection *connection, UA_SecureChannel *channel) {
-    if(UA_atomic_cmpxchg((void**)&channel->connection, NULL, connection) == NULL)
-        UA_atomic_xchg((void**)&connection->channel, (void*)channel);
+    if(UA_atomic_cmpxchg((void **)&channel->connection, NULL, connection) == NULL)
+        UA_atomic_xchg((void **)&connection->channel, (void *)channel);
 }

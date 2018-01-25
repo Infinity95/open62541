@@ -54,8 +54,8 @@ typedef enum {
 } UA_SecureChannelState;
 
 struct UA_SecureChannel {
-    UA_SecureChannelState   state;
-    UA_MessageSecurityMode  securityMode;
+    UA_SecureChannelState state;
+    UA_MessageSecurityMode securityMode;
     UA_ChannelSecurityToken securityToken; /* the channelId is contained in the securityToken */
     UA_ChannelSecurityToken nextSecurityToken;
 
@@ -83,11 +83,13 @@ UA_StatusCode
 UA_SecureChannel_init(UA_SecureChannel *channel,
                       const UA_SecurityPolicy *securityPolicy,
                       const UA_ByteString *remoteCertificate);
-void UA_SecureChannel_deleteMembersCleanup(UA_SecureChannel *channel);
+
+void
+UA_SecureChannel_deleteMembersCleanup(UA_SecureChannel *channel);
 
 /* Generates new keys and sets them in the channel context */
 UA_StatusCode
-UA_SecureChannel_generateNewKeys(UA_SecureChannel* channel);
+UA_SecureChannel_generateNewKeys(UA_SecureChannel *channel);
 
 /* Wrapper function for generating nonces for the supplied channel. Uses the
  * random generator of the channels security policy to allocate and generate a

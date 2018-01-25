@@ -36,8 +36,8 @@ struct UA_TimerCallbackEntry {
 void
 UA_Timer_init(UA_Timer *t) {
     SLIST_INIT(&t->repeatedCallbacks);
-    t->changes_head = (UA_TimerCallbackEntry*)&t->changes_stub;
-    t->changes_tail = (UA_TimerCallbackEntry*)&t->changes_stub;
+    t->changes_head = (UA_TimerCallbackEntry *)&t->changes_stub;
+    t->changes_tail = (UA_TimerCallbackEntry *)&t->changes_stub;
     t->changes_stub = NULL;
     t->idCounter = 0;
 }
@@ -45,8 +45,8 @@ UA_Timer_init(UA_Timer *t) {
 static void
 enqueueChange(UA_Timer *t, UA_TimerCallbackEntry *tc) {
     tc->next.sle_next = NULL;
-    UA_TimerCallbackEntry *prev = (UA_TimerCallbackEntry*)
-        UA_atomic_xchg((void * volatile *)&t->changes_head, tc);
+    UA_TimerCallbackEntry *prev = (UA_TimerCallbackEntry *)
+        UA_atomic_xchg((void *volatile *)&t->changes_head, tc);
     /* Nothing can be dequeued while the producer is blocked here */
     prev->next.sle_next = tc; /* Once this change is visible in the consumer,
                                * the node is dequeued in the following
@@ -57,7 +57,7 @@ static UA_TimerCallbackEntry *
 dequeueChange(UA_Timer *t) {
     UA_TimerCallbackEntry *tail = t->changes_tail;
     UA_TimerCallbackEntry *next = tail->next.sle_next;
-    if(tail == (UA_TimerCallbackEntry*)&t->changes_stub) {
+    if(tail == (UA_TimerCallbackEntry *)&t->changes_stub) {
         if(!next)
             return NULL;
         t->changes_tail = next;
@@ -68,10 +68,10 @@ dequeueChange(UA_Timer *t) {
         t->changes_tail = next;
         return tail;
     }
-    UA_TimerCallbackEntry* head = t->changes_head;
+    UA_TimerCallbackEntry *head = t->changes_head;
     if(tail != head)
         return NULL;
-    enqueueChange(t, (UA_TimerCallbackEntry*)&t->changes_stub);
+    enqueueChange(t, (UA_TimerCallbackEntry *)&t->changes_stub);
     next = tail->next.sle_next;
     if(next) {
         t->changes_tail = next;
@@ -97,7 +97,7 @@ UA_Timer_addRepeatedCallback(UA_Timer *t, UA_TimerCallback callback,
 
     /* Allocate the repeated callback structure */
     UA_TimerCallbackEntry *tc =
-        (UA_TimerCallbackEntry*)UA_malloc(sizeof(UA_TimerCallbackEntry));
+        (UA_TimerCallbackEntry *)UA_malloc(sizeof(UA_TimerCallbackEntry));
     if(!tc)
         return UA_STATUSCODE_BADOUTOFMEMORY;
 
@@ -118,7 +118,7 @@ UA_Timer_addRepeatedCallback(UA_Timer *t, UA_TimerCallback callback,
 }
 
 static void
-addTimerCallbackEntry(UA_Timer *t, UA_TimerCallbackEntry * UA_RESTRICT tc) {
+addTimerCallbackEntry(UA_Timer *t, UA_TimerCallbackEntry *UA_RESTRICT tc) {
     /* Find the last entry before this callback */
     UA_TimerCallbackEntry *tmpTc, *afterTc = NULL;
     SLIST_FOREACH(tmpTc, &t->repeatedCallbacks, next) {
@@ -152,7 +152,7 @@ UA_Timer_changeRepeatedCallbackInterval(UA_Timer *t, UA_UInt64 callbackId,
 
     /* Allocate the repeated callback structure */
     UA_TimerCallbackEntry *tc =
-        (UA_TimerCallbackEntry*)UA_malloc(sizeof(UA_TimerCallbackEntry));
+        (UA_TimerCallbackEntry *)UA_malloc(sizeof(UA_TimerCallbackEntry));
     if(!tc)
         return UA_STATUSCODE_BADOUTOFMEMORY;
 
@@ -200,7 +200,7 @@ UA_StatusCode
 UA_Timer_removeRepeatedCallback(UA_Timer *t, UA_UInt64 callbackId) {
     /* Allocate the repeated callback structure */
     UA_TimerCallbackEntry *tc =
-        (UA_TimerCallbackEntry*)UA_malloc(sizeof(UA_TimerCallbackEntry));
+        (UA_TimerCallbackEntry *)UA_malloc(sizeof(UA_TimerCallbackEntry));
     if(!tc)
         return UA_STATUSCODE_BADOUTOFMEMORY;
 
@@ -235,17 +235,15 @@ processChanges(UA_Timer *t) {
     UA_TimerCallbackEntry *change;
     while((change = dequeueChange(t))) {
         switch((uintptr_t)change->callback) {
-        case REMOVE_SENTINEL:
-            removeRepeatedCallback(t, change->id);
+        case REMOVE_SENTINEL:removeRepeatedCallback(t, change->id);
             UA_free(change);
             break;
         case CHANGE_SENTINEL:
             changeTimerCallbackEntryInterval(t, change->id, change->interval,
-                                           change->nextTime);
+                                             change->nextTime);
             UA_free(change);
             break;
-        default:
-            addTimerCallbackEntry(t, change);
+        default:addTimerCallbackEntry(t, change);
         }
     }
 }

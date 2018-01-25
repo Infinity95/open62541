@@ -24,7 +24,7 @@ setSubscriptionSettings(UA_Server *server, UA_Subscription *subscription,
     UA_StatusCode retval = Subscription_unregisterPublishCallback(server, subscription);
     if(retval != UA_STATUSCODE_GOOD)
         UA_LOG_DEBUG_SESSION(server->config.logger, subscription->session, "Subscription %u | "
-                             "Could not unregister publish callback with error code %s",
+            "Could not unregister publish callback with error code %s",
                              subscription->subscriptionId, UA_StatusCode_name(retval));
 
     /* re-parameterize the subscription */
@@ -49,7 +49,7 @@ setSubscriptionSettings(UA_Server *server, UA_Subscription *subscription,
     retval = Subscription_registerPublishCallback(server, subscription);
     if(retval != UA_STATUSCODE_GOOD)
         UA_LOG_DEBUG_SESSION(server->config.logger, subscription->session, "Subscription %u | "
-                             "Could not register publish callback with error code %s",
+            "Could not register publish callback with error code %s",
                              subscription->subscriptionId, UA_StatusCode_name(retval));
 }
 
@@ -90,7 +90,7 @@ Service_CreateSubscription(UA_Server *server, UA_Session *session,
 
     UA_LOG_DEBUG_SESSION(server->config.logger, session,
                          "CreateSubscriptionRequest: Created Subscription %u "
-                         "with a publishing interval of %f ms", response->subscriptionId,
+                             "with a publishing interval of %f ms", response->subscriptionId,
                          newSubscription->publishingInterval);
 }
 
@@ -135,7 +135,7 @@ Service_SetPublishingMode(UA_Server *server, UA_Session *session,
                           UA_SetPublishingModeResponse *response) {
     UA_LOG_DEBUG_SESSION(server->config.logger, session, "Processing SetPublishingModeRequest");
     UA_Boolean publishingEnabled = request->publishingEnabled; /* request is const */
-    response->responseHeader.serviceResult = 
+    response->responseHeader.serviceResult =
         UA_Server_processServiceOperations(server, session, (UA_ServiceOperation)Operation_SetPublishingMode,
                                            &publishingEnabled,
                                            &request->subscriptionIdsSize, &UA_TYPES[UA_TYPES_UINT32],
@@ -155,13 +155,13 @@ setMonitoredItemSettings(UA_Server *server, UA_MonitoredItem *mon,
     /* SamplingInterval */
     UA_Double samplingInterval = params->samplingInterval;
     if(mon->attributeId == UA_ATTRIBUTEID_VALUE) {
-        const UA_VariableNode *vn = (const UA_VariableNode*)
+        const UA_VariableNode *vn = (const UA_VariableNode *)
             UA_Nodestore_get(server, &mon->monitoredNodeId);
         if(vn) {
             if(vn->nodeClass == UA_NODECLASS_VARIABLE &&
-               samplingInterval <  vn->minimumSamplingInterval)
+               samplingInterval < vn->minimumSamplingInterval)
                 samplingInterval = vn->minimumSamplingInterval;
-            UA_Nodestore_release(server, (const UA_Node*)vn);
+            UA_Nodestore_release(server, (const UA_Node *)vn);
         }
     } else if(mon->attributeId == UA_ATTRIBUTEID_EVENTNOTIFIER) {
         /* TODO: events should not need a samplinginterval */
@@ -169,7 +169,7 @@ setMonitoredItemSettings(UA_Server *server, UA_MonitoredItem *mon,
     }
     mon->samplingInterval = samplingInterval;
     UA_BOUNDEDVALUE_SETWBOUNDS(server->config.samplingIntervalLimits,
-        samplingInterval, mon->samplingInterval);
+                               samplingInterval, mon->samplingInterval);
     if(samplingInterval != samplingInterval) /* Check for nan */
         mon->samplingInterval = server->config.samplingIntervalLimits.min;
 
@@ -195,7 +195,7 @@ setMonitoredItemSettings(UA_Server *server, UA_MonitoredItem *mon,
         MonitoredItem_registerSampleCallback(server, mon);
 }
 
-static const UA_String binaryEncoding = {sizeof("Default Binary")-1, (UA_Byte*)"Default Binary"};
+static const UA_String binaryEncoding = {sizeof("Default Binary") - 1, (UA_Byte *)"Default Binary"};
 
 /* Thread-local variables to pass additional arguments into the operation */
 struct createMonContext {
@@ -235,7 +235,7 @@ Operation_CreateMonitoredItem(UA_Server *server, UA_Session *session, struct cre
     /* Check if the encoding is supported */
     if(request->itemToMonitor.dataEncoding.name.length > 0 &&
        (!UA_String_equal(&binaryEncoding, &request->itemToMonitor.dataEncoding.name) ||
-       request->itemToMonitor.dataEncoding.namespaceIndex != 0)) {
+        request->itemToMonitor.dataEncoding.namespaceIndex != 0)) {
         result->statusCode = UA_STATUSCODE_BADDATAENCODINGUNSUPPORTED;
         return;
     }
@@ -310,7 +310,7 @@ Service_CreateMonitoredItems(UA_Server *server, UA_Session *session,
     /* Reset the subscription lifetime */
     cmc.sub->currentLifetimeCount = 0;
 
-    response->responseHeader.serviceResult = 
+    response->responseHeader.serviceResult =
         UA_Server_processServiceOperations(server, session, (UA_ServiceOperation)Operation_CreateMonitoredItem, &cmc,
                                            &request->itemsToCreateSize, &UA_TYPES[UA_TYPES_MONITOREDITEMCREATEREQUEST],
                                            &response->resultsSize, &UA_TYPES[UA_TYPES_MONITOREDITEMCREATERESULT]);
@@ -332,9 +332,10 @@ Operation_ModifyMonitoredItem(UA_Server *server, UA_Session *session, UA_Subscri
     result->revisedQueueSize = mon->maxQueueSize;
 }
 
-void Service_ModifyMonitoredItems(UA_Server *server, UA_Session *session,
-                                  const UA_ModifyMonitoredItemsRequest *request,
-                                  UA_ModifyMonitoredItemsResponse *response) {
+void
+Service_ModifyMonitoredItems(UA_Server *server, UA_Session *session,
+                             const UA_ModifyMonitoredItemsRequest *request,
+                             UA_ModifyMonitoredItemsResponse *response) {
     UA_LOG_DEBUG_SESSION(server->config.logger, session, "Processing ModifyMonitoredItemsRequest");
 
     if(server->config.maxMonitoredItemsPerCall != 0 &&
@@ -358,7 +359,7 @@ void Service_ModifyMonitoredItems(UA_Server *server, UA_Session *session,
 
     sub->currentLifetimeCount = 0; /* Reset the subscription lifetime */
 
-    response->responseHeader.serviceResult = 
+    response->responseHeader.serviceResult =
         UA_Server_processServiceOperations(server, session,
                                            (UA_ServiceOperation)Operation_ModifyMonitoredItem, sub,
                                            &request->itemsToModifySize, &UA_TYPES[UA_TYPES_MONITOREDITEMMODIFYREQUEST],
@@ -391,9 +392,10 @@ Operation_SetMonitoringMode(UA_Server *server, UA_Session *session,
         MonitoredItem_unregisterSampleCallback(server, mon);
 }
 
-void Service_SetMonitoringMode(UA_Server *server, UA_Session *session,
-                               const UA_SetMonitoringModeRequest *request,
-                               UA_SetMonitoringModeResponse *response) {
+void
+Service_SetMonitoringMode(UA_Server *server, UA_Session *session,
+                          const UA_SetMonitoringModeRequest *request,
+                          UA_SetMonitoringModeResponse *response) {
     UA_LOG_DEBUG_SESSION(server->config.logger, session,
                          "Processing SetMonitoringMode");
 
@@ -414,7 +416,7 @@ void Service_SetMonitoringMode(UA_Server *server, UA_Session *session,
     smc.sub->currentLifetimeCount = 0; /* Reset the subscription lifetime */
 
     smc.monitoringMode = request->monitoringMode;
-    response->responseHeader.serviceResult = 
+    response->responseHeader.serviceResult =
         UA_Server_processServiceOperations(server, session, (UA_ServiceOperation)Operation_SetMonitoringMode, &smc,
                                            &request->monitoredItemIdsSize, &UA_TYPES[UA_TYPES_UINT32],
                                            &response->resultsSize, &UA_TYPES[UA_TYPES_STATUSCODE]);
@@ -449,9 +451,9 @@ Service_Publish(UA_Server *server, UA_Session *session,
     /* Handle too many subscriptions to free resources before trying to allocate
      * resources for the new publish request. If the limit has been reached the
      * oldest publish request shall be responded */
-    if((server->config.maxPublishReqPerSession != 0 ) &&
+    if((server->config.maxPublishReqPerSession != 0) &&
        (UA_Session_getNumPublishReq(session) >= server->config.maxPublishReqPerSession)) {
-        if(!UA_Subscription_reachedPublishReqLimit(server,session)) {
+        if(!UA_Subscription_reachedPublishReqLimit(server, session)) {
             subscriptionSendError(session->header.channel, requestId,
                                   request->requestHeader.requestHandle,
                                   UA_STATUSCODE_BADINTERNALERROR);
@@ -459,7 +461,7 @@ Service_Publish(UA_Server *server, UA_Session *session,
         }
     }
 
-    UA_PublishResponseEntry *entry = (UA_PublishResponseEntry*)
+    UA_PublishResponseEntry *entry = (UA_PublishResponseEntry *)
         UA_malloc(sizeof(UA_PublishResponseEntry));
     if(!entry) {
         subscriptionSendError(session->header.channel, requestId,
@@ -474,7 +476,7 @@ Service_Publish(UA_Server *server, UA_Session *session,
     UA_PublishResponse_init(response);
     response->responseHeader.requestHandle = request->requestHeader.requestHandle;
     if(request->subscriptionAcknowledgementsSize > 0) {
-        response->results = (UA_StatusCode*)
+        response->results = (UA_StatusCode *)
             UA_Array_new(request->subscriptionAcknowledgementsSize,
                          &UA_TYPES[UA_TYPES_STATUSCODE]);
         if(!response->results) {
@@ -509,7 +511,7 @@ Service_Publish(UA_Server *server, UA_Session *session,
 
     /* Answer immediately to a late subscription */
     UA_Subscription *immediate;
-    UA_Boolean found = true; 
+    UA_Boolean found = true;
     int loopCount = 1;
 
     if(session->lastSeenSubscriptionId > 0) {
@@ -522,22 +524,22 @@ Service_Publish(UA_Server *server, UA_Session *session,
         found = false;
     }
 
-    for(int i=0; i<loopCount; i++) {
-       LIST_FOREACH(immediate, &session->serverSubscriptions, listEntry) {
+    for(int i = 0; i < loopCount; i++) {
+        LIST_FOREACH(immediate, &session->serverSubscriptions, listEntry) {
             if(!found) {
                 if(session->lastSeenSubscriptionId == immediate->subscriptionId) {
-                    found = true; 
-                }     
+                    found = true;
+                }
             } else {
                 if(immediate->state == UA_SUBSCRIPTIONSTATE_LATE) {
                     session->lastSeenSubscriptionId = immediate->subscriptionId;
                     UA_LOG_DEBUG_SESSION(server->config.logger, session, "Subscription %u | "
-                                         "Response on a late subscription", immediate->subscriptionId);
+                        "Response on a late subscription", immediate->subscriptionId);
                     UA_Subscription_publishCallback(server, immediate);
                     return;
-                }     
-            }     
-        }     
+                }
+            }
+        }
         /* after the first loop, we can publish the first subscription with UA_SUBSCRIPTIONSTATE_LATE */
         found = true;
     }
@@ -555,7 +557,7 @@ Operation_DeleteSubscription(UA_Server *server, UA_Session *session, void *_,
     } else {
         UA_LOG_DEBUG_SESSION(server->config.logger, session,
                              "Deleting Subscription with Id %u failed with error "
-                             "code %s", *subscriptionId, UA_StatusCode_name(*result));
+                                 "code %s", *subscriptionId, UA_StatusCode_name(*result));
     }
 }
 
@@ -566,7 +568,7 @@ Service_DeleteSubscriptions(UA_Server *server, UA_Session *session,
     UA_LOG_DEBUG_SESSION(server->config.logger, session,
                          "Processing DeleteSubscriptionsRequest");
 
-    response->responseHeader.serviceResult = 
+    response->responseHeader.serviceResult =
         UA_Server_processServiceOperations(server, session, (UA_ServiceOperation)Operation_DeleteSubscription, NULL,
                                            &request->subscriptionIdsSize, &UA_TYPES[UA_TYPES_UINT32],
                                            &response->resultsSize, &UA_TYPES[UA_TYPES_STATUSCODE]);
@@ -585,9 +587,10 @@ Operation_DeleteMonitoredItem(UA_Server *server, UA_Session *session, UA_Subscri
     *result = UA_Subscription_deleteMonitoredItem(server, sub, *monitoredItemId);
 }
 
-void Service_DeleteMonitoredItems(UA_Server *server, UA_Session *session,
-                                  const UA_DeleteMonitoredItemsRequest *request,
-                                  UA_DeleteMonitoredItemsResponse *response) {
+void
+Service_DeleteMonitoredItems(UA_Server *server, UA_Session *session,
+                             const UA_DeleteMonitoredItemsRequest *request,
+                             UA_DeleteMonitoredItemsResponse *response) {
     UA_LOG_DEBUG_SESSION(server->config.logger, session,
                          "Processing DeleteMonitoredItemsRequest");
 
@@ -607,15 +610,16 @@ void Service_DeleteMonitoredItems(UA_Server *server, UA_Session *session,
     /* Reset the subscription lifetime */
     sub->currentLifetimeCount = 0;
 
-    response->responseHeader.serviceResult = 
+    response->responseHeader.serviceResult =
         UA_Server_processServiceOperations(server, session, (UA_ServiceOperation)Operation_DeleteMonitoredItem, sub,
                                            &request->monitoredItemIdsSize, &UA_TYPES[UA_TYPES_UINT32],
                                            &response->resultsSize, &UA_TYPES[UA_TYPES_STATUSCODE]);
 }
 
-void Service_Republish(UA_Server *server, UA_Session *session,
-                       const UA_RepublishRequest *request,
-                       UA_RepublishResponse *response) {
+void
+Service_Republish(UA_Server *server, UA_Session *session,
+                  const UA_RepublishRequest *request,
+                  UA_RepublishResponse *response) {
     UA_LOG_DEBUG_SESSION(server->config.logger, session,
                          "Processing RepublishRequest");
 
@@ -636,8 +640,8 @@ void Service_Republish(UA_Server *server, UA_Session *session,
             break;
     }
     if(!entry) {
-      response->responseHeader.serviceResult = UA_STATUSCODE_BADMESSAGENOTAVAILABLE;
-      return;
+        response->responseHeader.serviceResult = UA_STATUSCODE_BADMESSAGENOTAVAILABLE;
+        return;
     }
 
     response->responseHeader.serviceResult =

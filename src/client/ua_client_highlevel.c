@@ -189,7 +189,7 @@ __UA_Client_addNode(UA_Client *client, const UA_NodeClass nodeClass,
     item.typeDefinition.nodeId = typeDefinition;
     item.nodeAttributes.encoding = UA_EXTENSIONOBJECT_DECODED_NODELETE;
     item.nodeAttributes.content.decoded.type = attributeType;
-    item.nodeAttributes.content.decoded.data = (void*)(uintptr_t)attr; // hack. is not written into.
+    item.nodeAttributes.content.decoded.data = (void *)(uintptr_t)attr; // hack. is not written into.
     request.nodesToAdd = &item;
     request.nodesToAddSize = 1;
     UA_AddNodesResponse response = UA_Client_Service_addNodes(client, request);
@@ -234,7 +234,7 @@ UA_Client_call(UA_Client *client, const UA_NodeId objectId,
     UA_CallMethodRequest_init(&item);
     item.methodId = methodId;
     item.objectId = objectId;
-    item.inputArguments = (UA_Variant *)(void*)(uintptr_t)input; // cast const...
+    item.inputArguments = (UA_Variant *)(void *)(uintptr_t)input; // cast const...
     item.inputArgumentsSize = inputSize;
     request.methodsToCall = &item;
     request.methodsToCallSize = 1;
@@ -275,17 +275,17 @@ __UA_Client_writeAttribute(UA_Client *client, const UA_NodeId *nodeId,
                            UA_AttributeId attributeId, const void *in,
                            const UA_DataType *inDataType) {
     if(!in)
-      return UA_STATUSCODE_BADTYPEMISMATCH;
+        return UA_STATUSCODE_BADTYPEMISMATCH;
 
     UA_WriteValue wValue;
     UA_WriteValue_init(&wValue);
     wValue.nodeId = *nodeId;
     wValue.attributeId = attributeId;
     if(attributeId == UA_ATTRIBUTEID_VALUE)
-        wValue.value.value = *(const UA_Variant*)in;
+        wValue.value.value = *(const UA_Variant *)in;
     else
         /* hack. is never written into. */
-        UA_Variant_setScalar(&wValue.value.value, (void*)(uintptr_t)in, inDataType);
+        UA_Variant_setScalar(&wValue.value.value, (void *)(uintptr_t)in, inDataType);
     wValue.value.hasValue = true;
     UA_WriteRequest wReq;
     UA_WriteRequest_init(&wReq);
@@ -311,13 +311,13 @@ UA_Client_writeArrayDimensionsAttribute(UA_Client *client, const UA_NodeId nodeI
                                         size_t newArrayDimensionsSize,
                                         const UA_UInt32 *newArrayDimensions) {
     if(!newArrayDimensions)
-      return UA_STATUSCODE_BADTYPEMISMATCH;
+        return UA_STATUSCODE_BADTYPEMISMATCH;
 
     UA_WriteValue wValue;
     UA_WriteValue_init(&wValue);
     wValue.nodeId = nodeId;
     wValue.attributeId = UA_ATTRIBUTEID_ARRAYDIMENSIONS;
-    UA_Variant_setArray(&wValue.value.value, (void*)(uintptr_t)newArrayDimensions,
+    UA_Variant_setArray(&wValue.value.value, (void *)(uintptr_t)newArrayDimensions,
                         newArrayDimensionsSize, &UA_TYPES[UA_TYPES_UINT32]);
     wValue.value.hasValue = true;
     UA_WriteRequest wReq;
@@ -385,7 +385,7 @@ __UA_Client_readAttribute(UA_Client *client, const UA_NodeId *nodeId,
         memcpy(out, &res->value, sizeof(UA_Variant));
         UA_Variant_init(&res->value);
     } else if(attributeId == UA_ATTRIBUTEID_NODECLASS) {
-        memcpy(out, (UA_NodeClass*)res->value.data, sizeof(UA_NodeClass));
+        memcpy(out, (UA_NodeClass *)res->value.data, sizeof(UA_NodeClass));
     } else if(UA_Variant_isScalar(&res->value) &&
               res->value.type == outDataType) {
         memcpy(out, res->value.data, res->value.type->memSize);
@@ -421,7 +421,7 @@ processReadArrayDimensionsResult(UA_ReadResponse *response,
         return UA_STATUSCODE_BADUNEXPECTEDERROR;
 
     /* Move results */
-    *outArrayDimensions = (UA_UInt32*)res->value.data;
+    *outArrayDimensions = (UA_UInt32 *)res->value.data;
     *outArrayDimensionsSize = res->value.arrayLength;
     res->value.data = NULL;
     res->value.arrayLength = 0;

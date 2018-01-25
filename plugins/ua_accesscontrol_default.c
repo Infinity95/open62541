@@ -22,8 +22,8 @@ typedef struct {
 
 const size_t usernamePasswordsSize = 2;
 UA_UsernamePasswordLogin usernamePasswords[2] = {
-    { UA_STRING_STATIC("user1"), UA_STRING_STATIC("password") },
-    { UA_STRING_STATIC("user2"), UA_STRING_STATIC("password1") } };
+    {UA_STRING_STATIC("user1"), UA_STRING_STATIC("password")},
+    {UA_STRING_STATIC("user2"), UA_STRING_STATIC("password1")}};
 
 UA_StatusCode
 activateSession_default(const UA_NodeId *sessionId,
@@ -37,7 +37,7 @@ activateSession_default(const UA_NodeId *sessionId,
     if(userIdentityToken->content.decoded.type ==
        &UA_TYPES[UA_TYPES_ANONYMOUSIDENTITYTOKEN]) {
         const UA_AnonymousIdentityToken *token =
-            (UA_AnonymousIdentityToken*)userIdentityToken->content.decoded.data;
+            (UA_AnonymousIdentityToken *)userIdentityToken->content.decoded.data;
 
         /* Compatibility notice: Siemens OPC Scout v10 provides an empty
          * policyId. This is not compliant. For compatibility, assume that empty
@@ -55,7 +55,7 @@ activateSession_default(const UA_NodeId *sessionId,
     if(userIdentityToken->content.decoded.type ==
        &UA_TYPES[UA_TYPES_USERNAMEIDENTITYTOKEN]) {
         const UA_UserNameIdentityToken *token =
-            (UA_UserNameIdentityToken*)userIdentityToken->content.decoded.data;
+            (UA_UserNameIdentityToken *)userIdentityToken->content.decoded.data;
         if(!UA_String_equal(&token->policyId, &username_policy))
             return UA_STATUSCODE_BADIDENTITYTOKENINVALID;
 
@@ -137,7 +137,7 @@ allowDeleteNode_default(const UA_NodeId *sessionId, void *sessionContext,
                         const UA_DeleteNodesItem *item) {
     return true;
 }
-      
+
 UA_Boolean
 allowDeleteReference_default(const UA_NodeId *sessionId, void *sessionContext,
                              const UA_DeleteReferencesItem *item) {

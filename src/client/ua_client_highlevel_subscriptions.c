@@ -49,8 +49,8 @@ UA_Client_Subscriptions_new(UA_Client *client, UA_SubscriptionSettings settings,
     return UA_STATUSCODE_GOOD;
 }
 
-static UA_Client_Subscription *findSubscription(const UA_Client *client, UA_UInt32 subscriptionId)
-{
+static UA_Client_Subscription *
+findSubscription(const UA_Client *client, UA_UInt32 subscriptionId) {
     UA_Client_Subscription *sub = NULL;
     LIST_FOREACH(sub, &client->subscriptions, listEntry) {
         if(sub->subscriptionID == subscriptionId)
@@ -127,11 +127,11 @@ addMonitoredItems(UA_Client *client, const UA_UInt32 subscriptionId,
 
     /* Create the handlers */
     UA_StatusCode retval = UA_STATUSCODE_GOOD;
-    UA_Client_MonitoredItem **mis = (UA_Client_MonitoredItem**)
-        UA_alloca(sizeof(void*) * itemsSize);
-    memset(mis, 0, sizeof(void*) * itemsSize);
+    UA_Client_MonitoredItem **mis = (UA_Client_MonitoredItem **)
+        UA_alloca(sizeof(void *) * itemsSize);
+    memset(mis, 0, sizeof(void *) * itemsSize);
     for(size_t i = 0; i < itemsSize; i++) {
-        mis[i] = (UA_Client_MonitoredItem*)UA_malloc(sizeof(UA_Client_MonitoredItem));
+        mis[i] = (UA_Client_MonitoredItem *)UA_malloc(sizeof(UA_Client_MonitoredItem));
         if(!mis[i]) {
             retval = UA_STATUSCODE_BADOUTOFMEMORY;
             goto cleanup;
@@ -194,7 +194,7 @@ addMonitoredItems(UA_Client *client, const UA_UInt32 subscriptionId,
                      newMon->clientHandle);
     }
 
- cleanup:
+cleanup:
     if(retval != UA_STATUSCODE_GOOD) {
         for(size_t i = 0; i < itemsSize; i++)
             UA_free(mis[i]);
@@ -207,11 +207,11 @@ addMonitoredItems(UA_Client *client, const UA_UInt32 subscriptionId,
 
 UA_StatusCode
 UA_Client_Subscriptions_addMonitoredItems(UA_Client *client, const UA_UInt32 subscriptionId,
-                                          UA_MonitoredItemCreateRequest *items, size_t itemsSize, 
+                                          UA_MonitoredItemCreateRequest *items, size_t itemsSize,
                                           UA_MonitoredItemHandlingFunction *hfs,
                                           void **hfContexts, UA_StatusCode *itemResults,
                                           UA_UInt32 *newMonitoredItemIds) {
-    return addMonitoredItems(client, subscriptionId, items, itemsSize, (void**)hfs,
+    return addMonitoredItems(client, subscriptionId, items, itemsSize, (void **)hfs,
                              hfContexts, itemResults, newMonitoredItemIds, false);
 }
 
@@ -231,7 +231,7 @@ UA_Client_Subscriptions_addMonitoredItem(UA_Client *client, UA_UInt32 subscripti
 
     UA_StatusCode retval_item = UA_STATUSCODE_GOOD;
     UA_StatusCode retval = addMonitoredItems(client, subscriptionId, &item, 1,
-                                             (void**)(uintptr_t)&hf, &hfContext,
+                                             (void **)(uintptr_t)&hf, &hfContext,
                                              &retval_item, newMonitoredItemId, false);
     return retval | retval_item;
 }
@@ -239,11 +239,11 @@ UA_Client_Subscriptions_addMonitoredItem(UA_Client *client, UA_UInt32 subscripti
 
 UA_StatusCode
 UA_Client_Subscriptions_addMonitoredEvents(UA_Client *client, const UA_UInt32 subscriptionId,
-                                           UA_MonitoredItemCreateRequest *items, size_t itemsSize, 
+                                           UA_MonitoredItemCreateRequest *items, size_t itemsSize,
                                            UA_MonitoredEventHandlingFunction *hfs,
                                            void **hfContexts, UA_StatusCode *itemResults,
                                            UA_UInt32 *newMonitoredItemIds) {
-    return addMonitoredItems(client, subscriptionId, items, itemsSize, (void**)hfs,
+    return addMonitoredItems(client, subscriptionId, items, itemsSize, (void **)hfs,
                              hfContexts, itemResults, newMonitoredItemIds, true);
 }
 
@@ -269,16 +269,16 @@ UA_Client_Subscriptions_addMonitoredEvent(UA_Client *client, UA_UInt32 subscript
         return UA_STATUSCODE_BADOUTOFMEMORY;
     UA_EventFilter_init(evFilter);
     evFilter->selectClausesSize = selectClausesSize;
-    evFilter->selectClauses = (UA_SimpleAttributeOperand*)(uintptr_t)selectClauses;
+    evFilter->selectClauses = (UA_SimpleAttributeOperand *)(uintptr_t)selectClauses;
     evFilter->whereClause.elementsSize = whereClausesSize;
-    evFilter->whereClause.elements = (UA_ContentFilterElement*)(uintptr_t)whereClauses;
+    evFilter->whereClause.elements = (UA_ContentFilterElement *)(uintptr_t)whereClauses;
 
     item.requestedParameters.filter.encoding = UA_EXTENSIONOBJECT_DECODED_NODELETE;
     item.requestedParameters.filter.content.decoded.type = &UA_TYPES[UA_TYPES_EVENTFILTER];
     item.requestedParameters.filter.content.decoded.data = evFilter;
     UA_StatusCode retval_item = UA_STATUSCODE_GOOD;
     UA_StatusCode retval = addMonitoredItems(client, subscriptionId, &item, 1,
-                                             (void**)(uintptr_t)&hf, &hfContext,
+                                             (void **)(uintptr_t)&hf, &hfContext,
                                              &retval_item, newMonitoredItemId, true);
     UA_free(evFilter);
     return retval | retval_item;
@@ -286,8 +286,8 @@ UA_Client_Subscriptions_addMonitoredEvent(UA_Client *client, UA_UInt32 subscript
 
 UA_StatusCode
 UA_Client_Subscriptions_removeMonitoredItems(UA_Client *client, UA_UInt32 subscriptionId,
-                                            UA_UInt32 *monitoredItemId, size_t itemsSize,
-                                            UA_StatusCode *itemResults) {
+                                             UA_UInt32 *monitoredItemId, size_t itemsSize,
+                                             UA_StatusCode *itemResults) {
     UA_Client_Subscription *sub = findSubscription(client, subscriptionId);
     if(!sub)
         return UA_STATUSCODE_BADSUBSCRIPTIONIDINVALID;
@@ -329,7 +329,7 @@ UA_Client_Subscriptions_removeMonitoredItems(UA_Client *client, UA_UInt32 subscr
         }
     }
 
- cleanup:
+cleanup:
     /* Remove for _deleteMembers */
     request.monitoredItemIdsSize = 0;
     request.monitoredItemIds = NULL;
@@ -411,7 +411,7 @@ UA_Client_processPublishResponse(UA_Client *client, UA_PublishRequest *request,
                 if(mon->isEventMonitoredItem) {
                     UA_LOG_DEBUG(client->config.logger, UA_LOGCATEGORY_CLIENT,
                                  "MonitoredItem is configured for Events. But received a "
-                                 "DataChangeNotification.");
+                                     "DataChangeNotification.");
                     continue;
                 }
 
@@ -444,7 +444,7 @@ UA_Client_processPublishResponse(UA_Client *client, UA_PublishRequest *request,
                 if(!mon->isEventMonitoredItem) {
                     UA_LOG_DEBUG(client->config.logger, UA_LOGCATEGORY_CLIENT,
                                  "MonitoredItem is configured for DataChanges. But received a "
-                                 "EventNotification.");
+                                     "EventNotification.");
                     continue;
                 }
 
@@ -456,11 +456,11 @@ UA_Client_processPublishResponse(UA_Client *client, UA_PublishRequest *request,
 
     /* Add to the list of pending acks */
     UA_Client_NotificationsAckNumber *tmpAck =
-        (UA_Client_NotificationsAckNumber*)UA_malloc(sizeof(UA_Client_NotificationsAckNumber));
+        (UA_Client_NotificationsAckNumber *)UA_malloc(sizeof(UA_Client_NotificationsAckNumber));
     if(!tmpAck) {
         UA_LOG_WARNING(client->config.logger, UA_LOGCATEGORY_CLIENT,
                        "Not enough memory to store the acknowledgement for a publish "
-                       "message on subscription %u", sub->subscriptionID);
+                           "message on subscription %u", sub->subscriptionID);
         return;
     }
     tmpAck->subAck.sequenceNumber = msg->sequenceNumber;
@@ -485,10 +485,9 @@ UA_Client_Subscriptions_manuallySendPublishRequest(UA_Client *client) {
         request.subscriptionAcknowledgementsSize = 0;
 
         UA_Client_NotificationsAckNumber *ack;
-        LIST_FOREACH(ack, &client->pendingNotificationsAcks, listEntry)
-            ++request.subscriptionAcknowledgementsSize;
+        LIST_FOREACH(ack, &client->pendingNotificationsAcks, listEntry)++request.subscriptionAcknowledgementsSize;
         if(request.subscriptionAcknowledgementsSize > 0) {
-            request.subscriptionAcknowledgements = (UA_SubscriptionAcknowledgement*)
+            request.subscriptionAcknowledgements = (UA_SubscriptionAcknowledgement *)
                 UA_malloc(sizeof(UA_SubscriptionAcknowledgement) * request.subscriptionAcknowledgementsSize);
             if(!request.subscriptionAcknowledgements)
                 return UA_STATUSCODE_BADOUTOFMEMORY;
@@ -503,7 +502,7 @@ UA_Client_Subscriptions_manuallySendPublishRequest(UA_Client *client) {
 
         UA_PublishResponse response = UA_Client_Service_publish(client, request);
         UA_Client_processPublishResponse(client, &request, &response);
-        
+
         now = UA_DateTime_nowMonotonic();
         if(now > maxDate) {
             moreNotifications = UA_FALSE;
@@ -511,11 +510,11 @@ UA_Client_Subscriptions_manuallySendPublishRequest(UA_Client *client) {
         } else {
             moreNotifications = response.moreNotifications;
         }
-        
+
         UA_PublishResponse_deleteMembers(&response);
         UA_PublishRequest_deleteMembers(&request);
     }
-    
+
     if(client->state < UA_CLIENTSTATE_SESSION)
         return UA_STATUSCODE_BADSERVERNOTCONNECTED;
 
@@ -531,8 +530,8 @@ UA_Client_Subscriptions_clean(UA_Client *client) {
     }
 
     UA_Client_Subscription *sub, *tmps;
-    LIST_FOREACH_SAFE(sub, &client->subscriptions, listEntry, tmps)
-        UA_Client_Subscriptions_forceDelete(client, sub); /* force local removal */
+    LIST_FOREACH_SAFE(sub, &client->subscriptions, listEntry, tmps)UA_Client_Subscriptions_forceDelete(client,
+                                                                                                       sub); /* force local removal */
 }
 
 #endif /* UA_ENABLE_SUBSCRIPTIONS */

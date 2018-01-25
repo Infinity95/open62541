@@ -24,7 +24,7 @@ getUserRightsMask_default(const UA_NodeId *sessionId, void *sessionContext,
 
 UA_Byte UA_EXPORT
 getUserAccessLevel_default(const UA_NodeId *sessionId, void *sessionContext,
-                          const UA_NodeId *nodeId, void *nodeContext);
+                           const UA_NodeId *nodeId, void *nodeContext);
 
 UA_Boolean UA_EXPORT
 getUserExecutable_default(const UA_NodeId *sessionId, void *sessionContext,

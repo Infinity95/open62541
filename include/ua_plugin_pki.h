@@ -34,8 +34,10 @@ typedef struct UA_CertificateVerification UA_CertificateVerification;
 
 struct UA_CertificateVerification {
     void *context;
+
     UA_StatusCode (*verifyCertificate)(void *verificationContext,
                                        const UA_ByteString *certificate);
+
     void (*deleteMembers)(UA_CertificateVerification *cv);
 };
 

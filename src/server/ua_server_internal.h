@@ -52,13 +52,13 @@ typedef struct serverOnNetwork_list_entry {
     UA_DateTime lastSeen;
     UA_Boolean txtSet;
     UA_Boolean srvSet;
-    char* pathTmp;
+    char *pathTmp;
 } serverOnNetwork_list_entry;
 
 #define SERVER_ON_NETWORK_HASH_PRIME 1009
 typedef struct serverOnNetwork_hash_entry {
-    serverOnNetwork_list_entry* entry;
-    struct serverOnNetwork_hash_entry* next;
+    serverOnNetwork_list_entry *entry;
+    struct serverOnNetwork_hash_entry *next;
 } serverOnNetwork_hash_entry;
 
 #endif /* UA_ENABLE_DISCOVERY_MULTICAST */
@@ -74,11 +74,13 @@ struct UA_Server {
 
 #ifdef UA_ENABLE_DISCOVERY
     /* Discovery */
-    LIST_HEAD(registeredServer_list, registeredServer_list_entry) registeredServers; // doubly-linked list of registered servers
+    LIST_HEAD(registeredServer_list,
+              registeredServer_list_entry) registeredServers; // doubly-linked list of registered servers
     size_t registeredServersSize;
-    LIST_HEAD(periodicServerRegisterCallback_list, periodicServerRegisterCallback_entry) periodicServerRegisterCallbacks; // doubly-linked list of current register callbacks
+    LIST_HEAD(periodicServerRegisterCallback_list,
+              periodicServerRegisterCallback_entry) periodicServerRegisterCallbacks; // doubly-linked list of current register callbacks
     UA_Server_registerServerCallback registerServerCallback;
-    void* registerServerCallbackData;
+    void *registerServerCallbackData;
 # ifdef UA_ENABLE_DISCOVERY_MULTICAST
     mdns_daemon_t *mdnsDaemon;
 #ifdef _WIN32
@@ -92,15 +94,16 @@ struct UA_Server {
     UA_Boolean mdnsRunning;
 #  endif
 
-    LIST_HEAD(serverOnNetwork_list, serverOnNetwork_list_entry) serverOnNetwork; // doubly-linked list of servers on the network (from mDNS)
+    LIST_HEAD(serverOnNetwork_list,
+              serverOnNetwork_list_entry) serverOnNetwork; // doubly-linked list of servers on the network (from mDNS)
     size_t serverOnNetworkSize;
     UA_UInt32 serverOnNetworkRecordIdCounter;
     UA_DateTime serverOnNetworkRecordIdLastReset;
     // hash mapping domain name to serverOnNetwork list entry
-    struct serverOnNetwork_hash_entry* serverOnNetworkHash[SERVER_ON_NETWORK_HASH_PRIME];
+    struct serverOnNetwork_hash_entry *serverOnNetworkHash[SERVER_ON_NETWORK_HASH_PRIME];
 
     UA_Server_serverOnNetworkCallback serverOnNetworkCallback;
-    void* serverOnNetworkCallbackData;
+    void *serverOnNetworkCallbackData;
 
 # endif
 #endif
@@ -161,12 +164,14 @@ struct UA_Server {
 /* Calls the callback with the node retrieved from the nodestore on top of the
  * stack. Either a copy or the original node for in-situ editing. Depends on
  * multithreading and the nodestore.*/
-typedef UA_StatusCode (*UA_EditNodeCallback)(UA_Server*, UA_Session*,
-                                             UA_Node *node, const void*);
-UA_StatusCode UA_Server_editNode(UA_Server *server, UA_Session *session,
-                                 const UA_NodeId *nodeId,
-                                 UA_EditNodeCallback callback,
-                                 const void *data);
+typedef UA_StatusCode (*UA_EditNodeCallback)(UA_Server *, UA_Session *,
+                                             UA_Node *node, const void *);
+
+UA_StatusCode
+UA_Server_editNode(UA_Server *server, UA_Session *session,
+                   const UA_NodeId *nodeId,
+                   UA_EditNodeCallback callback,
+                   const void *data);
 
 /*************/
 /* Callbacks */
@@ -192,7 +197,8 @@ extern const UA_NodeId subtypeId;
 UA_StatusCode
 UA_NumericRange_parseFromString(UA_NumericRange *range, const UA_String *str);
 
-UA_UInt16 addNamespace(UA_Server *server, const UA_String name);
+UA_UInt16
+addNamespace(UA_Server *server, const UA_String name);
 
 UA_Boolean
 UA_Node_hasSubTypeOrInstances(const UA_Node *node);
@@ -213,7 +219,8 @@ getTypeHierarchy(UA_Nodestore *ns, const UA_NodeId *leafType,
 
 /* Returns the type node from the node on the stack top. The type node is pushed
  * on the stack and returned. */
-const UA_Node * getNodeType(UA_Server *server, const UA_Node *node);
+const UA_Node *
+getNodeType(UA_Server *server, const UA_Node *node);
 
 /* Many services come as an array of operations. This function generalizes the
  * processing of the operations. */
@@ -283,22 +290,26 @@ UA_Server_readWithSession(UA_Server *server, UA_Session *session,
 
 /* Checks if a registration timed out and removes that registration.
  * Should be called periodically in main loop */
-void UA_Discovery_cleanupTimedOut(UA_Server *server, UA_DateTime nowMonotonic);
+void
+UA_Discovery_cleanupTimedOut(UA_Server *server, UA_DateTime nowMonotonic);
 
 # ifdef UA_ENABLE_DISCOVERY_MULTICAST
 
 UA_StatusCode
-initMulticastDiscoveryServer(UA_Server* server);
+initMulticastDiscoveryServer(UA_Server *server);
 
-void startMulticastDiscoveryServer(UA_Server *server);
+void
+startMulticastDiscoveryServer(UA_Server *server);
 
-void stopMulticastDiscoveryServer(UA_Server *server);
+void
+stopMulticastDiscoveryServer(UA_Server *server);
 
 UA_StatusCode
-iterateMulticastDiscoveryServer(UA_Server* server, UA_DateTime *nextRepeat,
+iterateMulticastDiscoveryServer(UA_Server *server, UA_DateTime *nextRepeat,
                                 UA_Boolean processIn);
 
-void destroyMulticastDiscoveryServer(UA_Server* server);
+void
+destroyMulticastDiscoveryServer(UA_Server *server);
 
 typedef enum {
     UA_DISCOVERY_TCP,     /* OPC UA TCP mapping */
@@ -307,14 +318,15 @@ typedef enum {
 
 /* Send a multicast probe to find any other OPC UA server on the network through mDNS. */
 UA_StatusCode
-UA_Discovery_multicastQuery(UA_Server* server);
+UA_Discovery_multicastQuery(UA_Server *server);
 
 UA_StatusCode
 UA_Discovery_addRecord(UA_Server *server, const UA_String *servername,
                        const UA_String *hostname, UA_UInt16 port,
                        const UA_String *path, const UA_DiscoveryProtocol protocol,
-                       UA_Boolean createTxt, const UA_String* capabilites,
+                       UA_Boolean createTxt, const UA_String *capabilites,
                        size_t *capabilitiesSize);
+
 UA_StatusCode
 UA_Discovery_removeRecord(UA_Server *server, const UA_String *servername,
                           const UA_String *hostname, UA_UInt16 port,
@@ -341,14 +353,15 @@ UA_StatusCode
 UA_Server_addMethodNode_finish(UA_Server *server, const UA_NodeId nodeId,
                                const UA_NodeId parentNodeId, const UA_NodeId referenceTypeId,
                                UA_MethodCallback method,
-                               size_t inputArgumentsSize, const UA_Argument* inputArguments,
-                               size_t outputArgumentsSize, const UA_Argument* outputArguments);
+                               size_t inputArgumentsSize, const UA_Argument *inputArguments,
+                               size_t outputArgumentsSize, const UA_Argument *outputArguments);
 
 /**********************/
 /* Create Namespace 0 */
 /**********************/
 
-UA_StatusCode UA_Server_initNS0(UA_Server *server);
+UA_StatusCode
+UA_Server_initNS0(UA_Server *server);
 
 #ifdef __cplusplus
 } // extern "C"

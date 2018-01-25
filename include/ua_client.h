@@ -144,8 +144,8 @@ UA_Client_manuallyRenewSecureChannel(UA_Client *client);
  * @return Indicates whether the operation succeeded or returns an error code */
 UA_StatusCode UA_EXPORT
 UA_Client_getEndpoints(UA_Client *client, const char *serverUrl,
-                       size_t* endpointDescriptionsSize,
-                       UA_EndpointDescription** endpointDescriptions);
+                       size_t *endpointDescriptionsSize,
+                       UA_EndpointDescription **endpointDescriptions);
 
 /* Gets a list of all registered servers at the given server.
  *
@@ -235,6 +235,7 @@ UA_Client_Service_write(UA_Client *client, const UA_WriteRequest request) {
  * Method Service Set
  * ^^^^^^^^^^^^^^^^^^ */
 #ifdef UA_ENABLE_METHODCALLS
+
 static UA_INLINE UA_CallResponse
 UA_Client_Service_call(UA_Client *client, const UA_CallRequest request) {
     UA_CallResponse response;
@@ -242,6 +243,7 @@ UA_Client_Service_call(UA_Client *client, const UA_CallRequest request) {
                         &response, &UA_TYPES[UA_TYPES_CALLRESPONSE]);
     return response;
 }
+
 #endif
 
 /**
@@ -304,7 +306,7 @@ UA_Client_Service_browseNext(UA_Client *client,
 
 static UA_INLINE UA_TranslateBrowsePathsToNodeIdsResponse
 UA_Client_Service_translateBrowsePathsToNodeIds(UA_Client *client,
-                        const UA_TranslateBrowsePathsToNodeIdsRequest request) {
+                                                const UA_TranslateBrowsePathsToNodeIdsRequest request) {
     UA_TranslateBrowsePathsToNodeIdsResponse response;
     __UA_Client_Service(client, &request,
                         &UA_TYPES[UA_TYPES_TRANSLATEBROWSEPATHSTONODEIDSREQUEST],
@@ -360,7 +362,7 @@ UA_Client_Service_queryNext(UA_Client *client,
  * ^^^^^^^^^^^^^^^^^^^^^^^^^ */
 static UA_INLINE UA_CreateMonitoredItemsResponse
 UA_Client_Service_createMonitoredItems(UA_Client *client,
-                                 const UA_CreateMonitoredItemsRequest request) {
+                                       const UA_CreateMonitoredItemsRequest request) {
     UA_CreateMonitoredItemsResponse response;
     __UA_Client_Service(client, &request,
                         &UA_TYPES[UA_TYPES_CREATEMONITOREDITEMSREQUEST], &response,
@@ -370,7 +372,7 @@ UA_Client_Service_createMonitoredItems(UA_Client *client,
 
 static UA_INLINE UA_DeleteMonitoredItemsResponse
 UA_Client_Service_deleteMonitoredItems(UA_Client *client,
-                                 const UA_DeleteMonitoredItemsRequest request) {
+                                       const UA_DeleteMonitoredItemsRequest request) {
     UA_DeleteMonitoredItemsResponse response;
     __UA_Client_Service(client, &request,
                         &UA_TYPES[UA_TYPES_DELETEMONITOREDITEMSREQUEST], &response,
@@ -383,7 +385,7 @@ UA_Client_Service_deleteMonitoredItems(UA_Client *client,
  * ^^^^^^^^^^^^^^^^^^^^^^^^ */
 static UA_INLINE UA_CreateSubscriptionResponse
 UA_Client_Service_createSubscription(UA_Client *client,
-                                   const UA_CreateSubscriptionRequest request) {
+                                     const UA_CreateSubscriptionRequest request) {
     UA_CreateSubscriptionResponse response;
     __UA_Client_Service(client, &request,
                         &UA_TYPES[UA_TYPES_CREATESUBSCRIPTIONREQUEST], &response,
@@ -393,7 +395,7 @@ UA_Client_Service_createSubscription(UA_Client *client,
 
 static UA_INLINE UA_ModifySubscriptionResponse
 UA_Client_Service_modifySubscription(UA_Client *client,
-                                   const UA_ModifySubscriptionRequest request) {
+                                     const UA_ModifySubscriptionRequest request) {
     UA_ModifySubscriptionResponse response;
     __UA_Client_Service(client, &request,
                         &UA_TYPES[UA_TYPES_MODIFYSUBSCRIPTIONREQUEST], &response,
@@ -403,7 +405,7 @@ UA_Client_Service_modifySubscription(UA_Client *client,
 
 static UA_INLINE UA_DeleteSubscriptionsResponse
 UA_Client_Service_deleteSubscriptions(UA_Client *client,
-                                  const UA_DeleteSubscriptionsRequest request) {
+                                      const UA_DeleteSubscriptionsRequest request) {
     UA_DeleteSubscriptionsResponse response;
     __UA_Client_Service(client, &request,
                         &UA_TYPES[UA_TYPES_DELETESUBSCRIPTIONSREQUEST], &response,

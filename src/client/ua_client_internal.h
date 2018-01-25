@@ -9,9 +9,9 @@
 #include "ua_client_highlevel.h"
 #include "queue.h"
 
- /**************************/
- /* Subscriptions Handling */
- /**************************/
+/**************************/
+/* Subscriptions Handling */
+/**************************/
 
 #ifdef UA_ENABLE_SUBSCRIPTIONS
 
@@ -21,7 +21,7 @@ typedef struct UA_Client_NotificationsAckNumber {
 } UA_Client_NotificationsAckNumber;
 
 typedef struct UA_Client_MonitoredItem {
-    LIST_ENTRY(UA_Client_MonitoredItem)  listEntry;
+    LIST_ENTRY(UA_Client_MonitoredItem) listEntry;
     UA_UInt32 monitoredItemId;
     UA_UInt32 monitoringMode;
     UA_NodeId monitoredNodeId;
@@ -50,9 +50,11 @@ typedef struct UA_Client_Subscription {
     LIST_HEAD(UA_ListOfClientMonitoredItems, UA_Client_MonitoredItem) monitoredItems;
 } UA_Client_Subscription;
 
-void UA_Client_Subscriptions_forceDelete(UA_Client *client, UA_Client_Subscription *sub);
+void
+UA_Client_Subscriptions_forceDelete(UA_Client *client, UA_Client_Subscription *sub);
 
-void UA_Client_Subscriptions_clean(UA_Client *client);
+void
+UA_Client_Subscriptions_clean(UA_Client *client);
 
 #endif
 
@@ -115,8 +117,8 @@ UA_Client_connectInternal(UA_Client *client, const char *endpointUrl,
                           UA_Boolean endpointsHandshake, UA_Boolean createNewSession);
 
 UA_StatusCode
-UA_Client_getEndpointsInternal(UA_Client *client, size_t* endpointDescriptionsSize,
-                               UA_EndpointDescription** endpointDescriptions);
+UA_Client_getEndpointsInternal(UA_Client *client, size_t *endpointDescriptionsSize,
+                               UA_EndpointDescription **endpointDescriptions);
 
 /* Receive and process messages until a synchronous message arrives or the
  * timout finishes */

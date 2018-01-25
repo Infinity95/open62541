@@ -10,12 +10,12 @@
 #include "ua_util.h"
 #include "ua_securitypolicy_none.h"
 
- /********************/
- /* Client Lifecycle */
- /********************/
+/********************/
+/* Client Lifecycle */
+/********************/
 
 static void
-UA_Client_init(UA_Client* client, UA_ClientConfig config) {
+UA_Client_init(UA_Client *client, UA_ClientConfig config) {
     memset(client, 0, sizeof(UA_Client));
     /* TODO: Select policy according to the endpoint */
     UA_SecurityPolicy_None(&client->securityPolicy, UA_BYTESTRING_NULL, config.logger);
@@ -28,7 +28,7 @@ UA_Client_init(UA_Client* client, UA_ClientConfig config) {
 
 UA_Client *
 UA_Client_new(UA_ClientConfig config) {
-    UA_Client *client = (UA_Client*)UA_malloc(sizeof(UA_Client));
+    UA_Client *client = (UA_Client *)UA_malloc(sizeof(UA_Client));
     if(!client)
         return NULL;
     UA_Client_init(client, config);
@@ -36,7 +36,7 @@ UA_Client_new(UA_ClientConfig config) {
 }
 
 static void
-UA_Client_deleteMembers(UA_Client* client) {
+UA_Client_deleteMembers(UA_Client *client) {
     UA_Client_disconnect(client);
     client->securityPolicy.deleteMembers(&client->securityPolicy);
     UA_SecureChannel_deleteMembersCleanup(&client->channel);
@@ -64,13 +64,13 @@ UA_Client_deleteMembers(UA_Client* client) {
 }
 
 void
-UA_Client_reset(UA_Client* client) {
+UA_Client_reset(UA_Client *client) {
     UA_Client_deleteMembers(client);
     UA_Client_init(client, client->config);
 }
 
 void
-UA_Client_delete(UA_Client* client) {
+UA_Client_delete(UA_Client *client) {
     UA_Client_deleteMembers(client);
     UA_free(client);
 }
@@ -113,7 +113,7 @@ sendSymmetricServiceRequest(UA_Client *client, const void *request,
 
     /* Adjusting the request header. The const attribute is violated, but we
      * only touch the following members: */
-    UA_RequestHeader *rr = (UA_RequestHeader*)(uintptr_t)request;
+    UA_RequestHeader *rr = (UA_RequestHeader *)(uintptr_t)request;
     rr->authenticationToken = client->authenticationToken; /* cleaned up at the end */
     rr->timestamp = UA_DateTime_now();
     rr->requestHandle = ++client->requestHandle;
@@ -172,7 +172,7 @@ static UA_StatusCode
 processServiceResponse(void *application, UA_SecureChannel *channel,
                        UA_MessageType messageType, UA_UInt32 requestId,
                        const UA_ByteString *message) {
-    SyncResponseDescription *rd = (SyncResponseDescription*)application;
+    SyncResponseDescription *rd = (SyncResponseDescription *)application;
 
     /* Must be OPN or MSG */
     if(messageType != UA_MESSAGETYPE_OPN &&
@@ -245,7 +245,7 @@ finish:
                     UA_StatusCode_name(retval));
 
         if(rd->response) {
-            UA_ResponseHeader *respHeader = (UA_ResponseHeader*)rd->response;
+            UA_ResponseHeader *respHeader = (UA_ResponseHeader *)rd->response;
             respHeader->serviceResult = retval;
         }
     }
@@ -257,7 +257,7 @@ finish:
 /* Forward complete chunks directly to the securechannel */
 static UA_StatusCode
 client_processChunk(void *application, UA_Connection *connection, UA_ByteString *chunk) {
-    SyncResponseDescription *rd = (SyncResponseDescription*)application;
+    SyncResponseDescription *rd = (SyncResponseDescription *)application;
     return UA_SecureChannel_processChunk(&rd->client->channel, chunk,
                                          processServiceResponse,
                                          rd);
@@ -269,7 +269,7 @@ UA_StatusCode
 receiveServiceResponse(UA_Client *client, void *response, const UA_DataType *responseType,
                        UA_DateTime maxDate, UA_UInt32 *synchronousRequestId) {
     /* Prepare the response and the structure we give into processServiceResponse */
-    SyncResponseDescription rd = { client, false, 0, response, responseType };
+    SyncResponseDescription rd = {client, false, 0, response, responseType};
 
     /* Return upon receiving the synchronized response. All other responses are
      * processed with a callback "in the background". */
@@ -305,7 +305,7 @@ __UA_Client_Service(UA_Client *client, const void *request,
                     const UA_DataType *requestType, void *response,
                     const UA_DataType *responseType) {
     UA_init(response, responseType);
-    UA_ResponseHeader *respHeader = (UA_ResponseHeader*)response;
+    UA_ResponseHeader *respHeader = (UA_ResponseHeader *)response;
 
     /* Send the request */
     UA_UInt32 requestId;
@@ -321,7 +321,7 @@ __UA_Client_Service(UA_Client *client, const void *request,
 
     /* Retrieve the response */
     UA_DateTime maxDate = UA_DateTime_nowMonotonic() +
-        (client->config.timeout * UA_DATETIME_MSEC);
+                          (client->config.timeout * UA_DATETIME_MSEC);
     retval = receiveServiceResponse(client, response, responseType, maxDate, &requestId);
     if(retval == UA_STATUSCODE_GOODNONCRITICALTIMEOUT) {
         /* In synchronous service, if we have don't have a reply we need to close the connection */
@@ -339,7 +339,7 @@ __UA_Client_AsyncService(UA_Client *client, const void *request,
                          const UA_DataType *responseType,
                          void *userdata, UA_UInt32 *requestId) {
     /* Prepare the entry for the linked list */
-    AsyncServiceCall *ac = (AsyncServiceCall*)UA_malloc(sizeof(AsyncServiceCall));
+    AsyncServiceCall *ac = (AsyncServiceCall *)UA_malloc(sizeof(AsyncServiceCall));
     if(!ac)
         return UA_STATUSCODE_BADOUTOFMEMORY;
     ac->callback = callback;

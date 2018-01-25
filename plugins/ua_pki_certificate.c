@@ -22,7 +22,8 @@ deleteVerifyAllowAll(UA_CertificateVerification *cv) {
 
 }
 
-void UA_CertificateVerification_AcceptAll(UA_CertificateVerification *cv) {
+void
+UA_CertificateVerification_AcceptAll(UA_CertificateVerification *cv) {
     cv->verifyCertificate = verifyAllowAll;
     cv->deleteMembers = deleteVerifyAllowAll;
 }
@@ -37,7 +38,7 @@ typedef struct {
 static UA_StatusCode
 certificateVerification_verify(void *verificationContext,
                                const UA_ByteString *certificate) {
-    CertInfo *ci = (CertInfo*)verificationContext;
+    CertInfo *ci = (CertInfo *)verificationContext;
     if(!ci)
         return UA_STATUSCODE_BADINTERNALERROR;
 
@@ -92,7 +93,7 @@ certificateVerification_verify(void *verificationContext,
 
 static void
 certificateVerification_deleteMembers(UA_CertificateVerification *cv) {
-    CertInfo *ci = (CertInfo*)cv->context;
+    CertInfo *ci = (CertInfo *)cv->context;
     if(!ci)
         return;
     mbedtls_x509_crt_free(&ci->certificateTrustList);
@@ -107,13 +108,13 @@ UA_CertificateVerification_Trustlist(UA_CertificateVerification *cv,
                                      size_t certificateTrustListSize,
                                      const UA_ByteString *certificateRevocationList,
                                      size_t certificateRevocationListSize) {
-    CertInfo *ci = (CertInfo*)malloc(sizeof(CertInfo));
+    CertInfo *ci = (CertInfo *)malloc(sizeof(CertInfo));
     if(!ci)
         return UA_STATUSCODE_BADOUTOFMEMORY;
     mbedtls_x509_crt_init(&ci->certificateTrustList);
     mbedtls_x509_crl_init(&ci->certificateRevocationList);
 
-    cv->context = (void*)ci;
+    cv->context = (void *)ci;
     cv->verifyCertificate = certificateVerification_verify;
     cv->deleteMembers = certificateVerification_deleteMembers;
 

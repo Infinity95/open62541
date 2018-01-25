@@ -10,9 +10,9 @@
 
 static UA_StatusCode
 register_server_with_discovery_server(UA_Server *server,
-                                      const char* discoveryServerUrl,
+                                      const char *discoveryServerUrl,
                                       const UA_Boolean isUnregister,
-                                      const char* semaphoreFilePath) {
+                                      const char *semaphoreFilePath) {
     if(!discoveryServerUrl) {
         UA_LOG_ERROR(server->config.logger, UA_LOGCATEGORY_SERVER,
                      "No discovery server url provided");
@@ -51,7 +51,7 @@ register_server_with_discovery_server(UA_Server *server,
     if(semaphoreFilePath) {
 #ifdef UA_ENABLE_DISCOVERY_SEMAPHORE
         request.server.semaphoreFilePath =
-            UA_STRING((char*)(uintptr_t)semaphoreFilePath); /* dirty cast */
+            UA_STRING((char *)(uintptr_t)semaphoreFilePath); /* dirty cast */
 #else
         UA_LOG_WARNING(server->config.logger, UA_LOGCATEGORY_CLIENT,
                        "Ignoring semaphore file path. open62541 not compiled "
@@ -66,7 +66,7 @@ register_server_with_discovery_server(UA_Server *server,
     size_t config_discurls = server->config.applicationDescription.discoveryUrlsSize;
     size_t nl_discurls = server->config.networkLayersSize;
     size_t total_discurls = config_discurls + nl_discurls;
-    request.server.discoveryUrls = (UA_String*)UA_alloca(sizeof(UA_String) * total_discurls);
+    request.server.discoveryUrls = (UA_String *)UA_alloca(sizeof(UA_String) * total_discurls);
     if(!request.server.discoveryUrls) {
         UA_Client_disconnect(client);
         UA_Client_delete(client);
@@ -138,14 +138,14 @@ register_server_with_discovery_server(UA_Server *server,
 }
 
 UA_StatusCode
-UA_Server_register_discovery(UA_Server *server, const char* discoveryServerUrl,
-                             const char* semaphoreFilePath) {
+UA_Server_register_discovery(UA_Server *server, const char *discoveryServerUrl,
+                             const char *semaphoreFilePath) {
     return register_server_with_discovery_server(server, discoveryServerUrl,
                                                  UA_FALSE, semaphoreFilePath);
 }
 
 UA_StatusCode
-UA_Server_unregister_discovery(UA_Server *server, const char* discoveryServerUrl) {
+UA_Server_unregister_discovery(UA_Server *server, const char *discoveryServerUrl) {
     return register_server_with_discovery_server(server, discoveryServerUrl,
                                                  UA_TRUE, NULL);
 }

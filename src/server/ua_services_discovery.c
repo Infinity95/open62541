@@ -30,8 +30,8 @@ setApplicationDescriptionFromRegisteredServer(const UA_FindServersRequest *reque
     // if the client requests a specific locale, select the corresponding server name
     if(request->localeIdsSize) {
         UA_Boolean appNameFound = UA_FALSE;
-        for(size_t i =0; i<request->localeIdsSize && !appNameFound; i++) {
-            for(size_t j =0; j<registeredServer->serverNamesSize; j++) {
+        for(size_t i = 0; i < request->localeIdsSize && !appNameFound; i++) {
+            for(size_t j = 0; j < registeredServer->serverNamesSize; j++) {
                 if(UA_String_equal(&request->localeIds[i], &registeredServer->serverNames[j].locale)) {
                     retval |= UA_LocalizedText_copy(&registeredServer->serverNames[j],
                                                     &target->applicationName);
@@ -61,12 +61,13 @@ setApplicationDescriptionFromRegisteredServer(const UA_FindServersRequest *reque
         target->discoveryUrls = (UA_String *)UA_malloc(duSize);
         if(!target->discoveryUrls)
             return UA_STATUSCODE_BADOUTOFMEMORY;
-        for(size_t i = 0; i<registeredServer->discoveryUrlsSize; i++)
+        for(size_t i = 0; i < registeredServer->discoveryUrlsSize; i++)
             retval |= UA_String_copy(&registeredServer->discoveryUrls[i], &target->discoveryUrls[i]);
     }
 
     return retval;
 }
+
 #endif
 
 static UA_StatusCode
@@ -85,7 +86,7 @@ setApplicationDescriptionFromServer(UA_ApplicationDescription *target, const UA_
 
     /* add the discoveryUrls from the networklayers */
     size_t discSize = sizeof(UA_String) * (target->discoveryUrlsSize + server->config.networkLayersSize);
-    UA_String* disc = (UA_String *)UA_realloc(target->discoveryUrls, discSize);
+    UA_String *disc = (UA_String *)UA_realloc(target->discoveryUrls, discSize);
     if(!disc) {
         return UA_STATUSCODE_BADOUTOFMEMORY;
     }
@@ -95,15 +96,16 @@ setApplicationDescriptionFromServer(UA_ApplicationDescription *target, const UA_
 
     // TODO: Add nl only if discoveryUrl not already present
     for(size_t i = 0; i < server->config.networkLayersSize; i++) {
-        UA_ServerNetworkLayer* nl = &server->config.networkLayers[i];
+        UA_ServerNetworkLayer *nl = &server->config.networkLayers[i];
         UA_String_copy(&nl->discoveryUrl, &target->discoveryUrls[existing + i]);
     }
     return UA_STATUSCODE_GOOD;
 }
 
-void Service_FindServers(UA_Server *server, UA_Session *session,
-                         const UA_FindServersRequest *request,
-                         UA_FindServersResponse *response) {
+void
+Service_FindServers(UA_Server *server, UA_Session *session,
+                    const UA_FindServersRequest *request,
+                    UA_FindServersResponse *response) {
     UA_LOG_DEBUG_SESSION(server->config.logger, session,
                          "Processing FindServersRequest");
 
@@ -118,7 +120,7 @@ void Service_FindServers(UA_Server *server, UA_Session *session,
 #ifdef UA_ENABLE_DISCOVERY
     // check if client only requested a specific set of servers
     if(request->serverUrisSize) {
-        size_t fsfpSize = sizeof(UA_RegisteredServer*) * server->registeredServersSize;
+        size_t fsfpSize = sizeof(UA_RegisteredServer *) * server->registeredServersSize;
         foundServerFilteredPointer = (UA_RegisteredServer **)UA_malloc(fsfpSize);
         if(!foundServerFilteredPointer) {
             response->responseHeader.serviceResult = UA_STATUSCODE_BADOUTOFMEMORY;
@@ -130,12 +132,12 @@ void Service_FindServers(UA_Server *server, UA_Session *session,
                                            &server->config.applicationDescription.applicationUri)) {
                 addSelf = UA_TRUE;
             } else {
-                registeredServer_list_entry* current;
+                registeredServer_list_entry *current;
                 LIST_FOREACH(current, &server->registeredServers, pointers) {
                     if(UA_String_equal(&current->registeredServer.serverUri, &request->serverUris[i])) {
                         // check if entry already in list:
                         UA_Boolean existing = false;
-                        for(size_t j=0; j<foundServersSize; j++) {
+                        for(size_t j = 0; j < foundServersSize; j++) {
                             if(UA_String_equal(&foundServerFilteredPointer[j]->serverUri, &request->serverUris[i])) {
                                 existing = true;
                                 break;
@@ -207,8 +209,8 @@ void Service_FindServers(UA_Server *server, UA_Session *session,
             size_t iterCount = addSelf ? foundServersSize - 1 : foundServersSize;
             for(size_t i = 0; i < iterCount; i++) {
                 response->responseHeader.serviceResult =
-                        setApplicationDescriptionFromRegisteredServer(request, &foundServers[currentIndex++],
-                                                                      foundServerFilteredPointer[i]);
+                    setApplicationDescriptionFromRegisteredServer(request, &foundServers[currentIndex++],
+                                                                  foundServerFilteredPointer[i]);
                 if(response->responseHeader.serviceResult != UA_STATUSCODE_GOOD) {
                     UA_free(foundServers);
                     UA_free(foundServerFilteredPointer);
@@ -218,11 +220,11 @@ void Service_FindServers(UA_Server *server, UA_Session *session,
             UA_free(foundServerFilteredPointer);
             foundServerFilteredPointer = NULL;
         } else {
-            registeredServer_list_entry* current;
+            registeredServer_list_entry *current;
             LIST_FOREACH(current, &server->registeredServers, pointers) {
                 response->responseHeader.serviceResult =
-                        setApplicationDescriptionFromRegisteredServer(request, &foundServers[currentIndex++],
-                                                                      &current->registeredServer);
+                    setApplicationDescriptionFromRegisteredServer(request, &foundServers[currentIndex++],
+                                                                  &current->registeredServer);
                 if(response->responseHeader.serviceResult != UA_STATUSCODE_GOOD) {
                     UA_free(foundServers);
                     return;
@@ -239,16 +241,17 @@ void Service_FindServers(UA_Server *server, UA_Session *session,
     response->serversSize = foundServersSize;
 }
 
-void Service_GetEndpoints(UA_Server *server, UA_Session *session,
-                          const UA_GetEndpointsRequest *request,
-                          UA_GetEndpointsResponse *response) {
+void
+Service_GetEndpoints(UA_Server *server, UA_Session *session,
+                     const UA_GetEndpointsRequest *request,
+                     UA_GetEndpointsResponse *response) {
     /* If the client expects to see a specific endpointurl, mirror it back. If
        not, clone the endpoints with the discovery url of all networklayers. */
     const UA_String *endpointUrl = &request->endpointUrl;
     if(endpointUrl->length > 0) {
         UA_LOG_DEBUG_SESSION(server->config.logger, session,
                              "Processing GetEndpointsRequest with endpointUrl "
-                             UA_PRINTF_STRING_FORMAT, UA_PRINTF_STRING_DATA(*endpointUrl));
+                                 UA_PRINTF_STRING_FORMAT, UA_PRINTF_STRING_DATA(*endpointUrl));
     } else {
         UA_LOG_DEBUG_SESSION(server->config.logger, session,
                              "Processing GetEndpointsRequest with an empty endpointUrl");
@@ -290,8 +293,8 @@ void Service_GetEndpoints(UA_Server *server, UA_Session *session,
     }
 
     response->endpoints =
-        (UA_EndpointDescription*)UA_Array_new(relevant_count * clone_times,
-                                              &UA_TYPES[UA_TYPES_ENDPOINTDESCRIPTION]);
+        (UA_EndpointDescription *)UA_Array_new(relevant_count * clone_times,
+                                               &UA_TYPES[UA_TYPES_ENDPOINTDESCRIPTION]);
     if(!response->endpoints) {
         response->responseHeader.serviceResult = UA_STATUSCODE_BADOUTOFMEMORY;
         return;
@@ -334,17 +337,17 @@ freeEntry(UA_Server *server, void *entry) {
 
 static void
 process_RegisterServer(UA_Server *server, UA_Session *session,
-                       const UA_RequestHeader* requestHeader,
+                       const UA_RequestHeader *requestHeader,
                        const UA_RegisteredServer *requestServer,
                        const size_t requestDiscoveryConfigurationSize,
                        const UA_ExtensionObject *requestDiscoveryConfiguration,
-                       UA_ResponseHeader* responseHeader,
+                       UA_ResponseHeader *responseHeader,
                        size_t *responseConfigurationResultsSize,
                        UA_StatusCode **responseConfigurationResults,
                        size_t *responseDiagnosticInfosSize,
                        UA_DiagnosticInfo *responseDiagnosticInfos) {
     /* Find the server from the request in the registered list */
-    registeredServer_list_entry* current;
+    registeredServer_list_entry *current;
     registeredServer_list_entry *registeredServer_entry = NULL;
     LIST_FOREACH(current, &server->registeredServers, pointers) {
         if(UA_String_equal(&current->registeredServer.serverUri, &requestServer->serverUri)) {
@@ -355,7 +358,7 @@ process_RegisterServer(UA_Server *server, UA_Session *session,
 
     UA_MdnsDiscoveryConfiguration *mdnsConfig = NULL;
 
-    const UA_String* mdnsServerName = NULL;
+    const UA_String *mdnsServerName = NULL;
     if(requestDiscoveryConfigurationSize) {
         *responseConfigurationResults =
             (UA_StatusCode *)UA_Array_new(requestDiscoveryConfigurationSize,
@@ -395,17 +398,17 @@ process_RegisterServer(UA_Server *server, UA_Session *session,
 
     if(requestServer->semaphoreFilePath.length) {
 #ifdef UA_ENABLE_DISCOVERY_SEMAPHORE
-        char* filePath = (char*)
-            UA_malloc(sizeof(char)*requestServer->semaphoreFilePath.length+1);
+        char *filePath = (char *)
+            UA_malloc(sizeof(char) * requestServer->semaphoreFilePath.length + 1);
         if(!filePath) {
             UA_LOG_ERROR_SESSION(server->config.logger, session,
-                                   "Cannot allocate memory for semaphore path. Out of memory.");
+                                 "Cannot allocate memory for semaphore path. Out of memory.");
             responseHeader->serviceResult = UA_STATUSCODE_BADOUTOFMEMORY;
             return;
         }
-        memcpy(filePath, requestServer->semaphoreFilePath.data, requestServer->semaphoreFilePath.length );
+        memcpy(filePath, requestServer->semaphoreFilePath.data, requestServer->semaphoreFilePath.length);
         filePath[requestServer->semaphoreFilePath.length] = '\0';
-        if(access( filePath, 0 ) == -1) {
+        if(access(filePath, 0) == -1) {
             responseHeader->serviceResult = UA_STATUSCODE_BADSEMPAHOREFILEMISSING;
             UA_free(filePath);
             return;
@@ -422,8 +425,8 @@ process_RegisterServer(UA_Server *server, UA_Session *session,
     if(server->config.applicationDescription.applicationType == UA_APPLICATIONTYPE_DISCOVERYSERVER) {
         for(size_t i = 0; i < requestServer->discoveryUrlsSize; i++) {
             /* create TXT if is online and first index, delete TXT if is offline and last index */
-            UA_Boolean updateTxt = (requestServer->isOnline && i==0) ||
-                (!requestServer->isOnline && i==requestServer->discoveryUrlsSize);
+            UA_Boolean updateTxt = (requestServer->isOnline && i == 0) ||
+                                   (!requestServer->isOnline && i == requestServer->discoveryUrlsSize);
             UA_Discovery_update_MdnsForDiscoveryUrl(server, mdnsServerName, mdnsConfig,
                                                     &requestServer->discoveryUrls[i],
                                                     requestServer->isOnline, updateTxt);
@@ -491,18 +494,20 @@ process_RegisterServer(UA_Server *server, UA_Session *session,
     responseHeader->serviceResult = retval;
 }
 
-void Service_RegisterServer(UA_Server *server, UA_Session *session,
-                            const UA_RegisterServerRequest *request,
-                            UA_RegisterServerResponse *response) {
+void
+Service_RegisterServer(UA_Server *server, UA_Session *session,
+                       const UA_RegisterServerRequest *request,
+                       UA_RegisterServerResponse *response) {
     UA_LOG_DEBUG_SESSION(server->config.logger, session,
                          "Processing RegisterServerRequest");
     process_RegisterServer(server, session, &request->requestHeader, &request->server, 0,
                            NULL, &response->responseHeader, 0, NULL, 0, NULL);
 }
 
-void Service_RegisterServer2(UA_Server *server, UA_Session *session,
-                            const UA_RegisterServer2Request *request,
-                             UA_RegisterServer2Response *response) {
+void
+Service_RegisterServer2(UA_Server *server, UA_Session *session,
+                        const UA_RegisterServer2Request *request,
+                        UA_RegisterServer2Response *response) {
     UA_LOG_DEBUG_SESSION(server->config.logger, session,
                          "Processing RegisterServer2Request");
     process_RegisterServer(server, session, &request->requestHeader, &request->server,
@@ -516,25 +521,26 @@ void Service_RegisterServer2(UA_Server *server, UA_Session *session,
  * checks the existence of the file. When it is deleted, the registration is
  * removed. If there is no semaphore file, then the registration will be removed
  * if it is older than 60 minutes. */
-void UA_Discovery_cleanupTimedOut(UA_Server *server, UA_DateTime nowMonotonic) {
+void
+UA_Discovery_cleanupTimedOut(UA_Server *server, UA_DateTime nowMonotonic) {
     UA_DateTime timedOut = nowMonotonic;
     // registration is timed out if lastSeen is older than 60 minutes (default
     // value, can be modified by user).
     if(server->config.discoveryCleanupTimeout)
-        timedOut -= server->config.discoveryCleanupTimeout*UA_DATETIME_SEC;
+        timedOut -= server->config.discoveryCleanupTimeout * UA_DATETIME_SEC;
 
-    registeredServer_list_entry* current, *temp;
+    registeredServer_list_entry *current, *temp;
     LIST_FOREACH_SAFE(current, &server->registeredServers, pointers, temp) {
         UA_Boolean semaphoreDeleted = UA_FALSE;
 
 #ifdef UA_ENABLE_DISCOVERY_SEMAPHORE
         if(current->registeredServer.semaphoreFilePath.length) {
-            size_t fpSize = sizeof(char)*current->registeredServer.semaphoreFilePath.length+1;
+            size_t fpSize = sizeof(char) * current->registeredServer.semaphoreFilePath.length + 1;
             // todo: malloc may fail: return a statuscode
-            char* filePath = (char *)UA_malloc(fpSize);
+            char *filePath = (char *)UA_malloc(fpSize);
             if(filePath) {
                 memcpy(filePath, current->registeredServer.semaphoreFilePath.data,
-                       current->registeredServer.semaphoreFilePath.length );
+                       current->registeredServer.semaphoreFilePath.length);
                 filePath[current->registeredServer.semaphoreFilePath.length] = '\0';
 #ifdef UNDER_CE
                 FILE *fp = fopen(filePath,"rb");
@@ -542,11 +548,12 @@ void UA_Discovery_cleanupTimedOut(UA_Server *server, UA_DateTime nowMonotonic) {
                 if(fp)
                     fclose(fp);
 #else
-                semaphoreDeleted = access( filePath, 0 ) == -1;
+                semaphoreDeleted = access(filePath, 0) == -1;
 #endif
                 UA_free(filePath);
             } else {
-                UA_LOG_ERROR(server->config.logger, UA_LOGCATEGORY_SERVER, "Cannot check registration semaphore. Out of memory");
+                UA_LOG_ERROR(server->config.logger, UA_LOGCATEGORY_SERVER,
+                             "Cannot check registration semaphore. Out of memory");
             }
         }
 #endif
@@ -556,7 +563,7 @@ void UA_Discovery_cleanupTimedOut(UA_Server *server, UA_DateTime nowMonotonic) {
             if(semaphoreDeleted) {
                 UA_LOG_INFO(server->config.logger, UA_LOGCATEGORY_SERVER,
                             "Registration of server with URI %.*s is removed because "
-                            "the semaphore file '%.*s' was deleted.",
+                                "the semaphore file '%.*s' was deleted.",
                             (int)current->registeredServer.serverUri.length,
                             current->registeredServer.serverUri.data,
                             (int)current->registeredServer.semaphoreFilePath.length,
@@ -586,7 +593,7 @@ struct PeriodicServerRegisterCallback {
     UA_UInt32 this_interval;
     UA_UInt32 default_interval;
     UA_Boolean registered;
-    const char* discovery_server_url;
+    const char *discovery_server_url;
 };
 
 /* Called by the UA_Server callback. The OPC UA specification says:
@@ -606,7 +613,7 @@ periodicServerRegister(UA_Server *server, void *data) {
 
     /* Which URL to register on */
     // fixme: remove magic url
-    const char * server_url;
+    const char *server_url;
     if(cb->discovery_server_url != NULL)
         server_url = cb->discovery_server_url;
     else
@@ -626,7 +633,7 @@ periodicServerRegister(UA_Server *server, void *data) {
     if(retval != UA_STATUSCODE_GOOD) {
         UA_LOG_ERROR(server->config.logger, UA_LOGCATEGORY_SERVER,
                      "Could not register server with discovery server. "
-                     "Is the discovery server started? StatusCode %s",
+                         "Is the discovery server started? StatusCode %s",
                      UA_StatusCode_name(retval));
 
         /* If the server was previously registered, retry in one second,
@@ -647,7 +654,7 @@ periodicServerRegister(UA_Server *server, void *data) {
     /* Registering succeeded */
     UA_LOG_DEBUG(server->config.logger, UA_LOGCATEGORY_SERVER,
                  "Server successfully registered. Next periodical register will be in %d seconds",
-                 (int)(cb->default_interval/1000));
+                 (int)(cb->default_interval / 1000));
 
     if(!cb->registered) {
         retval = UA_Server_changeRepeatedCallbackInterval(server, cb->id, cb->default_interval);
@@ -659,7 +666,7 @@ periodicServerRegister(UA_Server *server, void *data) {
 
 UA_StatusCode
 UA_Server_addPeriodicServerRegisterCallback(UA_Server *server,
-                                            const char* discoveryServerUrl,
+                                            const char *discoveryServerUrl,
                                             UA_UInt32 intervalMs,
                                             UA_UInt32 delayFirstRegisterMs,
                                             UA_UInt64 *periodicCallbackId) {
@@ -678,7 +685,8 @@ UA_Server_addPeriodicServerRegisterCallback(UA_Server *server,
         LIST_FOREACH_SAFE(rs, &server->periodicServerRegisterCallbacks, pointers, rs_tmp) {
             if(strcmp(rs->callback->discovery_server_url, discoveryServerUrl) == 0) {
                 UA_LOG_INFO(server->config.logger, UA_LOGCATEGORY_SERVER,
-                            "There is already a register callback for '%s' in place. Removing the older one.", discoveryServerUrl);
+                            "There is already a register callback for '%s' in place. Removing the older one.",
+                            discoveryServerUrl);
                 UA_Server_removeRepeatedCallback(server, rs->callback->id);
                 LIST_REMOVE(rs, pointers);
                 UA_free(rs->callback);
@@ -689,9 +697,9 @@ UA_Server_addPeriodicServerRegisterCallback(UA_Server *server,
     }
 
     /* Allocate and initialize */
-    struct PeriodicServerRegisterCallback* cb =
-        (struct PeriodicServerRegisterCallback*)
-        UA_malloc(sizeof(struct PeriodicServerRegisterCallback));
+    struct PeriodicServerRegisterCallback *cb =
+        (struct PeriodicServerRegisterCallback *)
+            UA_malloc(sizeof(struct PeriodicServerRegisterCallback));
     if(!cb)
         return UA_STATUSCODE_BADOUTOFMEMORY;
 
@@ -712,7 +720,7 @@ UA_Server_addPeriodicServerRegisterCallback(UA_Server *server,
     if(retval != UA_STATUSCODE_GOOD) {
         UA_LOG_ERROR(server->config.logger, UA_LOGCATEGORY_SERVER,
                      "Could not create periodic job for server register. "
-                     "StatusCode %s", UA_StatusCode_name(retval));
+                         "StatusCode %s", UA_StatusCode_name(retval));
         UA_free(cb);
         return retval;
     }
@@ -720,7 +728,7 @@ UA_Server_addPeriodicServerRegisterCallback(UA_Server *server,
 #ifndef __clang_analyzer__
     // the analyzer reports on LIST_INSERT_HEAD a use after free false positive
     periodicServerRegisterCallback_entry *newEntry =
-            (periodicServerRegisterCallback_entry *)UA_malloc(sizeof(periodicServerRegisterCallback_entry));
+        (periodicServerRegisterCallback_entry *)UA_malloc(sizeof(periodicServerRegisterCallback_entry));
     if(!newEntry) {
         UA_Server_removeRepeatedCallback(server, cb->id);
         UA_free(cb);
@@ -738,7 +746,7 @@ UA_Server_addPeriodicServerRegisterCallback(UA_Server *server,
 void
 UA_Server_setRegisterServerCallback(UA_Server *server,
                                     UA_Server_registerServerCallback cb,
-                                    void* data) {
+                                    void *data) {
     server->registerServerCallback = cb;
     server->registerServerCallbackData = data;
 }

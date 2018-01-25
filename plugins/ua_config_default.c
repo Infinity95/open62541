@@ -163,7 +163,7 @@ createSecurityPolicyBasic128Rsa15Endpoint(UA_ServerConfig *const conf,
 
 static UA_ServerConfig *
 createDefaultConfig(void) {
-    UA_ServerConfig *conf = (UA_ServerConfig *) UA_malloc(sizeof(UA_ServerConfig));
+    UA_ServerConfig *conf = (UA_ServerConfig *)UA_malloc(sizeof(UA_ServerConfig));
     if(!conf)
         return NULL;
 
@@ -181,7 +181,9 @@ createDefaultConfig(void) {
     conf->buildInfo.softwareVersion =
         UA_STRING_ALLOC(VERSION(UA_OPEN62541_VER_MAJOR, UA_OPEN62541_VER_MINOR,
                                 UA_OPEN62541_VER_PATCH, UA_OPEN62541_VER_LABEL));
-    conf->buildInfo.buildNumber = UA_STRING_ALLOC(__DATE__ " " __TIME__);
+    conf->buildInfo.buildNumber = UA_STRING_ALLOC(__DATE__
+                                                      " "
+                                                      __TIME__);
     conf->buildInfo.buildDate = 0;
 
     conf->applicationDescription.applicationUri = UA_STRING_ALLOC(APPLICATION_URI);
@@ -295,7 +297,7 @@ UA_ServerConfig_new_minimal(UA_UInt16 portNumber,
 
     /* Allocate the endpoint */
     conf->endpointsSize = 1;
-    conf->endpoints = (UA_Endpoint *) UA_malloc(sizeof(UA_Endpoint));
+    conf->endpoints = (UA_Endpoint *)UA_malloc(sizeof(UA_Endpoint));
     if(!conf->endpoints) {
         UA_ServerConfig_delete(conf);
         return NULL;
@@ -352,7 +354,7 @@ UA_ServerConfig_new_basic128rsa15(UA_UInt16 portNumber,
 
     /* Allocate the endpoints */
     conf->endpointsSize = 0;
-    conf->endpoints = (UA_Endpoint *) UA_malloc(sizeof(UA_Endpoint) * 3);
+    conf->endpoints = (UA_Endpoint *)UA_malloc(sizeof(UA_Endpoint) * 3);
     if(!conf->endpoints) {
         UA_ServerConfig_delete(conf);
         return NULL;

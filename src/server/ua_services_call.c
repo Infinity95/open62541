@@ -29,7 +29,7 @@ getArgumentsVariableNode(UA_Server *server, const UA_MethodNode *ofMethod,
             if(refTarget->nodeClass == UA_NODECLASS_VARIABLE &&
                refTarget->browseName.namespaceIndex == 0 &&
                UA_String_equal(&withBrowseName, &refTarget->browseName.name)) {
-                return (const UA_VariableNode*)refTarget;
+                return (const UA_VariableNode *)refTarget;
             }
             server->config.nodestore.releaseNode(server->config.nodestore.context,
                                                  refTarget);
@@ -61,7 +61,7 @@ typeCheckArguments(UA_Server *server, const UA_VariableNode *argRequirements,
         return UA_STATUSCODE_BADTOOMANYARGUMENTS;
 
     /* Type-check every argument against the definition */
-    UA_Argument *argReqs = (UA_Argument*)argRequirements->value.data.value.value.data;
+    UA_Argument *argReqs = (UA_Argument *)argRequirements->value.data.value.value.data;
     for(size_t i = 0; i < argReqsSize; ++i) {
         if(!compatibleValue(server, &argReqs[i].dataType, argReqs[i].valueRank,
                             argReqs[i].arrayDimensionsSize, argReqs[i].arrayDimensions,
@@ -91,7 +91,7 @@ validMethodArguments(UA_Server *server, const UA_MethodNode *method,
 
     /* Release the input arguments node */
     server->config.nodestore.releaseNode(server->config.nodestore.context,
-                                         (const UA_Node*)inputArguments);
+                                         (const UA_Node *)inputArguments);
     return retval;
 }
 
@@ -149,9 +149,10 @@ callWithMethodAndObject(UA_Server *server, UA_Session *session,
     UA_Boolean executable = method->executable;
     if(session != &adminSession)
         executable = executable &&
-            server->config.accessControl.getUserExecutableOnObject(&session->sessionId,
-                           session->sessionHandle, &request->methodId, method->context,
-                           &request->objectId, object->context);
+                     server->config.accessControl.getUserExecutableOnObject(&session->sessionId,
+                                                                            session->sessionHandle, &request->methodId,
+                                                                            method->context,
+                                                                            &request->objectId, object->context);
     if(!executable) {
         result->statusCode = UA_STATUSCODE_BADNOTWRITABLE; // There is no NOTEXECUTABLE?
         return;
@@ -169,7 +170,7 @@ callWithMethodAndObject(UA_Server *server, UA_Session *session,
     /* Allocate the output arguments array */
     if(outputArguments) {
         if(outputArguments->value.data.value.value.arrayLength > 0) {
-            result->outputArguments = (UA_Variant*)
+            result->outputArguments = (UA_Variant *)
                 UA_Array_new(outputArguments->value.data.value.value.arrayLength,
                              &UA_TYPES[UA_TYPES_VARIANT]);
             if(!result->outputArguments) {
@@ -181,13 +182,13 @@ callWithMethodAndObject(UA_Server *server, UA_Session *session,
 
         /* Release the output arguments node */
         server->config.nodestore.releaseNode(server->config.nodestore.context,
-                                             (const UA_Node*)outputArguments);
+                                             (const UA_Node *)outputArguments);
     }
 
     /* Call the method */
     result->statusCode = method->method(server, &session->sessionId, session->sessionHandle,
-                                        &method->nodeId, (void*)(uintptr_t)method->context,
-                                        &object->nodeId, (void*)(uintptr_t)&object->context,
+                                        &method->nodeId, (void *)(uintptr_t)method->context,
+                                        &object->nodeId, (void *)(uintptr_t)&object->context,
                                         request->inputArgumentsSize, request->inputArguments,
                                         result->outputArgumentsSize, result->outputArguments);
     /* TODO: Verify Output matches the argument definition */
@@ -197,7 +198,7 @@ static void
 Operation_CallMethod(UA_Server *server, UA_Session *session, void *context,
                      const UA_CallMethodRequest *request, UA_CallMethodResult *result) {
     /* Get the method node */
-    const UA_MethodNode *method = (const UA_MethodNode*)
+    const UA_MethodNode *method = (const UA_MethodNode *)
         server->config.nodestore.getNode(server->config.nodestore.context,
                                          &request->methodId);
     if(!method) {
@@ -206,13 +207,13 @@ Operation_CallMethod(UA_Server *server, UA_Session *session, void *context,
     }
 
     /* Get the object node */
-    const UA_ObjectNode *object = (const UA_ObjectNode*)
+    const UA_ObjectNode *object = (const UA_ObjectNode *)
         server->config.nodestore.getNode(server->config.nodestore.context,
                                          &request->objectId);
     if(!object) {
         result->statusCode = UA_STATUSCODE_BADNODEIDINVALID;
         server->config.nodestore.releaseNode(server->config.nodestore.context,
-                                             (const UA_Node*)method);
+                                             (const UA_Node *)method);
         return;
     }
 
@@ -221,14 +222,15 @@ Operation_CallMethod(UA_Server *server, UA_Session *session, void *context,
 
     /* Release the method and object node */
     server->config.nodestore.releaseNode(server->config.nodestore.context,
-                                         (const UA_Node*)method);
+                                         (const UA_Node *)method);
     server->config.nodestore.releaseNode(server->config.nodestore.context,
-                                         (const UA_Node*)object);
+                                         (const UA_Node *)object);
 }
 
-void Service_Call(UA_Server *server, UA_Session *session,
-                  const UA_CallRequest *request,
-                  UA_CallResponse *response) {
+void
+Service_Call(UA_Server *server, UA_Session *session,
+             const UA_CallRequest *request,
+             UA_CallResponse *response) {
     UA_LOG_DEBUG_SESSION(server->config.logger, session,
                          "Processing CallRequest");
 
@@ -238,7 +240,7 @@ void Service_Call(UA_Server *server, UA_Session *session,
         return;
     }
 
-    response->responseHeader.serviceResult = 
+    response->responseHeader.serviceResult =
         UA_Server_processServiceOperations(server, session, (UA_ServiceOperation)Operation_CallMethod, NULL,
                                            &request->methodsToCallSize, &UA_TYPES[UA_TYPES_CALLMETHODREQUEST],
                                            &response->resultsSize, &UA_TYPES[UA_TYPES_CALLMETHODRESULT]);

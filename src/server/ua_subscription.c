@@ -11,7 +11,7 @@ UA_Subscription *
 UA_Subscription_new(UA_Session *session, UA_UInt32 subscriptionId) {
     /* Allocate the memory */
     UA_Subscription *newItem =
-        (UA_Subscription*)UA_calloc(1, sizeof(UA_Subscription));
+        (UA_Subscription *)UA_calloc(1, sizeof(UA_Subscription));
     if(!newItem)
         return NULL;
 
@@ -279,7 +279,7 @@ UA_Subscription_publishCallback(UA_Server *server, UA_Subscription *sub) {
     if(!pre) {
         UA_LOG_DEBUG_SESSION(server->config.logger, sub->session,
                              "Subscription %u | Cannot send a publish "
-                             "response since the publish queue is empty",
+                                 "response since the publish queue is empty",
                              sub->subscriptionId);
         if(sub->state != UA_SUBSCRIPTIONSTATE_LATE) {
             sub->state = UA_SUBSCRIPTIONSTATE_LATE;
@@ -288,7 +288,7 @@ UA_Subscription_publishCallback(UA_Server *server, UA_Subscription *sub) {
             if(sub->currentLifetimeCount > sub->lifeTimeCount) {
                 UA_LOG_DEBUG_SESSION(server->config.logger, sub->session,
                                      "Subscription %u | End of lifetime "
-                                     "for subscription", sub->subscriptionId);
+                                         "for subscription", sub->subscriptionId);
                 UA_Session_deleteSubscription(server, sub->session,
                                               sub->subscriptionId);
             }
@@ -301,12 +301,12 @@ UA_Subscription_publishCallback(UA_Server *server, UA_Subscription *sub) {
     UA_NotificationMessageEntry *retransmission = NULL;
     if(notifications > 0) {
         /* Allocate the retransmission entry */
-        retransmission = (UA_NotificationMessageEntry*)
+        retransmission = (UA_NotificationMessageEntry *)
             UA_malloc(sizeof(UA_NotificationMessageEntry));
         if(!retransmission) {
             UA_LOG_WARNING_SESSION(server->config.logger, sub->session,
                                    "Subscription %u | Could not allocate memory "
-                                   "for retransmission", sub->subscriptionId);
+                                       "for retransmission", sub->subscriptionId);
             return;
         }
 
@@ -316,7 +316,7 @@ UA_Subscription_publishCallback(UA_Server *server, UA_Subscription *sub) {
         if(retval != UA_STATUSCODE_GOOD) {
             UA_LOG_WARNING_SESSION(server->config.logger, sub->session,
                                    "Subscription %u | Could not prepare the "
-                                   "notification message", sub->subscriptionId);
+                                       "notification message", sub->subscriptionId);
             UA_free(retransmission);
             return;
         }
@@ -352,7 +352,7 @@ UA_Subscription_publishCallback(UA_Server *server, UA_Subscription *sub) {
     size_t available = sub->retransmissionQueueSize;
     if(available > 0) {
         response->availableSequenceNumbers =
-            (UA_UInt32*)UA_alloca(available * sizeof(UA_UInt32));
+            (UA_UInt32 *)UA_alloca(available * sizeof(UA_UInt32));
         response->availableSequenceNumbersSize = available;
         size_t i = 0;
         UA_NotificationMessageEntry *nme;
@@ -365,7 +365,7 @@ UA_Subscription_publishCallback(UA_Server *server, UA_Subscription *sub) {
     /* Send the response */
     UA_LOG_DEBUG_SESSION(server->config.logger, sub->session,
                          "Subscription %u | Sending out a publish response "
-                         "with %u notifications", sub->subscriptionId,
+                             "with %u notifications", sub->subscriptionId,
                          (UA_UInt32)notifications);
     UA_SecureChannel_sendSymmetricMessage(sub->session->header.channel, pre->requestId,
                                           UA_MESSAGETYPE_MSG, response,
@@ -393,7 +393,7 @@ UA_Subscription_publishCallback(UA_Server *server, UA_Subscription *sub) {
 }
 
 UA_Boolean
-UA_Subscription_reachedPublishReqLimit(UA_Server *server,  UA_Session *session) {
+UA_Subscription_reachedPublishReqLimit(UA_Server *server, UA_Session *session) {
     UA_LOG_DEBUG_SESSION(server->config.logger, session,
                          "Reached number of publish request limit");
 
@@ -443,16 +443,16 @@ UA_StatusCode
 Subscription_registerPublishCallback(UA_Server *server, UA_Subscription *sub) {
     UA_LOG_DEBUG_SESSION(server->config.logger, sub->session,
                          "Subscription %u | Register subscription "
-                         "publishing callback", sub->subscriptionId);
+                             "publishing callback", sub->subscriptionId);
 
     if(sub->publishCallbackIsRegistered)
         return UA_STATUSCODE_GOOD;
 
     UA_StatusCode retval =
         UA_Server_addRepeatedCallback(server,
-                  (UA_ServerCallback)UA_Subscription_publishCallback,
-                  sub, (UA_UInt32)sub->publishingInterval,
-                  &sub->publishCallbackId);
+                                      (UA_ServerCallback)UA_Subscription_publishCallback,
+                                      sub, (UA_UInt32)sub->publishingInterval,
+                                      &sub->publishCallbackId);
     if(retval != UA_STATUSCODE_GOOD)
         return retval;
 
@@ -464,7 +464,7 @@ UA_StatusCode
 Subscription_unregisterPublishCallback(UA_Server *server, UA_Subscription *sub) {
     UA_LOG_DEBUG_SESSION(server->config.logger, sub->session,
                          "Subscription %u | Unregister subscription "
-                         "publishing callback", sub->subscriptionId);
+                             "publishing callback", sub->subscriptionId);
 
     if(!sub->publishCallbackIsRegistered)
         return UA_STATUSCODE_GOOD;

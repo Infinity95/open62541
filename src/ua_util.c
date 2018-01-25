@@ -16,7 +16,7 @@ UA_readNumber(u8 *buf, size_t buflen, u32 *number) {
         u8 c = buf[progress];
         if(c < '0' || c > '9')
             break;
-        n = (n*10) + (u32)(c-'0');
+        n = (n * 10) + (u32)(c - '0');
         ++progress;
     }
     *number = n;
@@ -27,7 +27,7 @@ UA_StatusCode
 UA_parseEndpointUrl(const UA_String *endpointUrl, UA_String *outHostname,
                     u16 *outPort, UA_String *outPath) {
     /* Url must begin with "opc.tcp://" */
-    if(endpointUrl->length < 11 || strncmp((char*)endpointUrl->data, "opc.tcp://", 10) != 0)
+    if(endpointUrl->length < 11 || strncmp((char *)endpointUrl->data, "opc.tcp://", 10) != 0)
         return UA_STATUSCODE_BADTCPENDPOINTURLINVALID;
 
     /* Where does the hostname end? */

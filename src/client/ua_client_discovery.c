@@ -7,11 +7,11 @@
 
 UA_StatusCode
 UA_Client_getEndpoints(UA_Client *client, const char *serverUrl,
-                       size_t* endpointDescriptionsSize,
-                       UA_EndpointDescription** endpointDescriptions) {
+                       size_t *endpointDescriptionsSize,
+                       UA_EndpointDescription **endpointDescriptions) {
     UA_Boolean connected = (client->state > UA_CLIENTSTATE_DISCONNECTED);
     /* Client is already connected to a different server */
-    if(connected && strncmp((const char*)client->endpointUrl.data, serverUrl,
+    if(connected && strncmp((const char *)client->endpointUrl.data, serverUrl,
                             client->endpointUrl.length) != 0) {
         return UA_STATUSCODE_BADINVALIDARGUMENT;
     }
@@ -37,7 +37,7 @@ UA_Client_findServers(UA_Client *client, const char *serverUrl,
                       UA_ApplicationDescription **registeredServers) {
     UA_Boolean connected = (client->state > UA_CLIENTSTATE_DISCONNECTED);
     /* Client is already connected to a different server */
-    if(connected && strncmp((const char*)client->endpointUrl.data, serverUrl,
+    if(connected && strncmp((const char *)client->endpointUrl.data, serverUrl,
                             client->endpointUrl.length) != 0) {
         return UA_STATUSCODE_BADINVALIDARGUMENT;
     }
@@ -87,7 +87,7 @@ UA_Client_findServersOnNetwork(UA_Client *client, const char *serverUrl,
                                size_t *serverOnNetworkSize, UA_ServerOnNetwork **serverOnNetwork) {
     UA_Boolean connected = (client->state > UA_CLIENTSTATE_DISCONNECTED);
     /* Client is already connected to a different server */
-    if(connected && strncmp((const char*)client->endpointUrl.data, serverUrl,
+    if(connected && strncmp((const char *)client->endpointUrl.data, serverUrl,
                             client->endpointUrl.length) != 0) {
         return UA_STATUSCODE_BADINVALIDARGUMENT;
     }

@@ -40,7 +40,8 @@
 
 #include "ua_types.h"
 
-UA_DateTime UA_DateTime_now(void) {
+UA_DateTime
+UA_DateTime_now(void) {
 #if defined(_WIN32)
     /* Windows filetime has the same definition as UA_DateTime */
     FILETIME ft;
@@ -59,7 +60,8 @@ UA_DateTime UA_DateTime_now(void) {
 }
 
 /* Credit to https://stackoverflow.com/questions/13804095/get-the-time-zone-gmt-offset-in-c */
-UA_Int64 UA_DateTime_localTimeUtcOffset(void) {
+UA_Int64
+UA_DateTime_localTimeUtcOffset(void) {
     time_t gmt, rawtime = time(NULL);
 
 #ifdef _WIN32
@@ -77,10 +79,11 @@ UA_Int64 UA_DateTime_localTimeUtcOffset(void) {
     gmt = mktime(ptm);
 #endif
 
-    return (UA_Int64) (difftime(rawtime, gmt) * UA_DATETIME_SEC);
+    return (UA_Int64)(difftime(rawtime, gmt) * UA_DATETIME_SEC);
 }
 
-UA_DateTime UA_DateTime_nowMonotonic(void) {
+UA_DateTime
+UA_DateTime_nowMonotonic(void) {
 #if defined(_WIN32)
     LARGE_INTEGER freq, ticks;
     QueryPerformanceFrequency(&freq);

@@ -13,25 +13,24 @@
 #define UA_MINMESSAGESIZE 8192
 
 
- /********************/
- /* Set client state */
- /********************/
+/********************/
+/* Set client state */
+/********************/
 static void
-setClientState(UA_Client *client, UA_ClientState state)
-{
+setClientState(UA_Client *client, UA_ClientState state) {
     if(client->state != state) {
         client->state = state;
         if(client->config.stateCallback)
             client->config.stateCallback(client, client->state);
     }
 }
- /***********************/
- /* Open the Connection */
- /***********************/
+/***********************/
+/* Open the Connection */
+/***********************/
 
 static UA_StatusCode
 processACKResponse(void *application, UA_Connection *connection, UA_ByteString *chunk) {
-    UA_Client *client = (UA_Client*)application;
+    UA_Client *client = (UA_Client *)application;
 
     /* Decode the message */
     size_t offset = 0;
@@ -197,7 +196,7 @@ openSecureChannel(UA_Client *client, UA_Boolean renew) {
                                     UA_DateTime_nowMonotonic() +
                                     ((UA_DateTime)client->config.timeout * UA_DATETIME_MSEC),
                                     &requestId);
-                                    
+
     if(retval != UA_STATUSCODE_GOOD) {
         UA_Client_close(client);
         return retval;
@@ -218,14 +217,14 @@ activateSession(UA_Client *client) {
 
     //manual ExtensionObject encoding of the identityToken
     if(client->authenticationMethod == UA_CLIENTAUTHENTICATION_NONE) {
-        UA_AnonymousIdentityToken* identityToken = UA_AnonymousIdentityToken_new();
+        UA_AnonymousIdentityToken *identityToken = UA_AnonymousIdentityToken_new();
         UA_AnonymousIdentityToken_init(identityToken);
         UA_String_copy(&client->token.policyId, &identityToken->policyId);
         request.userIdentityToken.encoding = UA_EXTENSIONOBJECT_DECODED;
         request.userIdentityToken.content.decoded.type = &UA_TYPES[UA_TYPES_ANONYMOUSIDENTITYTOKEN];
         request.userIdentityToken.content.decoded.data = identityToken;
     } else {
-        UA_UserNameIdentityToken* identityToken = UA_UserNameIdentityToken_new();
+        UA_UserNameIdentityToken *identityToken = UA_UserNameIdentityToken_new();
         UA_UserNameIdentityToken_init(identityToken);
         UA_String_copy(&client->token.policyId, &identityToken->policyId);
         UA_String_copy(&client->username, &identityToken->userName);
@@ -253,8 +252,8 @@ activateSession(UA_Client *client) {
 
 /* Gets a list of endpoints. Memory is allocated for endpointDescription array */
 UA_StatusCode
-UA_Client_getEndpointsInternal(UA_Client *client, size_t* endpointDescriptionsSize,
-                               UA_EndpointDescription** endpointDescriptions) {
+UA_Client_getEndpointsInternal(UA_Client *client, size_t *endpointDescriptionsSize,
+                               UA_EndpointDescription **endpointDescriptions) {
     UA_GetEndpointsRequest request;
     UA_GetEndpointsRequest_init(&request);
     request.requestHeader.timestamp = UA_DateTime_now();
@@ -284,7 +283,7 @@ UA_Client_getEndpointsInternal(UA_Client *client, size_t* endpointDescriptionsSi
 
 static UA_StatusCode
 getEndpoints(UA_Client *client) {
-    UA_EndpointDescription* endpointArray = NULL;
+    UA_EndpointDescription *endpointArray = NULL;
     size_t endpointArraySize = 0;
     UA_StatusCode retval =
         UA_Client_getEndpointsInternal(client, &endpointArraySize, &endpointArray);
@@ -295,11 +294,11 @@ getEndpoints(UA_Client *client) {
     UA_Boolean tokenFound = false;
     UA_String securityNone = UA_STRING("http://opcfoundation.org/UA/SecurityPolicy#None");
     UA_String binaryTransport = UA_STRING("http://opcfoundation.org/UA-Profile/"
-                                          "Transport/uatcp-uasc-uabinary");
+                                              "Transport/uatcp-uasc-uabinary");
 
     // TODO: compare endpoint information with client->endpointUri
     for(size_t i = 0; i < endpointArraySize; ++i) {
-        UA_EndpointDescription* endpoint = &endpointArray[i];
+        UA_EndpointDescription *endpoint = &endpointArray[i];
         /* look out for binary transport endpoints */
         /* Note: Siemens returns empty ProfileUrl, we will accept it as binary */
         if(endpoint->transportProfileUri.length != 0 &&
@@ -314,7 +313,7 @@ getEndpoints(UA_Client *client) {
 
         /* look for a user token policy with an anonymous token */
         for(size_t j = 0; j < endpoint->userIdentityTokensSize; ++j) {
-            UA_UserTokenPolicy* userToken = &endpoint->userIdentityTokens[j];
+            UA_UserTokenPolicy *userToken = &endpoint->userIdentityTokens[j];
 
             /* Usertokens also have a security policy... */
             if(userToken->securityPolicyUri.length > 0 &&

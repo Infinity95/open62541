@@ -422,6 +422,7 @@ typedef void (*UA_NodestoreVisitor)(void *visitorContext, const UA_Node *node);
 typedef struct {
     /* Nodestore context and lifecycle */
     void *context;
+
     void (*deleteNodestore)(void *nodestoreContext);
 
     /* For non-multithreaded access, some nodestores allow that nodes are edited
@@ -433,14 +434,14 @@ typedef struct {
      * node types. The memory is managed by the nodestore. Therefore, the node
      * has to be removed via a special deleteNode function. (If the new node is
      * not added to the nodestore.) */
-    UA_Node * (*newNode)(void *nodestoreContext, UA_NodeClass nodeClass);
+    UA_Node *(*newNode)(void *nodestoreContext, UA_NodeClass nodeClass);
 
     void (*deleteNode)(void *nodestoreContext, UA_Node *node);
 
     /* ``Get`` returns a pointer to an immutable node. ``Release`` indicates
      * that the pointer is no longer accessed afterwards. */
 
-    const UA_Node * (*getNode)(void *nodestoreContext, const UA_NodeId *nodeId);
+    const UA_Node *(*getNode)(void *nodestoreContext, const UA_NodeId *nodeId);
 
     void (*releaseNode)(void *nodestoreContext, const UA_Node *node);
 
@@ -466,7 +467,7 @@ typedef struct {
     UA_StatusCode (*removeNode)(void *nodestoreContext, const UA_NodeId *nodeId);
 
     /* Execute a callback for every node in the nodestore. */
-    void (*iterate)(void *nodestoreContext, void* visitorContext,
+    void (*iterate)(void *nodestoreContext, void *visitorContext,
                     UA_NodestoreVisitor visitor);
 } UA_Nodestore;
 

@@ -44,7 +44,7 @@ UA_NumericRange_parseFromString(UA_NumericRange *range, const UA_String *str) {
         if(idx >= dimensionsMax) {
             UA_NumericRangeDimension *newds;
             size_t newdssize = sizeof(UA_NumericRangeDimension) * (dimensionsMax + 2);
-            newds = (UA_NumericRangeDimension*)UA_realloc(dimensions, newdssize);
+            newds = (UA_NumericRangeDimension *)UA_realloc(dimensions, newdssize);
             if(!newds) {
                 retval = UA_STATUSCODE_BADOUTOFMEMORY;
                 break;
@@ -145,7 +145,7 @@ isNodeInTreeNoCircular(UA_Nodestore *ns, const UA_NodeId *leafNode, const UA_Nod
 
             /* Stack-allocate the visitedRefs structure for the next depth */
             struct ref_history nextVisitedRefs = {visitedRefs, &refs->targetIds[j].nodeId,
-                                                  (UA_UInt16)(visitedRefs->depth+1)};
+                                                  (UA_UInt16)(visitedRefs->depth + 1)};
 
             /* Recurse */
             UA_Boolean foundRecursive =
@@ -176,26 +176,22 @@ getNodeType(UA_Server *server, const UA_Node *node) {
     UA_Boolean inverse;
     UA_NodeClass typeNodeClass;
     switch(node->nodeClass) {
-    case UA_NODECLASS_OBJECT:
-        parentRef = UA_NODEID_NUMERIC(0, UA_NS0ID_HASTYPEDEFINITION);
+    case UA_NODECLASS_OBJECT:parentRef = UA_NODEID_NUMERIC(0, UA_NS0ID_HASTYPEDEFINITION);
         inverse = false;
         typeNodeClass = UA_NODECLASS_OBJECTTYPE;
         break;
-    case UA_NODECLASS_VARIABLE:
-        parentRef = UA_NODEID_NUMERIC(0, UA_NS0ID_HASTYPEDEFINITION);
+    case UA_NODECLASS_VARIABLE:parentRef = UA_NODEID_NUMERIC(0, UA_NS0ID_HASTYPEDEFINITION);
         inverse = false;
         typeNodeClass = UA_NODECLASS_VARIABLETYPE;
         break;
     case UA_NODECLASS_OBJECTTYPE:
     case UA_NODECLASS_VARIABLETYPE:
     case UA_NODECLASS_REFERENCETYPE:
-    case UA_NODECLASS_DATATYPE:
-        parentRef = UA_NODEID_NUMERIC(0, UA_NS0ID_HASSUBTYPE);
+    case UA_NODECLASS_DATATYPE:parentRef = UA_NODEID_NUMERIC(0, UA_NS0ID_HASSUBTYPE);
         inverse = true;
         typeNodeClass = node->nodeClass;
         break;
-    default:
-        return NULL;
+    default:return NULL;
     }
 
     /* Return the first matching candidate */
@@ -264,7 +260,7 @@ getTypeHierarchyFromNode(UA_NodeId **results_ptr, size_t *results_count,
             /* Increase array length if necessary */
             if(*results_count >= *results_size) {
                 size_t new_size = sizeof(UA_NodeId) * (*results_size) * 2;
-                UA_NodeId *new_results = (UA_NodeId*)UA_realloc(results, new_size);
+                UA_NodeId *new_results = (UA_NodeId *)UA_realloc(results, new_size);
                 if(!new_results) {
                     UA_Array_delete(results, *results_count, &UA_TYPES[UA_TYPES_NODEID]);
                     return UA_STATUSCODE_BADOUTOFMEMORY;
@@ -291,7 +287,7 @@ getTypeHierarchy(UA_Nodestore *ns, const UA_NodeId *leafType,
                  UA_NodeId **typeHierarchy, size_t *typeHierarchySize) {
     /* Allocate the results array. Probably too big, but saves mallocs. */
     size_t results_size = 20;
-    UA_NodeId *results = (UA_NodeId*)UA_malloc(sizeof(UA_NodeId) * results_size);
+    UA_NodeId *results = (UA_NodeId *)UA_malloc(sizeof(UA_NodeId) * results_size);
     if(!results)
         return UA_STATUSCODE_BADOUTOFMEMORY;
 
@@ -310,8 +306,8 @@ getTypeHierarchy(UA_Nodestore *ns, const UA_NodeId *leafType,
 
         /* Invalid node, remove from the array */
         if(!node) {
-            for(size_t i = idx; i < results_count-1; ++i)
-                results[i] = results[i+1];
+            for(size_t i = idx; i < results_count - 1; ++i)
+                results[i] = results[i + 1];
             results_count--;
             continue;
         }
@@ -351,7 +347,7 @@ UA_Server_editNode(UA_Server *server, UA_Session *session,
     if(!node)
         return UA_STATUSCODE_BADNODEIDUNKNOWN;
     UA_StatusCode retval = callback(server, session,
-                                    (UA_Node*)(uintptr_t)node, data);
+                                    (UA_Node *)(uintptr_t)node, data);
     UA_Nodestore_release(server, node);
     return retval;
 #else
@@ -386,7 +382,7 @@ UA_Server_processServiceOperations(UA_Server *server, UA_Session *session,
         return UA_STATUSCODE_BADNOTHINGTODO;
 
     /* No padding after size_t */
-    void **respPos = (void**)((uintptr_t)responseOperations + sizeof(size_t));
+    void **respPos = (void **)((uintptr_t)responseOperations + sizeof(size_t));
     *respPos = UA_Array_new(ops, responseOperationsType);
     if(!(*respPos))
         return UA_STATUSCODE_BADOUTOFMEMORY;
@@ -394,9 +390,9 @@ UA_Server_processServiceOperations(UA_Server *server, UA_Session *session,
     *responseOperations = ops;
     uintptr_t respOp = (uintptr_t)*respPos;
     /* No padding after size_t */
-    uintptr_t reqOp = *(uintptr_t*)((uintptr_t)requestOperations + sizeof(size_t));
+    uintptr_t reqOp = *(uintptr_t *)((uintptr_t)requestOperations + sizeof(size_t));
     for(size_t i = 0; i < ops; i++) {
-        operationCallback(server, session, context, (void*)reqOp, (void*)respOp);
+        operationCallback(server, session, context, (void *)reqOp, (void *)respOp);
         reqOp += requestOperationsType->memSize;
         respOp += responseOperationsType->memSize;
     }

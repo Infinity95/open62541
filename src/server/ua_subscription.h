@@ -57,11 +57,20 @@ typedef struct UA_MonitoredItem {
     QueuedValueQueue queue;
 } UA_MonitoredItem;
 
-UA_MonitoredItem * UA_MonitoredItem_new(void);
-void MonitoredItem_delete(UA_Server *server, UA_MonitoredItem *monitoredItem);
-void UA_MoniteredItem_SampleCallback(UA_Server *server, UA_MonitoredItem *monitoredItem);
-UA_StatusCode MonitoredItem_registerSampleCallback(UA_Server *server, UA_MonitoredItem *mon);
-UA_StatusCode MonitoredItem_unregisterSampleCallback(UA_Server *server, UA_MonitoredItem *mon);
+UA_MonitoredItem *
+UA_MonitoredItem_new(void);
+
+void
+MonitoredItem_delete(UA_Server *server, UA_MonitoredItem *monitoredItem);
+
+void
+UA_MoniteredItem_SampleCallback(UA_Server *server, UA_MonitoredItem *monitoredItem);
+
+UA_StatusCode
+MonitoredItem_registerSampleCallback(UA_Server *server, UA_MonitoredItem *mon);
+
+UA_StatusCode
+MonitoredItem_unregisterSampleCallback(UA_Server *server, UA_MonitoredItem *mon);
 
 /****************/
 /* Subscription */
@@ -76,7 +85,7 @@ typedef struct UA_NotificationMessageEntry {
 typedef enum {
     /* UA_SUBSCRIPTIONSTATE_CLOSED */
     /* UA_SUBSCRIPTIONSTATE_CREATING */
-    UA_SUBSCRIPTIONSTATE_NORMAL,
+        UA_SUBSCRIPTIONSTATE_NORMAL,
     UA_SUBSCRIPTIONSTATE_LATE,
     UA_SUBSCRIPTIONSTATE_KEEPALIVE
 } UA_SubscriptionState;
@@ -119,10 +128,17 @@ struct UA_Subscription {
     UA_UInt32 retransmissionQueueSize;
 };
 
-UA_Subscription * UA_Subscription_new(UA_Session *session, UA_UInt32 subscriptionId);
-void UA_Subscription_deleteMembers(UA_Subscription *subscription, UA_Server *server);
-UA_StatusCode Subscription_registerPublishCallback(UA_Server *server, UA_Subscription *sub);
-UA_StatusCode Subscription_unregisterPublishCallback(UA_Server *server, UA_Subscription *sub);
+UA_Subscription *
+UA_Subscription_new(UA_Session *session, UA_UInt32 subscriptionId);
+
+void
+UA_Subscription_deleteMembers(UA_Subscription *subscription, UA_Server *server);
+
+UA_StatusCode
+Subscription_registerPublishCallback(UA_Server *server, UA_Subscription *sub);
+
+UA_StatusCode
+Subscription_unregisterPublishCallback(UA_Server *server, UA_Subscription *sub);
 
 UA_StatusCode
 UA_Subscription_deleteMonitoredItem(UA_Server *server, UA_Subscription *sub,
@@ -131,13 +147,15 @@ UA_Subscription_deleteMonitoredItem(UA_Server *server, UA_Subscription *sub,
 void
 UA_Subscription_addMonitoredItem(UA_Subscription *sub,
                                  UA_MonitoredItem *newMon);
+
 UA_UInt32
 UA_Subscription_getNumMonitoredItems(UA_Subscription *sub);
 
 UA_MonitoredItem *
 UA_Subscription_getMonitoredItem(UA_Subscription *sub, UA_UInt32 monitoredItemId);
 
-void UA_Subscription_publishCallback(UA_Server *server, UA_Subscription *sub);
+void
+UA_Subscription_publishCallback(UA_Server *server, UA_Subscription *sub);
 
 UA_StatusCode
 UA_Subscription_removeRetransmissionMessage(UA_Subscription *sub, UA_UInt32 sequenceNumber);
@@ -146,5 +164,6 @@ void
 UA_Subscription_answerPublishRequestsNoSubscription(UA_Server *server, UA_Session *session);
 
 UA_Boolean
-UA_Subscription_reachedPublishReqLimit(UA_Server *server,  UA_Session *session);
+UA_Subscription_reachedPublishReqLimit(UA_Server *server, UA_Session *session);
+
 #endif /* UA_SUBSCRIPTION_H_ */

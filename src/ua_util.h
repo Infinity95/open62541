@@ -66,7 +66,7 @@ typedef UA_StatusCode status;
 #endif
 
 static UA_INLINE void *
-UA_atomic_xchg(void * volatile * addr, void *newptr) {
+UA_atomic_xchg(void *volatile *addr, void *newptr) {
 #ifndef UA_ENABLE_MULTITHREADING
     void *old = *addr;
     *addr = newptr;
@@ -81,7 +81,7 @@ UA_atomic_xchg(void * volatile * addr, void *newptr) {
 }
 
 static UA_INLINE void *
-UA_atomic_cmpxchg(void * volatile * addr, void *expected, void *newptr) {
+UA_atomic_cmpxchg(void *volatile *addr, void *expected, void *newptr) {
 #ifndef UA_ENABLE_MULTITHREADING
     void *old = *addr;
     if(old == expected) {
@@ -117,10 +117,11 @@ UA_atomic_add(volatile uint32_t *addr, uint32_t increase) {
 /* Convert given byte string to a positive number. Returns the number of valid
  * digits. Stops if a non-digit char is found and returns the number of digits
  * up to that point. */
-size_t UA_readNumber(u8 *buf, size_t buflen, u32 *number);
+size_t
+UA_readNumber(u8 *buf, size_t buflen, u32 *number);
 
-#define MIN(A,B) (A > B ? B : A)
-#define MAX(A,B) (A > B ? A : B)
+#define MIN(A, B) (A > B ? B : A)
+#define MAX(A, B) (A > B ? A : B)
 
 #ifdef UA_DEBUG_DUMP_PKGS
 void UA_EXPORT UA_dump_hex_pkg(UA_Byte* buffer, size_t bufferLen);

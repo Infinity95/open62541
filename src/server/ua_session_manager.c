@@ -13,7 +13,8 @@ UA_SessionManager_init(UA_SessionManager *sm, UA_Server *server) {
     return UA_STATUSCODE_GOOD;
 }
 
-void UA_SessionManager_deleteMembers(UA_SessionManager *sm) {
+void
+UA_SessionManager_deleteMembers(UA_SessionManager *sm) {
     session_list_entry *current, *temp;
     LIST_FOREACH_SAFE(current, &sm->sessions, pointers, temp) {
         LIST_REMOVE(current, pointers);
@@ -25,7 +26,7 @@ void UA_SessionManager_deleteMembers(UA_SessionManager *sm) {
 /* Delayed callback to free the session memory */
 static void
 removeSessionCallback(UA_Server *server, void *entry) {
-    session_list_entry *sentry = (session_list_entry*)entry;
+    session_list_entry *sentry = (session_list_entry *)entry;
     UA_Session_deleteMembersCleanup(&sentry->session, server);
     UA_free(sentry);
 }
@@ -43,8 +44,8 @@ removeSession(UA_SessionManager *sm, session_list_entry *sentry) {
     UA_StatusCode retval = UA_Server_delayedCallback(sm->server, removeSessionCallback, sentry);
     if(retval != UA_STATUSCODE_GOOD) {
         UA_LOG_WARNING_SESSION(sm->server->config.logger, &sentry->session,
-                       "Could not remove session with error code %s",
-                       UA_StatusCode_name(retval));
+                               "Could not remove session with error code %s",
+                               UA_StatusCode_name(retval));
         return retval; /* Try again next time */
     }
 

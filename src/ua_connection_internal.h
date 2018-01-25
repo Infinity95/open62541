@@ -62,9 +62,12 @@ void
 UA_Connection_sendError(UA_Connection *connection,
                         UA_TcpErrorMessage *error);
 
-void UA_Connection_detachSecureChannel(UA_Connection *connection);
-void UA_Connection_attachSecureChannel(UA_Connection *connection,
-                                       UA_SecureChannel *channel);
+void
+UA_Connection_detachSecureChannel(UA_Connection *connection);
+
+void
+UA_Connection_attachSecureChannel(UA_Connection *connection,
+                                  UA_SecureChannel *channel);
 
 #ifdef __cplusplus
 } // extern "C"

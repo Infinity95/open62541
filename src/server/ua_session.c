@@ -9,17 +9,17 @@
 
 UA_Session adminSession = {
     {{NULL, NULL}, /* .pointers */
-     {0,UA_NODEIDTYPE_NUMERIC,{1}}, /* .authenticationToken */
+     {0, UA_NODEIDTYPE_NUMERIC, {1}}, /* .authenticationToken */
      NULL,}, /* .channel */
-    {{0, NULL},{0, NULL},
-     {{0, NULL},{0, NULL}},
+    {{0, NULL}, {0, NULL},
+     {{0, NULL}, {0, NULL}},
      UA_APPLICATIONTYPE_CLIENT,
-     {0, NULL},{0, NULL},
+     {0, NULL}, {0, NULL},
      0, NULL}, /* .clientDescription */
-    {sizeof("Administrator Session")-1, (UA_Byte*)"Administrator Session"}, /* .sessionName */
+    {sizeof("Administrator Session") - 1, (UA_Byte *)"Administrator Session"}, /* .sessionName */
     false, /* .activated */
     NULL, /* .sessionHandle */
-    {0,UA_NODEIDTYPE_NUMERIC,{1}}, /* .sessionId */
+    {0, UA_NODEIDTYPE_NUMERIC, {1}}, /* .sessionId */
     UA_UINT32_MAX, /* .maxRequestMessageSize */
     UA_UINT32_MAX, /* .maxResponseMessageSize */
     (UA_Double)UA_INT64_MAX, /* .timeout */
@@ -37,7 +37,8 @@ UA_Session adminSession = {
 #endif
 };
 
-void UA_Session_init(UA_Session *session) {
+void
+UA_Session_init(UA_Session *session) {
     memset(session, 0, sizeof(UA_Session));
     session->availableContinuationPoints = UA_MAXCONTINUATIONPOINTS;
 #ifdef UA_ENABLE_SUBSCRIPTIONS
@@ -45,7 +46,8 @@ void UA_Session_init(UA_Session *session) {
 #endif
 }
 
-void UA_Session_deleteMembersCleanup(UA_Session *session, UA_Server* server) {
+void
+UA_Session_deleteMembersCleanup(UA_Session *session, UA_Server *server) {
     UA_Session_detachFromSecureChannel(session);
     UA_ApplicationDescription_deleteMembers(&session->clientDescription);
     UA_NodeId_deleteMembers(&session->header.authenticationToken);
@@ -68,33 +70,37 @@ void UA_Session_deleteMembersCleanup(UA_Session *session, UA_Server* server) {
     }
     UA_PublishResponseEntry *entry;
     while((entry = UA_Session_getPublishReq(session))) {
-        UA_Session_removePublishReq(session,entry);
+        UA_Session_removePublishReq(session, entry);
         UA_PublishResponse_deleteMembers(&entry->response);
         UA_free(entry);
     }
 #endif
 }
 
-void UA_Session_attachToSecureChannel(UA_Session *session, UA_SecureChannel *channel) {
+void
+UA_Session_attachToSecureChannel(UA_Session *session, UA_SecureChannel *channel) {
     LIST_INSERT_HEAD(&channel->sessions, &session->header, pointers);
     session->header.channel = channel;
 }
 
-void UA_Session_detachFromSecureChannel(UA_Session *session) {
+void
+UA_Session_detachFromSecureChannel(UA_Session *session) {
     if(!session->header.channel)
         return;
     session->header.channel = NULL;
     LIST_REMOVE(&session->header, pointers);
 }
 
-void UA_Session_updateLifetime(UA_Session *session) {
+void
+UA_Session_updateLifetime(UA_Session *session) {
     session->validTill = UA_DateTime_nowMonotonic() +
-        (UA_DateTime)(session->timeout * UA_DATETIME_MSEC);
+                         (UA_DateTime)(session->timeout * UA_DATETIME_MSEC);
 }
 
 #ifdef UA_ENABLE_SUBSCRIPTIONS
 
-void UA_Session_addSubscription(UA_Session *session, UA_Subscription *newSubscription) {
+void
+UA_Session_addSubscription(UA_Session *session, UA_Subscription *newSubscription) {
     session->numSubscriptions++;
     LIST_INSERT_HEAD(&session->serverSubscriptions, newSubscription, listEntry);
 }
@@ -111,8 +117,7 @@ UA_Session_deleteSubscription(UA_Server *server, UA_Session *session,
     UA_free(sub);
     if(session->numSubscriptions > 0) {
         session->numSubscriptions--;
-    }
-    else {
+    } else {
         return UA_STATUSCODE_BADINTERNALERROR;
     }
 
@@ -120,8 +125,8 @@ UA_Session_deleteSubscription(UA_Server *server, UA_Session *session,
 }
 
 UA_UInt32
-UA_Session_getNumSubscriptions( UA_Session *session ) {
-   return session->numSubscriptions;
+UA_Session_getNumSubscriptions(UA_Session *session) {
+    return session->numSubscriptions;
 }
 
 UA_Subscription *
@@ -134,7 +139,8 @@ UA_Session_getSubscriptionById(UA_Session *session, UA_UInt32 subscriptionId) {
     return sub;
 }
 
-UA_UInt32 UA_Session_getUniqueSubscriptionId(UA_Session *session) {
+UA_UInt32
+UA_Session_getUniqueSubscriptionId(UA_Session *session) {
     return ++(session->lastSubscriptionId);
 }
 
@@ -143,14 +149,14 @@ UA_Session_getNumPublishReq(UA_Session *session) {
     return session->numPublishReq;
 }
 
-UA_PublishResponseEntry*
+UA_PublishResponseEntry *
 UA_Session_getPublishReq(UA_Session *session) {
     return SIMPLEQ_FIRST(&session->responseQueue);
 }
 
 void
-UA_Session_removePublishReq( UA_Session *session, UA_PublishResponseEntry* entry) {
-    UA_PublishResponseEntry* firstEntry;
+UA_Session_removePublishReq(UA_Session *session, UA_PublishResponseEntry *entry) {
+    UA_PublishResponseEntry *firstEntry;
     firstEntry = SIMPLEQ_FIRST(&session->responseQueue);
 
     /* Remove the response from the response queue */
@@ -160,7 +166,8 @@ UA_Session_removePublishReq( UA_Session *session, UA_PublishResponseEntry* entry
     }
 }
 
-void UA_Session_addPublishReq( UA_Session *session, UA_PublishResponseEntry* entry) {
+void
+UA_Session_addPublishReq(UA_Session *session, UA_PublishResponseEntry *entry) {
     SIMPLEQ_INSERT_TAIL(&session->responseQueue, entry, listEntry);
     session->numPublishReq++;
 }

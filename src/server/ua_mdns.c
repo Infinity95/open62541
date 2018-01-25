@@ -58,18 +58,19 @@ static char *ua_strdup(const char *s) {
  * This function uses the ELF hashing algorithm as reprinted in
  * Andrew Binstock, "Hashing Rehashed," Dr. Dobb's Journal, April 1996.
  */
-static int mdns_hash_record(const char *s) {
+static int
+mdns_hash_record(const char *s) {
     /* ELF hash uses unsigned chars and unsigned arithmetic for portability */
-    const unsigned char *name = (const unsigned char *) s;
+    const unsigned char *name = (const unsigned char *)s;
     unsigned long h = 0;
     while(*name) {
-        h = (h << 4) + (unsigned long) (*name++);
+        h = (h << 4) + (unsigned long)(*name++);
         unsigned long g;
         if((g = (h & 0xF0000000UL)) != 0)
             h ^= (g >> 24);
         h &= ~g;
     }
-    return (int) h;
+    return (int)h;
 }
 
 static struct serverOnNetwork_list_entry *
@@ -85,7 +86,7 @@ mdns_record_add_or_get(UA_Server *server, const char *record, const char *server
         else
             maxLen = serverNameLen;
 
-        if(strncmp((char *) hash_entry->entry->serverOnNetwork.serverName.data, serverName, maxLen) == 0)
+        if(strncmp((char *)hash_entry->entry->serverOnNetwork.serverName.data, serverName, maxLen) == 0)
             return hash_entry->entry;
         hash_entry = hash_entry->next;
     }
@@ -96,7 +97,7 @@ mdns_record_add_or_get(UA_Server *server, const char *record, const char *server
     // not yet in list, create new one
     // todo: malloc may fail: return a statuscode
     struct serverOnNetwork_list_entry *listEntry =
-            (serverOnNetwork_list_entry*)UA_malloc(sizeof(struct serverOnNetwork_list_entry));
+        (serverOnNetwork_list_entry *)UA_malloc(sizeof(struct serverOnNetwork_list_entry));
     listEntry->created = UA_DateTime_now();
     listEntry->pathTmp = NULL;
     listEntry->txtSet = UA_FALSE;
@@ -105,7 +106,7 @@ mdns_record_add_or_get(UA_Server *server, const char *record, const char *server
     listEntry->serverOnNetwork.recordId = server->serverOnNetworkRecordIdCounter;
     listEntry->serverOnNetwork.serverName.length = serverNameLen;
     // todo: malloc may fail: return a statuscode
-    listEntry->serverOnNetwork.serverName.data = (UA_Byte*)UA_malloc(serverNameLen);
+    listEntry->serverOnNetwork.serverName.data = (UA_Byte *)UA_malloc(serverNameLen);
     memcpy(listEntry->serverOnNetwork.serverName.data, serverName, serverNameLen);
     server->serverOnNetworkRecordIdCounter = UA_atomic_add(&server->serverOnNetworkRecordIdCounter, 1);
     if(server->serverOnNetworkRecordIdCounter == 0)
@@ -114,7 +115,7 @@ mdns_record_add_or_get(UA_Server *server, const char *record, const char *server
     // add to hash
     // todo: malloc may fail: return a statuscode
     struct serverOnNetwork_hash_entry *newHashEntry =
-            (struct serverOnNetwork_hash_entry*)UA_malloc(sizeof(struct serverOnNetwork_hash_entry));
+        (struct serverOnNetwork_hash_entry *)UA_malloc(sizeof(struct serverOnNetwork_hash_entry));
     newHashEntry->next = server->serverOnNetworkHash[hashIdx];
     server->serverOnNetworkHash[hashIdx] = newHashEntry;
     newHashEntry->entry = listEntry;
@@ -178,7 +179,7 @@ mdns_append_path_to_url(UA_String *url, const char *path) {
     memcpy(newUrl, url->data, url->length);
     memcpy(newUrl + url->length, path, pathLen);
     url->length = url->length + pathLen;
-    url->data = (UA_Byte *) newUrl;
+    url->data = (UA_Byte *)newUrl;
 }
 
 static void
@@ -186,8 +187,8 @@ setTxt(const struct resource *r,
        struct serverOnNetwork_list_entry *entry) {
     entry->txtSet = UA_TRUE;
     xht_t *x = txt2sd(r->rdata, r->rdlength);
-    char *path = (char *) xht_get(x, "path");
-    char *caps = (char *) xht_get(x, "caps");
+    char *path = (char *)xht_get(x, "path");
+    char *caps = (char *)xht_get(x, "caps");
 
     if(path && strlen(path) > 1) {
         if(!entry->srvSet) {
@@ -211,14 +212,14 @@ setTxt(const struct resource *r,
         /* set capabilities */
         entry->serverOnNetwork.serverCapabilitiesSize = capsCount;
         entry->serverOnNetwork.serverCapabilities =
-            (UA_String *) UA_Array_new(capsCount, &UA_TYPES[UA_TYPES_STRING]);
+            (UA_String *)UA_Array_new(capsCount, &UA_TYPES[UA_TYPES_STRING]);
 
         for(size_t i = 0; i < capsCount; i++) {
             char *nextStr = strchr(caps, ',');
-            size_t len = nextStr ? (size_t) (nextStr - caps) : strlen(caps);
+            size_t len = nextStr ? (size_t)(nextStr - caps) : strlen(caps);
             entry->serverOnNetwork.serverCapabilities[i].length = len;
             // todo: malloc may fail: return a statuscode
-            entry->serverOnNetwork.serverCapabilities[i].data = (UA_Byte*)UA_malloc(len);
+            entry->serverOnNetwork.serverCapabilities[i].data = (UA_Byte *)UA_malloc(len);
             memcpy(entry->serverOnNetwork.serverCapabilities[i].data, caps, len);
             if(nextStr)
                 caps = nextStr + 1;
@@ -241,14 +242,14 @@ setSrv(UA_Server *server, const struct resource *r,
         srvNameLen--;
 
     // todo: malloc may fail: return a statuscode
-    char *newUrl = (char*)UA_malloc(10 + srvNameLen + 8);
-    #ifndef _MSC_VER
-    snprintf(newUrl, 10 + srvNameLen + 8, "opc.tcp://%.*s:%d/", (int) srvNameLen,
+    char *newUrl = (char *)UA_malloc(10 + srvNameLen + 8);
+#ifndef _MSC_VER
+    snprintf(newUrl, 10 + srvNameLen + 8, "opc.tcp://%.*s:%d/", (int)srvNameLen,
              r->known.srv.name, r->known.srv.port);
-    #else
+#else
     _snprintf_s(newUrl, 10 + srvNameLen + 8, _TRUNCATE, "opc.tcp://%.*s:%d/", (int) srvNameLen,
              r->known.srv.name, r->known.srv.port);
-    #endif
+#endif
 
     UA_LOG_INFO(server->config.logger, UA_LOGCATEGORY_SERVER,
                 "Multicast DNS: found server: %s", newUrl);
@@ -263,8 +264,9 @@ setSrv(UA_Server *server, const struct resource *r,
 
 
 /* This will be called by the mDNS library on every record which is received */
-void mdns_record_received(const struct resource *r, void *data) {
-    UA_Server *server = (UA_Server *) data;
+void
+mdns_record_received(const struct resource *r, void *data) {
+    UA_Server *server = (UA_Server *)data;
     /* we only need SRV and TXT records */
     // TODO: remove magic number
     if((r->clazz != QCLASS_IN && r->clazz != QCLASS_IN + 32768) ||
@@ -277,14 +279,14 @@ void mdns_record_received(const struct resource *r, void *data) {
         return;
 
     /* Compute the length of the servername */
-    size_t servernameLen = (size_t) (opcStr - r->name);
+    size_t servernameLen = (size_t)(opcStr - r->name);
     if(servernameLen == 0)
         return;
     servernameLen--; // remove point
 
     /* Get entry */
     struct serverOnNetwork_list_entry *entry =
-            mdns_record_add_or_get(server, r->name, r->name, servernameLen, r->ttl > 0);
+        mdns_record_add_or_get(server, r->name, r->name, servernameLen, r->ttl > 0);
     if(!entry)
         return;
 
@@ -308,7 +310,7 @@ void mdns_record_received(const struct resource *r, void *data) {
     /* Add the resources */
     if(r->type == QTYPE_TXT && !entry->txtSet)
         setTxt(r, entry);
-    else if (r->type == QTYPE_SRV && !entry->srvSet)
+    else if(r->type == QTYPE_SRV && !entry->srvSet)
         setSrv(server, r, entry);
 
     /* Call callback to announce a new server */
@@ -317,9 +319,10 @@ void mdns_record_received(const struct resource *r, void *data) {
                                         entry->txtSet, server->serverOnNetworkCallbackData);
 }
 
-void mdns_create_txt(UA_Server *server, const char *fullServiceDomain, const char *path,
-                     const UA_String *capabilites, const size_t *capabilitiesSize,
-                     void (*conflict)(char *host, int type, void *arg)) {
+void
+mdns_create_txt(UA_Server *server, const char *fullServiceDomain, const char *path,
+                const UA_String *capabilites, const size_t *capabilitiesSize,
+                void (*conflict)(char *host, int type, void *arg)) {
     mdns_record_t *r = mdnsd_unique(server->mdnsDaemon, fullServiceDomain, QTYPE_TXT,
                                     600, conflict, server);
     xht_t *h = xht_new(11);
@@ -333,7 +336,7 @@ void mdns_create_txt(UA_Server *server, const char *fullServiceDomain, const cha
             allocPath = UA_STRDUP(path);
         else {
             // todo: malloc may fail: return a statuscode
-            allocPath = (char*)UA_malloc(strlen(path) + 2);
+            allocPath = (char *)UA_malloc(strlen(path) + 2);
             allocPath[0] = '/';
             memcpy(allocPath + 1, path, strlen(path));
             allocPath[strlen(path) + 1] = '\0';
@@ -352,10 +355,10 @@ void mdns_create_txt(UA_Server *server, const char *fullServiceDomain, const cha
     if(capsLen) {
         // freed when xht_free is called
         // todo: malloc may fail: return a statuscode
-        caps = (char*)UA_malloc(sizeof(char) * capsLen);
+        caps = (char *)UA_malloc(sizeof(char) * capsLen);
         size_t idx = 0;
         for(size_t i = 0; i < *capabilitiesSize; i++) {
-            memcpy(caps + idx, (const char *) capabilites[i].data, capabilites[i].length);
+            memcpy(caps + idx, (const char *)capabilites[i].data, capabilites[i].length);
             idx += capabilites[i].length + 1;
             caps[idx - 1] = ',';
         }
@@ -373,7 +376,7 @@ void mdns_create_txt(UA_Server *server, const char *fullServiceDomain, const cha
     if(caps)
         UA_free(caps);
     xht_free(h);
-    mdnsd_set_raw(server->mdnsDaemon, r, (char *) packet, (unsigned short) txtRecordLength);
+    mdnsd_set_raw(server->mdnsDaemon, r, (char *)packet, (unsigned short)txtRecordLength);
     UA_free(packet);
 }
 
@@ -401,7 +404,7 @@ mdns_set_address_record_if(UA_Server *server, const char *fullServiceDomain,
     // [servername]-[hostname]._opcua-tcp._tcp.local. A [ip].
     mdns_record_t *r = mdnsd_shared(server->mdnsDaemon, fullServiceDomain, QTYPE_A, 600);
     mdnsd_set_raw(server->mdnsDaemon, r, addr, addr_len);
-    
+
     // [hostname]. A [ip].
     r = mdnsd_shared(server->mdnsDaemon, localDomain, QTYPE_A, 600);
     mdnsd_set_raw(server->mdnsDaemon, r, addr, addr_len);
@@ -510,8 +513,9 @@ void mdns_set_address_record(UA_Server *server, const char *fullServiceDomain,
 
 #else //_WIN32
 
-void mdns_set_address_record(UA_Server *server, const char *fullServiceDomain,
-                             const char *localDomain) {
+void
+mdns_set_address_record(UA_Server *server, const char *fullServiceDomain,
+                        const char *localDomain) {
     struct ifaddrs *ifaddr, *ifa;
     if(getifaddrs(&ifaddr) == -1) {
         UA_LOG_ERROR(server->config.logger, UA_LOGCATEGORY_SERVER,
@@ -526,15 +530,15 @@ void mdns_set_address_record(UA_Server *server, const char *fullServiceDomain,
             continue;
 
         if((strcmp("lo", ifa->ifa_name) == 0) ||
-           !(ifa->ifa_flags & (IFF_RUNNING))||
+           !(ifa->ifa_flags & (IFF_RUNNING)) ||
            !(ifa->ifa_flags & (IFF_MULTICAST)))
             continue;
 
         /* IPv4 */
         if(ifa->ifa_addr->sa_family == AF_INET) {
-            struct sockaddr_in* sa = (struct sockaddr_in*) ifa->ifa_addr;
+            struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
             mdns_set_address_record_if(server, fullServiceDomain, localDomain,
-                                       (char*)&sa->sin_addr.s_addr, 4);
+                                       (char *)&sa->sin_addr.s_addr, 4);
         }
 
         /* IPv6 not implemented yet */

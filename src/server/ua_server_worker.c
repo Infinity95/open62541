@@ -162,7 +162,7 @@ UA_StatusCode
 UA_Server_delayedCallback(UA_Server *server, UA_ServerCallback callback,
                           void *data) {
     UA_DelayedCallback *dc =
-        (UA_DelayedCallback*)UA_malloc(sizeof(UA_DelayedCallback));
+        (UA_DelayedCallback *)UA_malloc(sizeof(UA_DelayedCallback));
     if(!dc)
         return UA_STATUSCODE_BADOUTOFMEMORY;
 
@@ -395,7 +395,7 @@ UA_Server_run_shutdown(UA_Server *server) {
     /* Execute the remaining callbacks in the dispatch queue.
      * This also executes the delayed callbacks. */
     emptyDispatchQueue(server);
-    
+
 #endif
 
     /* Stop multicast discovery */
