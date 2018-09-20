@@ -2,7 +2,7 @@
 // Created by giraud on 07.09.18.
 //
 
-#include "ua_network_manager.h"
+#include "ua_network_managers.h"
 #include "../deps/queue.h"
 
 typedef struct SocketListEntry {
@@ -13,19 +13,13 @@ typedef struct SocketListEntry {
 typedef struct {
     UA_Logger logger;
     LIST_HEAD(, SocketListEntry) sockets;
+    fd_set activeSocketFDs;
+    UA_Int32 highestFD;
 } NetworkManagerData;
 
-UA_StatusCode
-UA_NetworkManager_addSocket(UA_NetworkManager *networkManager,
-                            UA_Socket socket) {
 
-
-    return UA_STATUSCODE_GOOD;
-}
-
-
-UA_StatusCode
-UA_NetworkManager_init(UA_NetworkManager *networkManager, UA_Logger logger) {
+static UA_StatusCode
+UA_SelectBasedNetworkManager_init(UA_NetworkManager *networkManager, UA_Logger logger) {
     networkManager->internalData = UA_malloc(sizeof(NetworkManagerData));
     if(networkManager->internalData == NULL) {
         return UA_STATUSCODE_BADOUTOFMEMORY;
@@ -59,17 +53,19 @@ markFileDescriptorsToSelect(NetworkManagerData *networkManagerData, fd_set *fdse
     return highestfd;
 }
 
-UA_StatusCode
-UA_NetworkManager_process(UA_NetworkManager *networkManager, UA_Int32 timeout) {
+static UA_StatusCode
+UA_SelectBasedNetworkManager_listen(UA_NetworkManager *networkManager, UA_Int32 timeout) {
     UA_StatusCode retval = UA_STATUSCODE_GOOD;
 
     NetworkManagerData *networkManagerData = (NetworkManagerData *)networkManager->internalData;
-    /* Listen on open sockets (including the server) */
-    fd_set fdset, errset;
-    UA_Int32 highestfd = markFileDescriptorsToSelect(networkManagerData, &fdset);
-    markFileDescriptorsToSelect(networkManagerData, &errset);
+
+    fd_set fdset = networkManagerData->activeSocketFDs;
+    fd_set errset = networkManagerData->activeSocketFDs;
+    // UA_Int32 highestfd = markFileDescriptorsToSelect(networkManagerData, &fdset);
+    // markFileDescriptorsToSelect(networkManagerData, &errset);
     struct timeval tmptv = {0, timeout * 1000};
-    if(UA_select(highestfd + 1, &fdset, NULL, &errset, &tmptv) < 0) {
+    int active_fds = UA_select(networkManagerData->highestFD + 1, &fdset, NULL, &errset, &tmptv);
+    if(active_fds < 0) {
         UA_LOG_SOCKET_ERRNO_WRAP(
             UA_LOG_WARNING(networkManagerData->logger, UA_LOGCATEGORY_NETWORK,
                            "Socket select failed with %s", errno_str));
@@ -80,14 +76,19 @@ UA_NetworkManager_process(UA_NetworkManager *networkManager, UA_Int32 timeout) {
     SocketListEntry *socketListEntry, *e_tmp;
     UA_DateTime now = UA_DateTime_nowMonotonic();
     LIST_FOREACH_SAFE(socketListEntry, &networkManagerData->sockets, pointers, e_tmp) {
+        // break because all active fds have already been processed.
+        if(active_fds <= 0)
+            break;
+
         UA_Socket *socket = &socketListEntry->socket;
+        UA_Socket_internalData *socket_internalData = (UA_Socket_internalData *)socket->internalData;
         if(socket->getFileDescriptor == NULL) {
             UA_LOG_WARNING(networkManagerData->logger, UA_LOGCATEGORY_NETWORK,
                            "Socket does not support select. Skipping");
             continue;
         }
         int fd = socket->getFileDescriptor();
-        if(socket->timeoutCheckCallback(now) != UA_STATUSCODE_GOOD) {
+        if(socket_internalData->timeoutCheckCallback(now) != UA_STATUSCODE_GOOD) {
             LIST_REMOVE(socketListEntry, pointers);
             continue;
         }
@@ -98,23 +99,32 @@ UA_NetworkManager_process(UA_NetworkManager *networkManager, UA_Int32 timeout) {
         UA_LOG_TRACE(networkManagerData->logger, UA_LOGCATEGORY_NETWORK,
                      "Connection %i | Activity on the socket", fd);
 
-        retval = socket->activityCallback();
+        retval = socket_internalData->activityCallback();
+        --active_fds;
         if(retval != UA_STATUSCODE_GOOD) {
-            UA_LOG_WARNING(networkManagerData->logger, UA_LOGCATEGORY_NETWORK,
-                           "Encountered an error while processing activity callback of socket with fd %i",
-                           fd);
-            // TODO: Ignore the error, or do we want to abort processing and return?
-            retval = UA_STATUSCODE_GOOD; // Ignore error.
+            UA_LOG_ERROR(networkManagerData->logger, UA_LOGCATEGORY_NETWORK,
+                         "Encountered an error while processing activity callback of socket with fd %i",
+                         fd);
+            return retval;
         }
     }
 
     return retval;
 }
 
-UA_StatusCode
-UA_NetworkManager_deleteMembers(UA_NetworkManager *networkManager) {
+static UA_StatusCode
+UA_SelectBasedNetworkManager_deleteMembers(UA_NetworkManager *networkManager) {
     // clean up connections
 
     UA_free(networkManager->internalData);
+    return UA_STATUSCODE_GOOD;
+}
+
+UA_StatusCode
+UA_SelectBasedNetworkManager(UA_NetworkManager *networkManager) {
+
+    networkManager->init = UA_SelectBasedNetworkManager_init;
+    networkManager->listen = UA_SelectBasedNetworkManager_listen;
+    networkManager->deleteMembers = UA_SelectBasedNetworkManager_deleteMembers;
     return UA_STATUSCODE_GOOD;
 }

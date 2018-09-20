@@ -461,7 +461,8 @@ set(exported_headers ${exported_headers}
                      ${PROJECT_SOURCE_DIR}/include/ua_client_highlevel.h
                      ${PROJECT_SOURCE_DIR}/include/ua_client_subscriptions.h
                      ${PROJECT_SOURCE_DIR}/include/ua_client_highlevel_async.h
-                     ${PROJECT_SOURCE_DIR}/include/ua_plugin_socket.h)
+                     ${PROJECT_SOURCE_DIR}/include/ua_plugin_socket.h
+                     ${PROJECT_SOURCE_DIR}/include/ua_plugin_network_manager.h)
 
 set(internal_headers ${PROJECT_SOURCE_DIR}/deps/queue.h
                      ${PROJECT_SOURCE_DIR}/deps/pcg_basic.h
@@ -488,8 +489,7 @@ set(internal_headers ${PROJECT_SOURCE_DIR}/deps/queue.h
                      ${PROJECT_SOURCE_DIR}/src/server/ua_server_internal.h
                      ${PROJECT_SOURCE_DIR}/src/server/ua_services.h
                      ${PROJECT_BINARY_DIR}/src_generated/ua_namespace0.h
-                     ${PROJECT_SOURCE_DIR}/src/client/ua_client_internal.h
-                     ${PROJECT_SOURCE_DIR}/src/ua_network_manager.h)
+                     ${PROJECT_SOURCE_DIR}/src/client/ua_client_internal.h)
 
 # TODO: make client optional
 set(lib_sources ${PROJECT_SOURCE_DIR}/src/ua_types.c
@@ -516,7 +516,6 @@ set(lib_sources ${PROJECT_SOURCE_DIR}/src/ua_types.c
                 ${PROJECT_SOURCE_DIR}/src/pubsub/ua_pubsub.c
                 ${PROJECT_SOURCE_DIR}/src/pubsub/ua_pubsub_manager.c
                 ${PROJECT_SOURCE_DIR}/src/pubsub/ua_pubsub_ns0.c
-                ${PROJECT_SOURCE_DIR}/src/ua_network_manager.c
                 # services
                 ${PROJECT_SOURCE_DIR}/src/server/ua_services_view.c
                 ${PROJECT_SOURCE_DIR}/src/server/ua_services_call.c
@@ -548,6 +547,7 @@ set(default_plugin_headers ${PROJECT_SOURCE_DIR}/plugins/ua_accesscontrol_defaul
                            ${PROJECT_SOURCE_DIR}/plugins/ua_nodestore_default.h
                            ${PROJECT_SOURCE_DIR}/plugins/ua_config_default.h
                            ${PROJECT_SOURCE_DIR}/plugins/ua_securitypolicies.h
+                           ${PROJECT_SOURCE_DIR}/plugins/ua_network_managers.h
 )
 
 set(default_plugin_sources ${PROJECT_SOURCE_DIR}/plugins/ua_log_stdout.c
@@ -557,6 +557,7 @@ set(default_plugin_sources ${PROJECT_SOURCE_DIR}/plugins/ua_log_stdout.c
                            ${PROJECT_SOURCE_DIR}/plugins/ua_nodestore_default.c
                            ${PROJECT_SOURCE_DIR}/plugins/ua_config_default.c
                            ${PROJECT_SOURCE_DIR}/plugins/ua_securitypolicy_none.c
+                           ${PROJECT_SOURCE_DIR}/plugins/ua_select_based_network_manager.c
 )
 
 if(UA_ENABLE_ENCRYPTION)

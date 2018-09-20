@@ -1,0 +1,52 @@
+/**
+ * EXPERIMENTAL Network Manager
+ */
+
+#ifndef OPEN62541_UA_PLUGIN_NETWORK_MANAGER_H
+#define OPEN62541_UA_PLUGIN_NETWORK_MANAGER_H
+
+#include "ua_types.h"
+#include "ua_plugin_log.h"
+#include "ua_plugin_socket.h"
+
+struct UA_NetworkManager;
+typedef struct UA_NetworkManager UA_NetworkManager;
+
+struct UA_NetworkManager {
+    void *internalData;
+
+    UA_StatusCode (*init)(UA_NetworkManager *networkManager, UA_Logger logger);
+
+    /**
+     * Cleans up the internal data.
+     *
+     * @param networkManager
+     * @return
+     */
+    UA_StatusCode (*deleteMembers)(UA_NetworkManager *networkManager);
+
+    /**
+     * Registers a socket in the network manager. Whenever the socket is ready for receiveing,
+     * its activityCallback function is called.
+     *
+     * @param networkManager
+     * @param socket
+     * @return
+     */
+    UA_StatusCode (*registerSocket)(UA_NetworkManager *networkManager,
+                               UA_Socket *socket);
+
+    /**
+     * Performs one iteration of listening for activity on any of the registered sockets.
+     * If a socket has a data waiting to be processed, the activity callback of the socket is called.
+     * If an error occurs during processing, the function will immediately return with an error code.
+     *
+     * @param networkManager
+     * @param timeout
+     * @return
+     */
+    UA_StatusCode (*listen)(UA_NetworkManager *networkManager,
+                            UA_Int32 timeout);
+};
+
+#endif //OPEN62541_UA_PLUGIN_NETWORK_MANAGER_H
