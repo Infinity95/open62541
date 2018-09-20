@@ -99,10 +99,12 @@ GET_PROPERTY(ua_architecture_sources GLOBAL PROPERTY UA_ARCHITECTURE_SOURCES)
 
 set(ua_architecture_sources ${ua_architecture_sources}
             ${PROJECT_SOURCE_DIR}/arch/ua_network_tcp.c
+            ${PROJECT_SOURCE_DIR}/arch/ua_socket_tcp.c
 )
 
 set(ua_architecture_headers ${ua_architecture_headers}
             ${PROJECT_SOURCE_DIR}/arch/ua_network_tcp.h
+            ${PROJECT_SOURCE_DIR}/arch/ua_socket_tcp.h
             ${PROJECT_SOURCE_DIR}/arch/ua_architecture_functions.h
 )
 
@@ -458,7 +460,8 @@ set(exported_headers ${exported_headers}
                      ${PROJECT_SOURCE_DIR}/include/ua_client.h
                      ${PROJECT_SOURCE_DIR}/include/ua_client_highlevel.h
                      ${PROJECT_SOURCE_DIR}/include/ua_client_subscriptions.h
-                     ${PROJECT_SOURCE_DIR}/include/ua_client_highlevel_async.h)
+                     ${PROJECT_SOURCE_DIR}/include/ua_client_highlevel_async.h
+                     ${PROJECT_SOURCE_DIR}/include/ua_plugin_socket.h)
 
 set(internal_headers ${PROJECT_SOURCE_DIR}/deps/queue.h
                      ${PROJECT_SOURCE_DIR}/deps/pcg_basic.h

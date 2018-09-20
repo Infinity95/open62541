@@ -87,7 +87,7 @@ UA_NetworkManager_process(UA_NetworkManager *networkManager, UA_Int32 timeout) {
             continue;
         }
         int fd = socket->getFileDescriptor();
-        if(socket->timeoutCheckCallback() != UA_STATUSCODE_GOOD) {
+        if(socket->timeoutCheckCallback(now) != UA_STATUSCODE_GOOD) {
             LIST_REMOVE(socketListEntry, pointers);
             continue;
         }
