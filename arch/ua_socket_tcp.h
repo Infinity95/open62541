@@ -5,6 +5,9 @@
 
 
 UA_StatusCode
-UA_Socket_TCP(UA_Socket *socket);
+UA_Socket_TCP(UA_Socket *socket, UA_Logger logger);
+
+UA_StatusCode
+UA_Socket_TCPListener(UA_Socket *socket, UA_Logger logger);
 
 #endif //OPEN62541_UA_SOCKET_TCP_H

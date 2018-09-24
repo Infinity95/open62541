@@ -34,7 +34,7 @@ struct UA_NetworkManager {
      * @return
      */
     UA_StatusCode (*registerSocket)(UA_NetworkManager *networkManager,
-                               UA_Socket *socket);
+                                    UA_Socket *socket);
 
     /**
      * Performs one iteration of listening for activity on any of the registered sockets.
@@ -48,5 +48,23 @@ struct UA_NetworkManager {
     UA_StatusCode (*listen)(UA_NetworkManager *networkManager,
                             UA_Int32 timeout);
 };
+
+/**
+ * This scruct contains internal function pointers that are only used by the socket and network manager.
+ * It defines the api between network manager and socket.
+ */
+typedef struct {
+    UA_StatusCode (*activityCallback)(UA_Socket *socket);
+
+    UA_StatusCode (*timeoutCheckCallback)(UA_DateTime now);
+
+    UA_StatusCode (*completePacketCallback)(UA_Socket *socket, UA_ByteString *buffer);
+
+    UA_Logger logger;
+
+    UA_NetworkManager *networkManager;
+
+    void *implementationSpecificData;
+} UA_Socket_internalData;
 
 #endif //OPEN62541_UA_PLUGIN_NETWORK_MANAGER_H

@@ -6,7 +6,7 @@
 #include "../deps/queue.h"
 
 typedef struct SocketListEntry {
-    UA_Socket socket;
+    UA_Socket *socket;
     LIST_ENTRY(SocketListEntry) pointers;
 } SocketListEntry;
 
@@ -33,19 +33,19 @@ UA_SelectBasedNetworkManager_init(UA_NetworkManager *networkManager, UA_Logger l
 }
 
 static UA_Int32
-markFileDescriptorsToSelect(NetworkManagerData *networkManagerData, fd_set *fdset) {
-    FD_ZERO(fdset);
+markFileDescriptorsToSelect(NetworkManagerData *networkManagerData) {
+    FD_ZERO(&networkManagerData->activeSocketFDs);
     UA_Int32 highestfd = 0;
 
     SocketListEntry *e;
     LIST_FOREACH(e, &networkManagerData->sockets, pointers) {
-        if(e->socket.getFileDescriptor == NULL) {
+        if(e->socket->getFileDescriptor == NULL) {
             UA_LOG_WARNING(networkManagerData->logger, UA_LOGCATEGORY_NETWORK,
                            "Socket does not support select. Skipping");
             continue;
         }
-        int fd = e->socket.getFileDescriptor();
-        UA_fd_set(fd, fdset);
+        int fd = e->socket->getFileDescriptor();
+        UA_fd_set(fd, &networkManagerData->activeSocketFDs);
         if((UA_Int32)fd > highestfd)
             highestfd = (UA_Int32)fd;
     }
@@ -80,7 +80,7 @@ UA_SelectBasedNetworkManager_listen(UA_NetworkManager *networkManager, UA_Int32 
         if(active_fds <= 0)
             break;
 
-        UA_Socket *socket = &socketListEntry->socket;
+        UA_Socket *socket = socketListEntry->socket;
         UA_Socket_internalData *socket_internalData = (UA_Socket_internalData *)socket->internalData;
         if(socket->getFileDescriptor == NULL) {
             UA_LOG_WARNING(networkManagerData->logger, UA_LOGCATEGORY_NETWORK,
@@ -99,7 +99,7 @@ UA_SelectBasedNetworkManager_listen(UA_NetworkManager *networkManager, UA_Int32 
         UA_LOG_TRACE(networkManagerData->logger, UA_LOGCATEGORY_NETWORK,
                      "Connection %i | Activity on the socket", fd);
 
-        retval = socket_internalData->activityCallback();
+        retval = socket_internalData->activityCallback(socket);
         --active_fds;
         if(retval != UA_STATUSCODE_GOOD) {
             UA_LOG_ERROR(networkManagerData->logger, UA_LOGCATEGORY_NETWORK,
@@ -110,6 +110,23 @@ UA_SelectBasedNetworkManager_listen(UA_NetworkManager *networkManager, UA_Int32 
     }
 
     return retval;
+}
+
+static UA_StatusCode
+UA_SelectBasedNetworkManager_registerSocket(UA_NetworkManager *networkManager, UA_Socket *socket) {
+
+    NetworkManagerData *const networkManagerData = (NetworkManagerData *)networkManager->internalData;
+
+    SocketListEntry *newSocketEntry = (SocketListEntry *)UA_malloc(sizeof(SocketListEntry));
+    if(newSocketEntry == NULL)
+        return UA_STATUSCODE_BADOUTOFMEMORY;
+
+    newSocketEntry->socket = socket;
+    LIST_INSERT_HEAD(&networkManagerData->sockets, newSocketEntry, pointers);
+
+    networkManagerData->highestFD = markFileDescriptorsToSelect(networkManagerData);
+
+    return UA_STATUSCODE_GOOD;
 }
 
 static UA_StatusCode
@@ -125,6 +142,7 @@ UA_SelectBasedNetworkManager(UA_NetworkManager *networkManager) {
 
     networkManager->init = UA_SelectBasedNetworkManager_init;
     networkManager->listen = UA_SelectBasedNetworkManager_listen;
+    networkManager->registerSocket = UA_SelectBasedNetworkManager_registerSocket;
     networkManager->deleteMembers = UA_SelectBasedNetworkManager_deleteMembers;
     return UA_STATUSCODE_GOOD;
 }
