@@ -58,7 +58,7 @@ typedef struct {
 
     UA_StatusCode (*timeoutCheckCallback)(UA_DateTime now);
 
-    UA_StatusCode (*completePacketCallback)(UA_Socket *socket, UA_ByteString *buffer);
+    UA_Socket_processCompletePacketCallback completePacketCallback;
 
     UA_Logger logger;
 

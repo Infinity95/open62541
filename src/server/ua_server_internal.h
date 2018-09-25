@@ -22,6 +22,7 @@
 #include "ua_session_manager.h"
 #include "ua_securechannel_manager.h"
 #include "ua_workqueue.h"
+#include "ua_plugin_network_manager.h"
 
 _UA_BEGIN_DECLS
 
@@ -100,9 +101,19 @@ typedef struct mdnsHostnameToIp_hash_entry {
 #endif /* UA_ENABLE_DISCOVERY_MULTICAST */
 #endif /* UA_ENABLE_DISCOVERY */
 
+typedef struct ListenerSocketEntry {
+    UA_Socket *socket;
+    UA_String discoveryUrl;
+    LIST_ENTRY(ListenerSocketEntry) pointers;
+} ListenerSocketEntry;
+
 struct UA_Server {
     /* Meta */
     UA_DateTime startTime;
+
+    /* Network and sockets */
+    UA_NetworkManager networkManager;
+    LIST_HEAD(listenerSockets_list, ListenerSocketEntry) listenerSockets;
 
     /* Security */
     UA_SecureChannelManager secureChannelManager;

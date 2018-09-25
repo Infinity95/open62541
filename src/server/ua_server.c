@@ -17,6 +17,7 @@
  *    Copyright 2018 (c) Hilscher Gesellschaft für Systemautomation mbH (Author: Martin Lang)
  */
 
+#include <ua_network_managers.h>
 #include "ua_types.h"
 #include "ua_server_internal.h"
 
@@ -239,8 +240,66 @@ UA_Server_cleanup(UA_Server *server, void *_) {
 /* Server Lifecycle */
 /********************/
 
+static UA_StatusCode
+initMulticastDiscovery(UA_Server *server) {
+    server->mdnsDaemon = NULL;
+    server->mdnsSocket = UA_INVALID_SOCKET;
+    server->mdnsMainSrvAdded = UA_FALSE;
+    if(server->config.applicationDescription.applicationType == UA_APPLICATIONTYPE_DISCOVERYSERVER)
+        initMulticastDiscoveryServer(server);
+
+    LIST_INIT(&server->serverOnNetwork);
+    server->serverOnNetworkSize = 0;
+    server->serverOnNetworkRecordIdCounter = 0;
+    server->serverOnNetworkRecordIdLastReset = UA_DateTime_now();
+    memset(server->serverOnNetworkHash, 0,
+           sizeof(struct serverOnNetwork_hash_entry *) * SERVER_ON_NETWORK_HASH_PRIME);
+
+
+    LIST_INIT(&server->mdnsHostnameToIp);
+    memset(server->mdnsHostnameToIpHash, 0,
+           sizeof(struct mdnsHostnameToIp_hash_entry *) * MDNS_HOSTNAME_TO_IP_HASH_PRIME);
+
+    server->serverOnNetworkCallback = NULL;
+    server->serverOnNetworkCallbackData = NULL;
+
+    return UA_STATUSCODE_GOOD;
+}
+
+/**
+ * This callback is called after a new socket was created.
+ * The pointer needs to be managed by the server and is stored
+ * in the listenerSockets list.
+ * The server is responsible for cleaning up the sockets on shutdown
+ *
+ * \param socket a pointer to the newly created socket.
+ * \param userData In this function the userData is the server pointer.
+ * \return
+ */
+static UA_StatusCode
+socketCreationCallback(UA_Socket *socket, void *userData) {
+    UA_Server *server = (UA_Server *)userData;
+    ListenerSocketEntry *newEntry = (ListenerSocketEntry *)UA_malloc(sizeof(ListenerSocketEntry));
+    if(newEntry == NULL)
+        return UA_STATUSCODE_BADOUTOFMEMORY;
+    newEntry->socket = socket;
+    newEntry->socket->getDiscoveryUrl(newEntry->socket, &newEntry->discoveryUrl);
+    LIST_INSERT_HEAD(&server->listenerSockets, newEntry, pointers);
+    return UA_STATUSCODE_GOOD;
+}
+
+static UA_StatusCode
+createListenerSockets(UA_Server *server) {
+    for(size_t i = 0; i < server->config.listenerSocketConfigsSize; ++i) {
+        UA_ListenerSocketConfig *socketConfig = &server->config.listenerSocketConfigs[i];
+        socketConfig->socketCreationData.socketCreationFunc(socketConfig->socketCreationData.configData,
+                                                            socketCreationCallback, server);
+    }
+}
+
 UA_Server *
 UA_Server_new(const UA_ServerConfig *config) {
+    UA_StatusCode retval;
     /* A config is required */
     if(!config)
         return NULL;
@@ -287,6 +346,12 @@ UA_Server_new(const UA_ServerConfig *config) {
     UA_Server_addRepeatedCallback(server, (UA_ServerCallback)UA_Server_cleanup, NULL,
                                   10000, NULL);
 
+    /* Set up network manager and sockets*/
+    // TODO: Make network manager plugin configurable
+    UA_SelectBasedNetworkManager(&server->networkManager);
+    server->networkManager.init(&server->networkManager, server->config.logger);
+    createListenerSockets(server);
+
     /* Initialized discovery database */
 #ifdef UA_ENABLE_DISCOVERY
     LIST_INIT(&server->registeredServers);
@@ -296,37 +361,21 @@ UA_Server_new(const UA_ServerConfig *config) {
     server->registerServerCallbackData = NULL;
 #endif
 
-    /* Initialize multicast discovery */
 #if defined(UA_ENABLE_DISCOVERY) && defined(UA_ENABLE_DISCOVERY_MULTICAST)
-    server->mdnsDaemon = NULL;
-    server->mdnsSocket = UA_INVALID_SOCKET;
-    server->mdnsMainSrvAdded = UA_FALSE;
-    if(server->config.applicationDescription.applicationType == UA_APPLICATIONTYPE_DISCOVERYSERVER)
-        initMulticastDiscoveryServer(server);
-
-    LIST_INIT(&server->serverOnNetwork);
-    server->serverOnNetworkSize = 0;
-    server->serverOnNetworkRecordIdCounter = 0;
-    server->serverOnNetworkRecordIdLastReset = UA_DateTime_now();
-    memset(server->serverOnNetworkHash, 0,
-           sizeof(struct serverOnNetwork_hash_entry*) * SERVER_ON_NETWORK_HASH_PRIME);
-
-
-    LIST_INIT(&server->mdnsHostnameToIp);
-    memset(server->mdnsHostnameToIpHash, 0,
-           sizeof(struct mdnsHostnameToIp_hash_entry*) * MDNS_HOSTNAME_TO_IP_HASH_PRIME);
-
-    server->serverOnNetworkCallback = NULL;
-    server->serverOnNetworkCallbackData = NULL;
+    retval = initMulticastDiscovery(server);
+    if(retval != UA_STATUSCODE_GOOD) {
+        UA_Server_delete(server);
+        return NULL;
+    }
 #endif
 
     /* Initialize namespace 0*/
-    UA_StatusCode retVal = UA_Server_initNS0(server);
-    if(retVal != UA_STATUSCODE_GOOD) {
+    retval = UA_Server_initNS0(server);
+    if(retval != UA_STATUSCODE_GOOD) {
         UA_LOG_ERROR(config->logger, UA_LOGCATEGORY_SERVER,
                      "Namespace 0 could not be bootstrapped with error %s. "
                      "Shutting down the server.",
-                     UA_StatusCode_name(retVal));
+                     UA_StatusCode_name(retval));
         UA_Server_delete(server);
         return NULL;
     }

@@ -11,6 +11,7 @@
 #ifndef UA_SERVER_CONFIG_H_
 #define UA_SERVER_CONFIG_H_
 
+#include <queue.h>
 #include "ua_server.h"
 #include "ua_plugin_log.h"
 #include "ua_plugin_network.h"
@@ -25,6 +26,7 @@
 
 #ifdef UA_ENABLE_HISTORIZING
 #include "ua_plugin_historydatabase.h"
+#include "ua_plugin_socket.h"
 #endif
 
 _UA_BEGIN_DECLS
@@ -89,8 +91,12 @@ struct UA_ServerConfig {
     UA_Nodestore nodestore;
 
     /* Networking */
+    /*
     size_t networkLayersSize;
     UA_ServerNetworkLayer *networkLayers;
+    */
+    UA_ListenerSocketConfig *listenerSocketConfigs;
+    size_t listenerSocketConfigsSize;
     UA_String customHostname;
 
 #ifdef UA_ENABLE_PUBSUB

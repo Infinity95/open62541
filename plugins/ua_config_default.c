@@ -10,6 +10,7 @@
  *    Copyright 2018 (c) Fabian Arndt, Root-Core
  */
 
+#include <ua_socket_tcp.h>
 #include "ua_plugin_securitypolicy.h"
 #include "ua_config_default.h"
 #include "ua_client_config.h"
@@ -306,11 +307,18 @@ createDefaultConfig(void) {
 }
 
 static UA_StatusCode
-addDefaultNetworkLayers(UA_ServerConfig *conf, UA_UInt16 portNumber, UA_UInt32 sendBufferSize, UA_UInt32 recvBufferSize) {
-    /* Add a network layer */
-    conf->networkLayers = (UA_ServerNetworkLayer *)
-        UA_malloc(sizeof(UA_ServerNetworkLayer));
-    if(!conf->networkLayers)
+createTcpListener(void *configData, UA_Socket_creationCallback creationCallback, void *userData) {
+    UA_Socket_TCP_ConfigData *confData = (UA_Socket_TCP_ConfigData *)configData;
+
+    return UA_Socket_TCPListener_create(confData, creationCallback, userData);
+}
+
+static UA_StatusCode
+addDefaultListenerSocketConfigs(UA_ServerConfig *conf, UA_UInt16 portNumber, UA_UInt32 sendBufferSize,
+                                UA_UInt32 recvBufferSize) {
+
+    conf->listenerSocketConfigs = (UA_ListenerSocketConfig *)UA_malloc(sizeof(UA_ListenerSocketConfig));
+    if(conf->listenerSocketConfigs == NULL)
         return UA_STATUSCODE_BADOUTOFMEMORY;
 
     UA_ConnectionConfig config = UA_ConnectionConfig_default;
@@ -319,9 +327,20 @@ addDefaultNetworkLayers(UA_ServerConfig *conf, UA_UInt16 portNumber, UA_UInt32 s
     if (recvBufferSize > 0)
         config.recvBufferSize = recvBufferSize;
 
-    conf->networkLayers[0] =
-        UA_ServerNetworkLayerTCP(config, portNumber, conf->logger);
-    conf->networkLayersSize = 1;
+    UA_Socket_TCP_ConfigData *configData = (UA_Socket_TCP_ConfigData *)UA_malloc(sizeof(UA_Socket_TCP_ConfigData));
+    if(configData == NULL) {
+        UA_free(conf->listenerSocketConfigs);
+        return UA_STATUSCODE_BADOUTOFMEMORY;
+    }
+
+    configData->port = portNumber;
+    configData->logger = conf->logger;
+    configData->customHostname = &conf->customHostname;
+
+    conf->listenerSocketConfigs[0].connectionConfig = config;
+    conf->listenerSocketConfigs[0].socketCreationData.socketCreationFunc = createTcpListener;
+    conf->listenerSocketConfigs[0].socketCreationData.configData = configData;
+    conf->listenerSocketConfigsSize = 1;
 
     return UA_STATUSCODE_GOOD;
 }
@@ -339,7 +358,7 @@ UA_ServerConfig_new_customBuffer(UA_UInt16 portNumber,
         return NULL;
     }
 
-    if(addDefaultNetworkLayers(conf, portNumber, sendBufferSize, recvBufferSize) != UA_STATUSCODE_GOOD) {
+    if(addDefaultListenerSocketConfigs(conf, portNumber, sendBufferSize, recvBufferSize) != UA_STATUSCODE_GOOD) {
         UA_ServerConfig_delete(conf);
         return NULL;
     }
@@ -392,7 +411,7 @@ UA_ServerConfig_new_basic128rsa15(UA_UInt16 portNumber,
         return NULL;
     }
 
-    if(addDefaultNetworkLayers(conf, portNumber, 0, 0) != UA_STATUSCODE_GOOD) {
+    if(addDefaultListenerSocketConfigs(conf, portNumber, 0, 0) != UA_STATUSCODE_GOOD) {
         UA_ServerConfig_delete(conf);
         return NULL;
     }
@@ -462,7 +481,7 @@ UA_ServerConfig_new_basic256sha256(UA_UInt16 portNumber,
         return NULL;
     }
 
-    if(addDefaultNetworkLayers(conf, portNumber, 0, 0) != UA_STATUSCODE_GOOD) {
+    if(addDefaultListenerSocketConfigs(conf, portNumber, 0, 0) != UA_STATUSCODE_GOOD) {
         UA_ServerConfig_delete(conf);
         return NULL;
     }
@@ -532,7 +551,7 @@ UA_ServerConfig_new_allSecurityPolicies(UA_UInt16 portNumber,
         return NULL;
     }
 
-    if(addDefaultNetworkLayers(conf, portNumber, 0, 0) != UA_STATUSCODE_GOOD) {
+    if(addDefaultListenerSocketConfigs(conf, portNumber, 0, 0) != UA_STATUSCODE_GOOD) {
         UA_ServerConfig_delete(conf);
         return NULL;
     }
@@ -629,11 +648,11 @@ UA_ServerConfig_delete(UA_ServerConfig *config) {
     }
 
     /* Networking */
-    for(size_t i = 0; i < config->networkLayersSize; ++i)
-        config->networkLayers[i].deleteMembers(&config->networkLayers[i]);
-    UA_free(config->networkLayers);
-    config->networkLayers = NULL;
-    config->networkLayersSize = 0;
+    for(size_t i = 0; i < config->listenerSocketConfigsSize; ++i)
+        UA_free(config->listenerSocketConfigs[i].socketCreationData.configData);
+    UA_free(config->listenerSocketConfigs);
+    config->listenerSocketConfigs = NULL;
+    config->listenerSocketConfigsSize = 0;
     UA_String_deleteMembers(&config->customHostname);
     config->customHostname = UA_STRING_NULL;
 

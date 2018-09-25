@@ -44,7 +44,7 @@ markFileDescriptorsToSelect(NetworkManagerData *networkManagerData) {
                            "Socket does not support select. Skipping");
             continue;
         }
-        int fd = e->socket->getFileDescriptor();
+        int fd = e->socket->getFileDescriptor(e->socket);
         UA_fd_set(fd, &networkManagerData->activeSocketFDs);
         if((UA_Int32)fd > highestfd)
             highestfd = (UA_Int32)fd;
@@ -87,7 +87,7 @@ UA_SelectBasedNetworkManager_listen(UA_NetworkManager *networkManager, UA_Int32 
                            "Socket does not support select. Skipping");
             continue;
         }
-        int fd = socket->getFileDescriptor();
+        int fd = socket->getFileDescriptor(socket);
         if(socket_internalData->timeoutCheckCallback(now) != UA_STATUSCODE_GOOD) {
             LIST_REMOVE(socketListEntry, pointers);
             continue;
