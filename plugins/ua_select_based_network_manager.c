@@ -61,8 +61,6 @@ UA_SelectBasedNetworkManager_listen(UA_NetworkManager *networkManager, UA_Int32 
 
     fd_set fdset = networkManagerData->activeSocketFDs;
     fd_set errset = networkManagerData->activeSocketFDs;
-    // UA_Int32 highestfd = markFileDescriptorsToSelect(networkManagerData, &fdset);
-    // markFileDescriptorsToSelect(networkManagerData, &errset);
     struct timeval tmptv = {0, timeout * 1000};
     int active_fds = UA_select(networkManagerData->highestFD + 1, &fdset, NULL, &errset, &tmptv);
     if(active_fds < 0) {

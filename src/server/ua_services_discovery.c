@@ -99,18 +99,25 @@ setApplicationDescriptionFromServer(UA_ApplicationDescription *target, const UA_
         target->applicationType = UA_APPLICATIONTYPE_SERVER;
 
     /* add the discoveryUrls from the networklayers */
-    size_t discSize = sizeof(UA_String) * (target->discoveryUrlsSize + server->config.networkLayersSize);
+    ListenerSocketEntry *listenerSocketEntry;
+    size_t discSize = sizeof(UA_String) * target->discoveryUrlsSize;
+    size_t numListenerSockets = 0;
+    LIST_FOREACH(listenerSocketEntry, &server->listenerSockets, pointers) {
+        discSize += sizeof(UA_String);
+        ++numListenerSockets;
+    }
     UA_String* disc = (UA_String *)UA_realloc(target->discoveryUrls, discSize);
     if(!disc)
         return UA_STATUSCODE_BADOUTOFMEMORY;
     size_t existing = target->discoveryUrlsSize;
     target->discoveryUrls = disc;
-    target->discoveryUrlsSize += server->config.networkLayersSize;
+    target->discoveryUrlsSize += numListenerSockets;
 
     // TODO: Add nl only if discoveryUrl not already present
-    for(size_t i = 0; i < server->config.networkLayersSize; i++) {
-        UA_ServerNetworkLayer* nl = &server->config.networkLayers[i];
-        UA_String_copy(&nl->discoveryUrl, &target->discoveryUrls[existing + i]);
+    size_t i = 0;
+    LIST_FOREACH(listenerSocketEntry, &server->listenerSockets, pointers) {
+        UA_String_copy(&listenerSocketEntry->discoveryUrl, &target->discoveryUrls[existing + i]);
+        ++i;
     }
     return UA_STATUSCODE_GOOD;
 }
@@ -257,7 +264,11 @@ Service_GetEndpoints(UA_Server *server, UA_Session *session,
     size_t clone_times = 1;
     UA_Boolean nl_endpointurl = false;
     if(endpointUrl->length == 0) {
-        clone_times = server->config.networkLayersSize;
+        ListenerSocketEntry *listenerSocketEntry;
+        clone_times = 0;
+        LIST_FOREACH(listenerSocketEntry, &server->listenerSockets, pointers) {
+            ++clone_times;
+        }
         nl_endpointurl = true;
     }
 
@@ -272,9 +283,13 @@ Service_GetEndpoints(UA_Server *server, UA_Session *session,
 
     size_t k = 0;
     UA_StatusCode retval;
+    ListenerSocketEntry *listenerSocketEntry = LIST_FIRST(&server->listenerSockets);
     for(size_t i = 0; i < clone_times; ++i) {
-        if(nl_endpointurl)
-            endpointUrl = &server->config.networkLayers[i].discoveryUrl;
+        if(nl_endpointurl) {
+            UA_assert(listenerSocketEntry != NULL);
+            endpointUrl = &listenerSocketEntry->discoveryUrl;
+            listenerSocketEntry = LIST_NEXT(listenerSocketEntry, pointers);
+        }
         for(size_t j = 0; j < server->config.endpointsSize; ++j) {
             if(!relevant_endpoints[j])
                 continue;

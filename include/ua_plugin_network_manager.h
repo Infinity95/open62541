@@ -47,6 +47,16 @@ struct UA_NetworkManager {
      */
     UA_StatusCode (*listen)(UA_NetworkManager *networkManager,
                             UA_Int32 timeout);
+
+    /**
+     * Once a socket has received a complete packet, the process callback, the buffer and user data
+     * are enqueued into a processing queue. With each call to processSocketCallbacks the queue
+     * is emptied and all pending packets are processed.
+     *
+     * \param networkManager
+     * \return
+     */
+    UA_StatusCode (*processSocketCallbacks)(UA_NetworkManager *networkManager);
 };
 
 /**

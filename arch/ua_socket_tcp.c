@@ -2,12 +2,13 @@
 #include "ua_socket_tcp.h"
 #include "ua_plugin_network_manager.h"
 
+#define MAXBACKLOG 100
+
 typedef struct {
     int fd;
     UA_String customHostname;
     UA_UInt16 port;
-}
-    TcpSocketInternalData;
+} TcpSocketInternalData;
 
 static UA_StatusCode
 UA_Socket_TCP_activityCallback(UA_Socket *socket) {
@@ -22,7 +23,7 @@ UA_Socket_TCPListener_activityCallback(UA_Socket *socket) {
     struct sockaddr_storage remote;
     socklen_t remote_size = sizeof(remote);
     UA_Socket_internalData *internalData = (UA_Socket_internalData *)socket->internalData;
-    int newsockfd = UA_accept(socket->getFileDescriptor(), (struct sockaddr *)&remote, &remote_size);
+    int newsockfd = UA_accept(socket->getFileDescriptor(socket), (struct sockaddr *)&remote, &remote_size);
     if(newsockfd == -1) {
         UA_LOG_ERROR(internalData->logger, UA_LOGCATEGORY_NETWORK,
                      "Invalid file descriptor returned during accept call");
@@ -106,15 +107,91 @@ UA_Socket_TCP(UA_Socket *socket, UA_Logger logger) {
     return UA_STATUSCODE_GOOD;
 }
 
+static UA_StatusCode
+UA_Socket_TCPListener_setup(UA_Socket_internalData *internalData,
+                            TcpSocketInternalData *implementationSpecificData,
+                            struct addrinfo *addrinfo) {
+    implementationSpecificData->fd = UA_socket(addrinfo->ai_family, addrinfo->ai_socktype, addrinfo->ai_protocol);
+    int fd = implementationSpecificData->fd;
+    if(fd == UA_INVALID_SOCKET) {
+        UA_LOG_WARNING(internalData->logger, UA_LOGCATEGORY_NETWORK,
+                       "Error opening the server socket");
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+
+    /* Some Linux distributions have net.ipv6.bindv6only not activated. So
+     * sockets can double-bind to IPv4 and IPv6. This leads to problems. Use
+     * AF_INET6 sockets only for IPv6. */
+
+    int optval = 1;
+#if UA_IPV6
+    if(addrinfo->ai_family == AF_INET6 &&
+       UA_setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY,
+                     (const char *)&optval, sizeof(optval)) == -1) {
+        UA_LOG_WARNING(internalData->logger, UA_LOGCATEGORY_NETWORK,
+                       "Could not set an IPv6 socket to IPv6 only");
+        UA_close(fd);
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+#endif
+    if(UA_setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
+                     (const char *)&optval, sizeof(optval)) == -1) {
+        UA_LOG_WARNING(internalData->logger, UA_LOGCATEGORY_NETWORK,
+                       "Could not make the socket reusable");
+        UA_close(fd);
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+
+
+    if(UA_socket_set_nonblocking(fd) != UA_STATUSCODE_GOOD) {
+        UA_LOG_WARNING(internalData->logger, UA_LOGCATEGORY_NETWORK,
+                       "Could not set the server socket to nonblocking");
+        UA_close(fd);
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+
+    /* Bind socket to address */
+    if(UA_bind(fd, addrinfo->ai_addr, (socklen_t)addrinfo->ai_addrlen) < 0) {
+        UA_LOG_SOCKET_ERRNO_WRAP(
+            UA_LOG_WARNING(internalData->logger, UA_LOGCATEGORY_NETWORK,
+                           "Error binding a server socket: %s", errno_str));
+        UA_close(fd);
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+
+    /* Start listening */
+    if(UA_listen(fd, MAXBACKLOG) < 0) {
+        UA_LOG_SOCKET_ERRNO_WRAP(
+            UA_LOG_WARNING(internalData->logger, UA_LOGCATEGORY_NETWORK,
+                           "Error listening on server socket: %s", errno_str));
+        UA_close(fd);
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+
+    return UA_STATUSCODE_GOOD;
+}
+
 UA_StatusCode
 UA_Socket_TCPListener(UA_Socket *socket, UA_UInt16 port, UA_String *customHostname, struct addrinfo *addrinfo,
                       UA_Logger logger) {
+    UA_StatusCode retval;
     UA_Socket_internalData *internalData = (UA_Socket_internalData *)UA_malloc(sizeof(UA_Socket_internalData));
     if(internalData == NULL)
         return UA_STATUSCODE_BADOUTOFMEMORY;
 
     TcpSocketInternalData *implementationSpecificData =
         (TcpSocketInternalData *)UA_malloc(sizeof(TcpSocketInternalData));
+    if(implementationSpecificData == NULL) {
+        UA_free(internalData);
+        return UA_STATUSCODE_BADOUTOFMEMORY;
+    }
+
+    retval = UA_Socket_TCPListener_setup(internalData, implementationSpecificData, addrinfo);
+    if(retval != UA_STATUSCODE_GOOD) {
+        UA_free(internalData);
+        UA_free(implementationSpecificData);
+        return retval;
+    }
 
     implementationSpecificData->port = port;
     UA_ByteString_copy(customHostname, &implementationSpecificData->customHostname);
@@ -129,7 +206,7 @@ UA_Socket_TCPListener(UA_Socket *socket, UA_UInt16 port, UA_String *customHostna
     internalData->implementationSpecificData = implementationSpecificData;
     socket->internalData = internalData;
 
-    return UA_STATUSCODE_GOOD;
+    return retval;
 }
 
 UA_StatusCode

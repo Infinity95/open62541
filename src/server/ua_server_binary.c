@@ -282,9 +282,9 @@ processHEL(UA_Server *server, UA_Connection *connection,
     UA_String_deleteMembers(&helloMessage.endpointUrl);
 
     /* TODO: Use the config of the exact NetworkLayer */
-    if(server->config.networkLayersSize == 0)
+    if(server->config.listenerSocketConfigsSize == 0)
         return UA_STATUSCODE_BADOUTOFMEMORY;
-    const UA_ConnectionConfig *localConfig = &server->config.networkLayers[0].localConnectionConfig;
+    const UA_ConnectionConfig *localConfig = &server->config.listenerSocketConfigs[0].connectionConfig;
 
     /* Parameterize the connection */
     UA_ConnectionConfig remoteConfig;

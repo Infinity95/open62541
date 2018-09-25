@@ -45,7 +45,11 @@ register_server_with_discovery_server(UA_Server *server,
 
     /* Copy the discovery urls from the server config and the network layers*/
     size_t config_discurls = server->config.applicationDescription.discoveryUrlsSize;
-    size_t nl_discurls = server->config.networkLayersSize;
+    size_t nl_discurls = 0;
+    ListenerSocketEntry *listenerSocketEntry;
+    LIST_FOREACH(listenerSocketEntry, &server->listenerSockets, pointers) {
+        ++nl_discurls;
+    }
     size_t total_discurls = config_discurls + nl_discurls;
     UA_STACKARRAY(UA_String, urlsBuf, total_discurls);
     request.server.discoveryUrls = urlsBuf;
@@ -54,10 +58,12 @@ register_server_with_discovery_server(UA_Server *server,
     for(size_t i = 0; i < config_discurls; ++i)
         request.server.discoveryUrls[i] = server->config.applicationDescription.discoveryUrls[i];
 
-    /* TODO: Add nl only if discoveryUrl not already present */
-    for(size_t i = 0; i < nl_discurls; ++i) {
-        UA_ServerNetworkLayer *nl = &server->config.networkLayers[i];
-        request.server.discoveryUrls[config_discurls + i] = nl->discoveryUrl;
+    { // limit scope of i
+        size_t i = 0;
+        /* TODO: Add nl only if discoveryUrl not already present */
+        LIST_FOREACH(listenerSocketEntry, &server->listenerSockets, pointers) {
+            request.server.discoveryUrls[config_discurls + i] = listenerSocketEntry->discoveryUrl;
+        }
     }
 
     UA_MdnsDiscoveryConfiguration mdnsConfig;

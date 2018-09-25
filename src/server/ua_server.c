@@ -290,11 +290,38 @@ socketCreationCallback(UA_Socket *socket, void *userData) {
 
 static UA_StatusCode
 createListenerSockets(UA_Server *server) {
+    UA_StatusCode retval = UA_STATUSCODE_GOOD;
     for(size_t i = 0; i < server->config.listenerSocketConfigsSize; ++i) {
         UA_ListenerSocketConfig *socketConfig = &server->config.listenerSocketConfigs[i];
-        socketConfig->socketCreationData.socketCreationFunc(socketConfig->socketCreationData.configData,
-                                                            socketCreationCallback, server);
+        retval = socketConfig->socketCreationData.socketCreationFunc(socketConfig->socketCreationData.configData,
+                                                                     socketCreationCallback, server);
+        if(retval != UA_STATUSCODE_GOOD)
+            return retval;
     }
+
+    return retval;
+}
+
+/**
+ * Registers all listener sockets in the network manager.
+ *
+ * \param server
+ * \return
+ */
+static UA_StatusCode
+registerListenerSockets(UA_Server *server) {
+    UA_StatusCode retval = UA_STATUSCODE_GOOD;
+    ListenerSocketEntry *listenerSocketEntry;
+    LIST_FOREACH(listenerSocketEntry, &server->listenerSockets, pointers) {
+        retval = server->networkManager.registerSocket(&server->networkManager, listenerSocketEntry->socket);
+        if(retval != UA_STATUSCODE_GOOD) {
+            UA_LOG_ERROR(server->config.logger, UA_LOGCATEGORY_SERVER,
+                         "Failed registering listener socket in the network manager");
+            return retval;
+        }
+    }
+
+    return retval;
 }
 
 UA_Server *
@@ -351,6 +378,7 @@ UA_Server_new(const UA_ServerConfig *config) {
     UA_SelectBasedNetworkManager(&server->networkManager);
     server->networkManager.init(&server->networkManager, server->config.logger);
     createListenerSockets(server);
+    registerListenerSockets(server);
 
     /* Initialized discovery database */
 #ifdef UA_ENABLE_DISCOVERY
@@ -493,11 +521,7 @@ UA_Server_run_startup(UA_Server *server) {
                          UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER_SERVERSTATUS_STARTTIME),
                          var);
 
-    /* Start the networklayers */
-    for(size_t i = 0; i < server->config.networkLayersSize; ++i) {
-        UA_ServerNetworkLayer *nl = &server->config.networkLayers[i];
-        result |= nl->start(nl, &server->config.customHostname);
-    }
+    // TODO: Do we need a startup function for the NetworkManager here?
 
     /* Spin up the worker threads */
 #ifdef UA_ENABLE_MULTITHREADING
@@ -538,16 +562,12 @@ UA_Server_run_iterate(UA_Server *server, UA_Boolean waitInternal) {
 
     UA_UInt16 timeout = 0;
 
-    /* round always to upper value to avoid timeout to be set to 0
+    /* always round to upper value to avoid timeout to be set to 0
     * if(nextRepeated - now) < (UA_DATETIME_MSEC/2) */
     if(waitInternal)
         timeout = (UA_UInt16)(((nextRepeated - now) + (UA_DATETIME_MSEC - 1)) / UA_DATETIME_MSEC);
 
-    /* Listen on the networklayer */
-    for(size_t i = 0; i < server->config.networkLayersSize; ++i) {
-        UA_ServerNetworkLayer *nl = &server->config.networkLayers[i];
-        nl->listen(nl, server, timeout);
-    }
+    server->networkManager.listen(&server->networkManager, timeout);
 
 #if defined(UA_ENABLE_DISCOVERY_MULTICAST) && !defined(UA_ENABLE_MULTITHREADING)
     if(server->config.applicationDescription.applicationType ==
@@ -578,9 +598,16 @@ UA_Server_run_iterate(UA_Server *server, UA_Boolean waitInternal) {
 UA_StatusCode
 UA_Server_run_shutdown(UA_Server *server) {
     /* Stop the netowrk layer */
-    for(size_t i = 0; i < server->config.networkLayersSize; ++i) {
-        UA_ServerNetworkLayer *nl = &server->config.networkLayers[i];
-        nl->stop(nl, server);
+    // TODO: networkManager.cleanup() ? Integrate into deleteMembers?
+    server->networkManager.deleteMembers(&server->networkManager);
+
+    ListenerSocketEntry *listenerSocketEntry, *tempEntry;
+    LIST_FOREACH_SAFE(listenerSocketEntry, &server->listenerSockets, pointers, tempEntry) {
+        listenerSocketEntry->socket->deleteMembers(listenerSocketEntry->socket);
+        UA_free(listenerSocketEntry->socket); // TODO: free here, in NetworkManager or let the socket free itself?
+        UA_String_deleteMembers(&listenerSocketEntry->discoveryUrl);
+        LIST_REMOVE(listenerSocketEntry, pointers);
+        UA_free(listenerSocketEntry);
     }
 
 #ifdef UA_ENABLE_MULTITHREADING

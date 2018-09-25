@@ -221,10 +221,9 @@ getInterfaces(UA_Server *server) {
 
 static UA_Boolean
 mdns_is_self_announce(UA_Server *server, struct serverOnNetwork_list_entry *entry) {
-    for (size_t i=0; i<server->config.networkLayersSize; i++) {
-        UA_ServerNetworkLayer *nl = &server->config.networkLayers[i];
-        if(UA_String_equal(&entry->serverOnNetwork.discoveryUrl,
-                           &nl->discoveryUrl))
+    ListenerSocketEntry *listenerSocketEntry;
+    LIST_FOREACH(listenerSocketEntry, &server->listenerSockets, pointers) {
+        if(UA_String_equal(&listenerSocketEntry->discoveryUrl, &entry->serverOnNetwork.discoveryUrl))
             return UA_TRUE;
     }
 
@@ -261,14 +260,12 @@ mdns_is_self_announce(UA_Server *server, struct serverOnNetwork_list_entry *entr
 
     UA_Boolean isSelf = UA_FALSE;
 
-    for (size_t i=0; i<server->config.networkLayersSize; i++) {
-        UA_ServerNetworkLayer *nl = &server->config.networkLayers[i];
-
+    LIST_FOREACH(listenerSocketEntry, &server->listenerSockets, pointers) {
         UA_String hostnameSelf = UA_STRING_NULL;
         UA_UInt16 portSelf = 4840;
         UA_String pathSelf = UA_STRING_NULL;
 
-        retval = UA_parseEndpointUrl(&nl->discoveryUrl, &hostnameSelf,
+        retval = UA_parseEndpointUrl(&listenerSocketEntry->discoveryUrl, &hostnameSelf,
                                      &portSelf, &pathSelf);
         if(retval != UA_STATUSCODE_GOOD) {
             /* skip invalid url */

@@ -452,6 +452,8 @@ set(exported_headers ${exported_headers}
                      ${PROJECT_SOURCE_DIR}/include/ua_plugin_access_control.h
                      ${PROJECT_SOURCE_DIR}/include/ua_plugin_pki.h
                      ${PROJECT_SOURCE_DIR}/include/ua_plugin_securitypolicy.h
+                     ${PROJECT_SOURCE_DIR}/include/ua_plugin_socket.h
+                     ${PROJECT_SOURCE_DIR}/include/ua_plugin_network_manager.h
                      ${PROJECT_SOURCE_DIR}/include/ua_server_pubsub.h
                      ${PROJECT_SOURCE_DIR}/include/ua_plugin_pubsub.h
                      ${PROJECT_SOURCE_DIR}/include/ua_plugin_nodestore.h
@@ -460,9 +462,7 @@ set(exported_headers ${exported_headers}
                      ${PROJECT_SOURCE_DIR}/include/ua_client.h
                      ${PROJECT_SOURCE_DIR}/include/ua_client_highlevel.h
                      ${PROJECT_SOURCE_DIR}/include/ua_client_subscriptions.h
-                     ${PROJECT_SOURCE_DIR}/include/ua_client_highlevel_async.h
-                     ${PROJECT_SOURCE_DIR}/include/ua_plugin_socket.h
-                     ${PROJECT_SOURCE_DIR}/include/ua_plugin_network_manager.h)
+                     ${PROJECT_SOURCE_DIR}/include/ua_client_highlevel_async.h)
 
 set(internal_headers ${PROJECT_SOURCE_DIR}/deps/queue.h
                      ${PROJECT_SOURCE_DIR}/deps/pcg_basic.h
