@@ -8,7 +8,10 @@
 struct UA_Socket;
 typedef struct UA_Socket UA_Socket;
 
-typedef UA_StatusCode (*UA_Socket_processCompletePacketCallback)(UA_ByteString *buffer, void *userData);
+typedef struct {
+    UA_StatusCode (*callback)(UA_Socket *socket, UA_ByteString *buffer, void *userData);
+    void *userData;
+} UA_Socket_processCompletePacketCallback;
 
 /**
  * Functions that implement this signature will be called
@@ -16,7 +19,10 @@ typedef UA_StatusCode (*UA_Socket_processCompletePacketCallback)(UA_ByteString *
  * The server for example can be passed as userData and
  * the callback can then add the new socket to a list in the server.
  */
-typedef UA_StatusCode  (*UA_Socket_creationCallback)(UA_Socket *socket, void *userData);
+typedef struct {
+    UA_StatusCode  (*callback)(UA_Socket *socket, void *userData);
+    void *userData;
+} UA_Socket_creationCallback;
 
 /**
  * Functions that implement this signature need to call
@@ -25,8 +31,7 @@ typedef UA_StatusCode  (*UA_Socket_creationCallback)(UA_Socket *socket, void *us
  * further managing the newly created socket.
  */
 typedef UA_StatusCode (*UA_SocketCreationFunc)(void *configData,
-                                               UA_Socket_creationCallback creationCallback,
-                                               void *userData);
+                                               UA_Socket_creationCallback creationCallback);
 
 /**
  * Each socket may implement different initialization/creation functions.
@@ -69,8 +74,7 @@ struct UA_Socket {
      * \param userData
      * \return
      */
-    UA_StatusCode (*setPacketProcessingCallback)(UA_Socket *socket, UA_Socket_processCompletePacketCallback,
-                                                 void *userData);
+    UA_StatusCode (*setPacketProcessingCallback)(UA_Socket *socket, UA_Socket_processCompletePacketCallback);
 
     /**
      * Retrieves the discovery url of the socket if applicable.

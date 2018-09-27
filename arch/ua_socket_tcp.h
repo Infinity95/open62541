@@ -14,6 +14,9 @@ UA_StatusCode
 UA_Socket_TCP(UA_Socket *socket, UA_Logger logger);
 
 UA_StatusCode
+UA_Socket_TCP_acceptFrom(UA_Socket *socket, UA_Socket_creationCallback creationCallback);
+
+UA_StatusCode
 UA_Socket_TCPListener(UA_Socket *socket, UA_UInt16 port, UA_String *customHostname, struct addrinfo *addrinfo,
                       UA_Logger logger);
 
@@ -32,7 +35,6 @@ UA_Socket_TCPListener(UA_Socket *socket, UA_UInt16 port, UA_String *customHostna
  * \return
  */
 UA_StatusCode
-UA_Socket_TCPListener_create(UA_Socket_TCP_ConfigData *configData, UA_Socket_creationCallback creationCallback,
-                             void *userData);
+UA_Socket_TCPListener_create(UA_Socket_TCP_ConfigData *configData, UA_Socket_creationCallback creationCallback);
 
 #endif //OPEN62541_UA_SOCKET_TCP_H

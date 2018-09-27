@@ -18,6 +18,7 @@
  */
 
 #include <ua_network_managers.h>
+#include <ua_socket_tcp.h>
 #include "ua_types.h"
 #include "ua_server_internal.h"
 
@@ -266,6 +267,27 @@ initMulticastDiscovery(UA_Server *server) {
     return UA_STATUSCODE_GOOD;
 }
 
+static UA_StatusCode
+dataSocketCreationCallback(UA_Socket *const socket, void *const userData) {
+    UA_Server *const server = (UA_Server *const) userData;
+
+    // TODO: Set the processing callback for data sockets and create a connection
+
+    return server->networkManager.registerSocket(&server->networkManager, socket);
+}
+
+static UA_StatusCode
+listenerSocketCallback(UA_Socket *const socket, UA_ByteString *const buffer, void *const userData) {
+    (void) buffer;
+
+    UA_Socket_creationCallback creationCallback;
+    creationCallback.callback = dataSocketCreationCallback;
+    creationCallback.userData = userData;
+    UA_Socket_TCP_acceptFrom(socket, creationCallback);
+
+    return UA_STATUSCODE_GOOD;
+}
+
 /**
  * This callback is called after a new socket was created.
  * The pointer needs to be managed by the server and is stored
@@ -277,13 +299,17 @@ initMulticastDiscovery(UA_Server *server) {
  * \return
  */
 static UA_StatusCode
-socketCreationCallback(UA_Socket *socket, void *userData) {
+listenerSocketCreationCallback(UA_Socket *socket, void *userData) {
     UA_Server *server = (UA_Server *)userData;
     ListenerSocketEntry *newEntry = (ListenerSocketEntry *)UA_malloc(sizeof(ListenerSocketEntry));
     if(newEntry == NULL)
         return UA_STATUSCODE_BADOUTOFMEMORY;
     newEntry->socket = socket;
     newEntry->socket->getDiscoveryUrl(newEntry->socket, &newEntry->discoveryUrl);
+    UA_Socket_processCompletePacketCallback processCompletePacketCallback;
+    processCompletePacketCallback.callback = listenerSocketCallback;
+    processCompletePacketCallback.userData = server;
+    newEntry->socket->setPacketProcessingCallback(newEntry->socket, processCompletePacketCallback);
     LIST_INSERT_HEAD(&server->listenerSockets, newEntry, pointers);
     return UA_STATUSCODE_GOOD;
 }
@@ -293,8 +319,11 @@ createListenerSockets(UA_Server *server) {
     UA_StatusCode retval = UA_STATUSCODE_GOOD;
     for(size_t i = 0; i < server->config.listenerSocketConfigsSize; ++i) {
         UA_ListenerSocketConfig *socketConfig = &server->config.listenerSocketConfigs[i];
+        UA_Socket_creationCallback creationCallback;
+        creationCallback.callback = listenerSocketCreationCallback;
+        creationCallback.userData = server;
         retval = socketConfig->socketCreationData.socketCreationFunc(socketConfig->socketCreationData.configData,
-                                                                     socketCreationCallback, server);
+                                                                     creationCallback);
         if(retval != UA_STATUSCODE_GOOD)
             return retval;
     }

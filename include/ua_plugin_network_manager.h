@@ -66,7 +66,7 @@ struct UA_NetworkManager {
 typedef struct {
     UA_StatusCode (*activityCallback)(UA_Socket *socket);
 
-    UA_StatusCode (*timeoutCheckCallback)(UA_DateTime now);
+    UA_StatusCode (*timeoutCheckCallback)(UA_Socket *socket, UA_DateTime now);
 
     UA_Socket_processCompletePacketCallback completePacketCallback;
 

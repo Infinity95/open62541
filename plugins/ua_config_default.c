@@ -307,10 +307,10 @@ createDefaultConfig(void) {
 }
 
 static UA_StatusCode
-createTcpListener(void *configData, UA_Socket_creationCallback creationCallback, void *userData) {
+createTcpListener(void *configData, UA_Socket_creationCallback creationCallback) {
     UA_Socket_TCP_ConfigData *confData = (UA_Socket_TCP_ConfigData *)configData;
 
-    return UA_Socket_TCPListener_create(confData, creationCallback, userData);
+    return UA_Socket_TCPListener_create(confData, creationCallback);
 }
 
 static UA_StatusCode

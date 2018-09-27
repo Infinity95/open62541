@@ -86,7 +86,7 @@ UA_SelectBasedNetworkManager_listen(UA_NetworkManager *networkManager, UA_Int32 
             continue;
         }
         int fd = socket->getFileDescriptor(socket);
-        if(socket_internalData->timeoutCheckCallback(now) != UA_STATUSCODE_GOOD) {
+        if(socket_internalData->timeoutCheckCallback(socket, now) != UA_STATUSCODE_GOOD) {
             LIST_REMOVE(socketListEntry, pointers);
             continue;
         }
@@ -122,6 +122,7 @@ UA_SelectBasedNetworkManager_registerSocket(UA_NetworkManager *networkManager, U
     newSocketEntry->socket = socket;
     LIST_INSERT_HEAD(&networkManagerData->sockets, newSocketEntry, pointers);
 
+    // TODO: does this work as intended? need to investigate. otherwise call every iteration
     networkManagerData->highestFD = markFileDescriptorsToSelect(networkManagerData);
 
     return UA_STATUSCODE_GOOD;
