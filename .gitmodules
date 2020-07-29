@@ -5,3 +5,6 @@
 	path = deps/ua-nodeset
 	url = https://github.com/OPCFoundation/UA-Nodeset
 	branch = v1.04
+[submodule "deps/abstractfuzztest"]
+	path = deps/abstractfuzztest
+	url = git@github.com:mlgiraud/abstractfuzztest.git

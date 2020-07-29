@@ -187,6 +187,8 @@ struct UA_ServerNetworkLayer {
 
     /* Deletes the network layer context. Call only after stopping. */
     void (*clear)(UA_ServerNetworkLayer *nl);
+
+    UA_UInt16 (*getPort)(UA_ServerNetworkLayer *nl);
 };
 
 /**

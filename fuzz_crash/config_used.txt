@@ -1,0 +1,11 @@
+./corpus2
+-max_len=1000
+-rss_limit_mb=32000
+-reduce_inputs=0
+-print_pcs=1
+-print_final_stats=1
+-close_fd_mask=3
+-use_value_profile=0
+-max_total_time=3600
+-jobs=24
+-workers=24

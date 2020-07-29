@@ -402,8 +402,18 @@ endif()
 option(UA_BUILD_EXAMPLES "Build example servers and clients" OFF)
 option(UA_BUILD_TOOLS "Build OPC UA shell tools" OFF)
 option(UA_BUILD_UNIT_TESTS "Build the unit tests" OFF)
+
+option(UA_BUILD_STATEFUL_FUZZING "Build the fuzzing executables" OFF)
+mark_as_advanced(UA_BUILD_STATEFUL_FUZZING)
+
 option(UA_BUILD_FUZZING "Build the fuzzing executables" OFF)
 mark_as_advanced(UA_BUILD_FUZZING)
+
+if(UA_BUILD_STATEFUL_FUZZING)
+    set(UA_BUILD_FUZZING ON)
+    add_subdirectory(${PROJECT_SOURCE_DIR}/deps/abstractfuzztest)
+endif()
+
 if(UA_BUILD_FUZZING)
     # oss-fuzz already defines this by default
     add_definitions(-DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
@@ -596,7 +606,7 @@ if(NOT UA_FORCE_CPP AND (CMAKE_COMPILER_IS_GNUCC OR "x${CMAKE_C_COMPILER_ID}" ST
             # Add default sanitizer settings when using clang and Debug build.
             # This allows e.g. CLion to find memory locations for SegFaults
             message(STATUS "Sanitizer enabled")
-            set(SANITIZER_FLAGS "-g -fno-omit-frame-pointer -gline-tables-only -fsanitize=address -fsanitize-address-use-after-scope -fsanitize-coverage=trace-cmp -fsanitize=leak -fsanitize=undefined")
+            set(SANITIZER_FLAGS "-g -fno-omit-frame-pointer -gline-tables-only -fsanitize=address -fsanitize-address-use-after-scope -fsanitize-coverage=trace-cmp -fsanitize=leak")# -fsanitize=undefined")
             if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)
                 set(SANITIZER_FLAGS "${SANITIZER_FLAGS} -fsanitize-coverage=trace-pc-guard")
             endif()
@@ -1310,6 +1320,10 @@ endif()
 if(UA_BUILD_FUZZING OR UA_BUILD_OSS_FUZZ OR UA_BUILD_FUZZING_CORPUS)
     add_subdirectory(tests/fuzz)
 endif()
+
+if (UA_BUILD_STATEFUL_FUZZING)
+    add_subdirectory(tests/stateful_fuzz)
+endif ()
 
 if(UA_BUILD_TOOLS)
     if(UA_ENABLE_JSON_ENCODING)

@@ -618,6 +618,12 @@ ServerNetworkLayerTCP_deleteMembers(UA_ServerNetworkLayer *nl) {
     UA_free(layer);
 }
 
+static UA_UInt16
+ServerNetworkLayerTCP_getPort(UA_ServerNetworkLayer *nl) {
+    ServerNetworkLayerTCP *layer = (ServerNetworkLayerTCP *)nl->handle;
+    return layer->port;
+}
+
 UA_ServerNetworkLayer
 UA_ServerNetworkLayerTCP(UA_ConnectionConfig config, UA_UInt16 port,
                          UA_UInt16 maxConnections, UA_Logger *logger) {
@@ -628,6 +634,7 @@ UA_ServerNetworkLayerTCP(UA_ConnectionConfig config, UA_UInt16 port,
     nl.start = ServerNetworkLayerTCP_start;
     nl.listen = ServerNetworkLayerTCP_listen;
     nl.stop = ServerNetworkLayerTCP_stop;
+    nl.getPort = ServerNetworkLayerTCP_getPort;
     nl.handle = NULL;
 
     ServerNetworkLayerTCP *layer = (ServerNetworkLayerTCP*)
