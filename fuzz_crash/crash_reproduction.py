@@ -8,6 +8,7 @@ crashes = ["crash-2f7be03f0e3ce6f2d5b3efef4c8d3fec308c2493",
            "crash-fe848819d3b52ed8d3683e784718057a004f497f"]
 
 # Bug introduced in commit 39c8ccdb9152cf0f9dd6895f8a3f400de5f84d46
+# Fixed by https://github.com/open62541/open62541/pull/3831
 
 if __name__ == '__main__':
     crash_data = b''
