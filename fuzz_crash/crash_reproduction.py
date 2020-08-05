@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import socket
 
 crash_id = 0
