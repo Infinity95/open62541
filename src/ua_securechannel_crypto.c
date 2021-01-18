@@ -565,9 +565,19 @@ checkAsymHeader(UA_SecureChannel *channel,
 
 UA_StatusCode
 checkSymHeader(UA_SecureChannel *channel,
-               const UA_SymmetricAlgorithmSecurityHeader *symHeader) {
+               const UA_SymmetricAlgorithmSecurityHeader *symHeaderParam) {
     /* If no match, try to revolve to the next token after a
      * RenewSecureChannel */
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wcast-qual"
+    UA_SymmetricAlgorithmSecurityHeader *symHeader = (UA_SymmetricAlgorithmSecurityHeader *) symHeaderParam;
+    if(symHeader->tokenId != channel->securityToken.tokenId && symHeader->tokenId != channel->altSecurityToken.tokenId)
+        symHeader->tokenId = channel->securityToken.tokenId;
+#pragma clang diagnostic pop
+#else
+    const UA_SymmetricAlgorithmSecurityHeader *symHeader = symHeaderParam;
+#endif
     UA_StatusCode retval = UA_STATUSCODE_GOOD;
     UA_ChannelSecurityToken *token = &channel->securityToken;
     switch(channel->renewState) {

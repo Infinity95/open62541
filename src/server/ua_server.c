@@ -642,6 +642,13 @@ serverExecuteRepeatedCallback(UA_Server *server, UA_ApplicationCallback cb,
 
 UA_UInt16
 UA_Server_run_iterate(UA_Server *server, UA_Boolean waitInternal) {
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+#ifdef __AFL_stateful_main_loop_injection
+    __AFL_stateful_main_loop_injection();
+    waitInternal = false;
+    UA_sleep_ms(1);
+#endif
+#endif
     /* Process repeated work */
     UA_DateTime now = UA_DateTime_nowMonotonic();
     UA_DateTime nextRepeated = UA_Timer_process(&server->timer, now,

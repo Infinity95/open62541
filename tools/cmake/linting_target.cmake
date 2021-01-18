@@ -40,7 +40,7 @@ if(CLANG_FORMAT_EXE)
          ${PROJECT_SOURCE_DIR}/src/*.h
          )
     add_custom_target(
-        clang-format COMMAND ${CLANG_FORMAT_EXE}
+        ua-clang-format COMMAND ${CLANG_FORMAT_EXE}
         -style=file
         -i
         ${FILES_TO_FORMAT}

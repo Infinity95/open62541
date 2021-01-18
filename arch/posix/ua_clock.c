@@ -18,6 +18,28 @@
 # include <mach/mach.h>
 #endif
 
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+/* To avoid zero timestamp value in header, the testingClock
+ * is assigned with non-zero timestamp to pass unit tests */
+static UA_DateTime testingClock = 0x5C8F735D;
+
+void UA_sleep_ms(unsigned long ms) {
+    testingClock += ms * UA_DATETIME_MSEC;
+}
+
+UA_DateTime UA_DateTime_now(void) {
+    return testingClock;
+}
+
+UA_DateTime UA_DateTime_nowMonotonic(void) {
+    return testingClock;
+}
+
+UA_DateTime UA_DateTime_localTimeUtcOffset(void) {
+    return 0;
+}
+
+#else
 UA_DateTime UA_DateTime_now(void) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
@@ -55,5 +77,7 @@ UA_DateTime UA_DateTime_nowMonotonic(void) {
     return (ts.tv_sec * UA_DATETIME_SEC) + (ts.tv_nsec / 100);
 #endif
 }
+
+#endif // FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
 
 #endif /* UA_ARCHITECTURE_POSIX */

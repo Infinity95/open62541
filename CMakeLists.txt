@@ -1,9 +1,28 @@
 cmake_minimum_required(VERSION 3.0...3.12)
 project(open62541)
 # set(CMAKE_VERBOSE_MAKEFILE ON)
-if(${CMAKE_VERSION} VERSION_LESS 3.12)
+if (${CMAKE_VERSION} VERSION_LESS 3.12)
     cmake_policy(VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION})
-endif()
+endif ()
+
+#set(LLVM_USE_LINKER lld)
+#set(LLVM_ENABLE_PROJECTS "clang;llvm;compiler-rt")
+#
+#add_subdirectory(${PROJECT_SOURCE_DIR}/deps/llvm/src/llvm)
+
+#include(ExternalProject)
+
+#ExternalProject_Add(llvm
+#        PREFIX ${PROJECT_SOURCE_DIR}/deps/llvm
+#        BINARY_DIR ${PROJECT_SOURCE_DIR}/deps/llvm/src/cmake-build-debug-clang
+#        SOURCE_DIR ${PROJECT_SOURCE_DIR}/deps/llvm/src/
+#        DOWNLOAD_COMMAND ""
+#        CMAKE_GENERATOR "Ninja"
+#        CMAKE_ARGS "-DLLVM_USE_LINKER=lld -DLLVM_ENABLE_PROJECTS=clang;llvm;compiler-rt -DCMAKE_INSTALL_PREFIX=/usr/local/debug"
+#        SOURCE_SUBDIR "llvm"
+#        BUILD_ALWAYS 1
+#        INSTALL_COMMAND ""
+#        )
 
 string(TOLOWER "${CMAKE_BUILD_TYPE}" BUILD_TYPE_LOWER_CASE)
 
@@ -409,29 +428,37 @@ mark_as_advanced(UA_BUILD_STATEFUL_FUZZING)
 option(UA_BUILD_FUZZING "Build the fuzzing executables" OFF)
 mark_as_advanced(UA_BUILD_FUZZING)
 
-if(UA_BUILD_STATEFUL_FUZZING)
+if (UA_BUILD_STATEFUL_FUZZING)
     set(UA_BUILD_FUZZING ON)
     add_subdirectory(${PROJECT_SOURCE_DIR}/deps/abstractfuzztest)
-endif()
+endif ()
 
-if(UA_BUILD_FUZZING)
+if (UA_BUILD_FUZZING)
     # oss-fuzz already defines this by default
     add_definitions(-DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
-endif()
+endif ()
 
-if(UA_ENABLE_EXPERIMENTAL_HISTORIZING)
-    if(NOT UA_ENABLE_HISTORIZING)
+option(UA_ENABLE_FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION "Disable checks for fuzzing" OFF)
+mark_as_advanced(UA_ENABLE_FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
+if (UA_ENABLE_FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
+    add_definitions(-DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
+endif ()
+
+if (UA_ENABLE_EXPERIMENTAL_HISTORIZING)
+    if (NOT UA_ENABLE_HISTORIZING)
         message(FATAL_ERROR "UA_ENABLE_EXPERIMENTAL_HISTORIZING cannot be used with disabled UA_ENABLE_HISTORIZING.")
-    endif()
-endif()
+    endif ()
+endif ()
+
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=undefined -fsanitize=address")
 
 option(UA_BUILD_FUZZING_CORPUS "Build the fuzzing corpus" OFF)
 mark_as_advanced(UA_BUILD_FUZZING_CORPUS)
-if(UA_BUILD_FUZZING_CORPUS)
+if (UA_BUILD_FUZZING_CORPUS)
     add_definitions(-DUA_DEBUG_DUMP_PKGS_FILE)
     set(UA_ENABLE_TYPEDESCRIPTION ON CACHE STRING "" FORCE)
     #set(UA_DEBUG_DUMP_PKGS ON CACHE STRING "" FORCE)
-endif()
+endif ()
 
 option(UA_BUILD_OSS_FUZZ "Special build switch used in oss-fuzz" OFF)
 mark_as_advanced(UA_BUILD_OSS_FUZZ)
@@ -626,7 +653,7 @@ if(NOT UA_FORCE_CPP AND (CMAKE_COMPILER_IS_GNUCC OR "x${CMAKE_C_COMPILER_ID}" ST
         check_add_cc_flag("-fno-unwind-tables")
         check_add_cc_flag("-fno-asynchronous-unwind-tables")
         check_add_cc_flag("-fno-math-errno")
-        check_add_cc_flag("-fno-ident")
+#        check_add_cc_flag("-fno-ident")
 
         # remove stack-protector with MinSizeRel
         if(CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")

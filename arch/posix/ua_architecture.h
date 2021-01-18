@@ -33,6 +33,9 @@
 #include <sys/select.h>
 #include <sys/types.h>
 #include <net/if.h>
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+#define UA_sleep_ms UA_sleep_ms
+#endif
 #ifdef UA_sleep_ms
 void UA_sleep_ms(unsigned long ms);
 #else
@@ -93,9 +96,17 @@ void UA_sleep_ms(unsigned long ms);
 #define UA_recvfrom recvfrom
 #define UA_htonl htonl
 #define UA_ntohl ntohl
+//#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+//#define UA_close(A) 0
+//#else
 #define UA_close close
+//#endif
 #define UA_select select
+//#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+//#define UA_shutdown(A,B) 0
+//#else
 #define UA_shutdown shutdown
+//#endif
 #define UA_socket socket
 #define UA_bind bind
 #define UA_listen listen
